@@ -1,0 +1,263 @@
+import 'package:diveinpuits/home.dart';
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:device_info_plus/device_info_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// Dummy dashboard screen
+
+
+class LoginScreen extends StatefulWidget {
+  @override
+  State<LoginScreen> createState() => _LoginScreenState();
+}
+
+class _LoginScreenState extends State<LoginScreen> {
+  final TextEditingController emailController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+  bool isLoading = false;
+
+  Future<String> getDeviceId() async {
+    final deviceInfo = DeviceInfoPlugin();
+    final androidInfo = await deviceInfo.androidInfo;
+    return androidInfo.id ?? "unknown";
+  }
+
+
+  Future<void> loginUser() async {
+    final String email = emailController.text.trim();
+    final String password = passwordController.text;
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Email and password are required")),
+      );
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+    });
+
+    final deviceId = await getDeviceId();
+    final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/"); // Replace with real API
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({
+          "username": email,
+          "password": password,
+          "device_id": deviceId,
+        }),
+      );
+      print(response.statusCode);
+      final data = jsonDecode(response.body);
+      if (response.statusCode == 200 && data['success'] == true) {
+        final token = data['token'];
+        final user = data['data'];
+        final punchStatus = data['punch'];
+        final breakInStatus = data['break_in'];
+        final userid = data['data']['id'];
+
+        // Example: Store token in SharedPreferences
+ final prefs = await SharedPreferences.getInstance();
+ await prefs.setString('token', token);
+        await prefs.setInt('userid', userid );
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['message'] ?? "Login successful")),
+        );
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainApp()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(data['message'] ?? "Login failed")),
+        );
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  Widget _socialButton({required IconData icon, required String text}) {
+    return SizedBox(
+      width: double.infinity,
+      height: 48,
+      child: OutlinedButton.icon(
+        onPressed: () {},
+        icon: Icon(icon, color: Colors.black),
+        label: Text(text, style: TextStyle(color: Colors.black)),
+        style: OutlinedButton.styleFrom(
+          backgroundColor: Colors.white,
+          side: BorderSide(color: Colors.grey.shade300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+  @override
+  void initState() {
+    super.initState();
+
+
+
+  }
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                },
+                icon: Icon(Icons.arrow_back_ios_new_rounded),
+              ),
+              const SizedBox(height: 10),
+              Text('Log in', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 6),
+              Text('Please enter login credentials to continue.',
+                  style: TextStyle(fontSize: 16, color: Colors.black54)),
+              const SizedBox(height: 28),
+              TextField(
+                controller: emailController,
+                decoration: InputDecoration(
+                  hintText: 'Enter Email',
+                  hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.deepPurpleAccent, width: 1.2),
+                  ),
+                ),
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: passwordController,
+                obscureText: true,
+                decoration: InputDecoration(
+                  hintText: 'Enter Password',
+                  hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 16),
+                  filled: true,
+                  fillColor: Colors.white,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Colors.deepPurpleAccent, width: 1.2),
+                  ),
+                ),
+                style: TextStyle(fontSize: 16),
+              ),
+              const SizedBox(height: 8),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton(
+                  onPressed: () {},
+                  child: Text('Forget Password?'),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  onPressed: isLoading ? null : loginUser,
+                  child: isLoading
+                      ? CircularProgressIndicator(color: Colors.white)
+                      : Text('Log in', style: TextStyle(fontSize: 16)),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Center(
+                child: Text.rich(
+                  TextSpan(
+                    text: 'By logging in, you agree to our ',
+                    children: [
+                      TextSpan(
+                        text: 'Terms of Use.',
+                        style: TextStyle(color: Colors.deepPurple),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(child: Divider(thickness: 0.8)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text('or'),
+                  ),
+                  Expanded(child: Divider(thickness: 0.8)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              _socialButton(icon: Icons.g_mobiledata, text: 'Log in using Google'),
+              const SizedBox(height: 10),
+              _socialButton(icon: Icons.vpn_key, text: 'Log in using SSO'),
+              const SizedBox(height: 20),
+              Center(
+                child: Text.rich(
+                  TextSpan(
+                    text: 'Having trouble logging in? ',
+                    children: [
+                      TextSpan(
+                        text: 'Contact Admin',
+                        style: TextStyle(color: Colors.deepPurple),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
