@@ -41,10 +41,11 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     final deviceId = await getDeviceId();
-    final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/"); // Replace with real API
+    final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/");
 
     try {
-      final response = await http.post(
+      final response = await http
+          .post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
@@ -52,20 +53,19 @@ class _LoginScreenState extends State<LoginScreen> {
           "password": password,
           "device_id": deviceId,
         }),
-      );
-      print(response.statusCode);
+      )
+          .timeout(Duration(seconds: 10)); // avoid hanging if no net
+
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
         final token = data['token'];
-        final user = data['data'];
-        final punchStatus = data['punch'];
-        final breakInStatus = data['break_in'];
         final userid = data['data']['id'];
 
-        // Example: Store token in SharedPreferences
- final prefs = await SharedPreferences.getInstance();
- await prefs.setString('token', token);
-        await prefs.setInt('userid', userid );
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('token', token);
+        await prefs.setInt('userid', userid);
+        await prefs.setString('saved_email', email);
+        await prefs.setString('saved_password', password);
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['message'] ?? "Login successful")),
@@ -81,15 +81,32 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
-      );
+      // If API fails → check offline login
+      final prefs = await SharedPreferences.getInstance();
+      final savedEmail = prefs.getString('saved_email');
+      final savedPassword = prefs.getString('saved_password');
+
+      if (savedEmail == email && savedPassword == password) {
+        // Offline login success
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => MainApp()),
+        );
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Offline login successful")),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("No internet and no saved login found")),
+        );
+      }
     } finally {
       setState(() {
         isLoading = false;
       });
     }
   }
+
 
   Widget _socialButton({required IconData icon, required String text}) {
     return SizedBox(

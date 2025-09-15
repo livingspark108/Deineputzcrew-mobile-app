@@ -11,6 +11,7 @@ import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+import 'db_helper.dart';
 import 'home.dart';
 
   class TaskDetailsScreen extends StatefulWidget {
@@ -398,10 +399,101 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 }
 
 
+/*
+  Future<void> _handlePunchOut(
+      BuildContext context,
+      String taskId,
+      List<File> images,
+      TextEditingController controller,
+      ) async {
+    try {
+      if (images.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select at least one image')),
+        );
+        return;
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Authentication error. Please log in again.')),
+        );
+        return;
+      }
+
+      // Step 1: Get location
+      final position = await Geolocator.getCurrentPosition();
+
+      // Step 2: Prepare request
+      final uri = Uri.parse('https://admin.deineputzcrew.de/api/punch-out/');
+      var request = http.MultipartRequest('POST', uri);
+
+      request.headers['Authorization'] = 'token $token';
+      request.fields.addAll({
+        'task_id': taskId,
+        'lat': position.latitude.toStringAsFixed(6),
+        'long': position.longitude.toStringAsFixed(6),
+        'remark': controller.text.trim(),
+      });
+
+      // Step 3: Attach images
+      for (final image in images) {
+        request.files.add(await http.MultipartFile.fromPath(
+          'images',
+          image.path,
+          filename: basename(image.path),
+        ));
+      }
+
+      // Step 4: Send
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint("Punch-out raw response: ${response.statusCode} ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // Parse safely
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+
+        // ✅ Success → clear prefs
+        await prefs.remove('punchedInTaskId');
+        await prefs.remove('punchInStartTime');
+        await prefs.remove('onBreak');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Punch-out successful')),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => MainApp()),
+              (route) => false,
+        );
+
+        debugPrint("Punch-out details → ${responseData.toString()}");
+      } else {
+        // ❌ Server error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Punch-out failed (${response.statusCode}).")),
+        );
+      }
+    } catch (e) {
+      debugPrint('Punch-out exception: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }
+
+*/
+
 Future<void> _handlePunchOut(
     BuildContext context,
     String taskId,
-    List<File> images,TextEditingController controller
+    List<File> images,
+    TextEditingController controller,
     ) async {
   try {
     if (images.isEmpty) {
@@ -411,102 +503,101 @@ Future<void> _handlePunchOut(
       return;
     }
 
-    // Step 1: Get current location
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+    if (token == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Authentication error. Please log in again.')),
+      );
+      return;
+    }
+
+    // Step 1: Get location
     final position = await Geolocator.getCurrentPosition();
 
-    // Step 2: Prepare API request
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('https://admin.deineputzcrew.de/api/punch-out/'),
-    );
+    // Step 2: Try sending API request
+    final uri = Uri.parse('https://admin.deineputzcrew.de/api/punch-out/');
+    var request = http.MultipartRequest('POST', uri);
 
-    final prefs = await SharedPreferences.getInstance();
-    String? token = prefs.getString('token');
     request.headers['Authorization'] = 'token $token';
+    request.fields.addAll({
+      'task_id': taskId,
+      'lat': position.latitude.toStringAsFixed(6),
+      'long': position.longitude.toStringAsFixed(6),
+      'remark': controller.text.trim(),
+    });
 
-    request.fields['task_id'] = taskId;
-    request.fields['lat'] = position.latitude.toStringAsFixed(4);
-    request.fields['long'] = position.longitude.toStringAsFixed(4);
-    request.fields['remark'] = controller.text;
-
-    // Step 3: Attach images
-    for (int i = 0; i < images.length; i++) {
+    for (final image in images) {
       request.files.add(await http.MultipartFile.fromPath(
         'images',
-        images[i].path,
-        filename: basename(images[i].path),
+        image.path,
+        filename: basename(image.path),
       ));
     }
 
-    // Step 4: Send request
-    final response = await request.send();
-    final responseBody = await http.Response.fromStream(response);
+    try {
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
-    final Map<String, dynamic> responseData = await Future.sync(() {
-      if (responseBody.body.isNotEmpty) {
-        try {
-          return jsonDecode(responseBody.body);
-        } catch (e) {
-          return {'error': 'Invalid response from server'};
-        }
+      debugPrint("Punch-out raw response: ${response.statusCode} ${response.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // ✅ Success → clear prefs
+        await prefs.remove('punchedInTaskId');
+        await prefs.remove('punchInStartTime');
+        await prefs.remove('onBreak');
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Punch-out successful')),
+        );
+
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => MainApp()),
+              (route) => false,
+        );
+        return;
+      } else {
+        throw Exception("Server error: ${response.statusCode}");
       }
-      return {'error': 'Empty response from server'};
-    });
+    } catch (networkError) {
+      // 🌐 Offline or request failed → save locally
+      debugPrint("Network failed, saving Punch-Out offline: $networkError");
 
-    // Step 5: Handle response
-    if (responseData.containsKey('error')) {
-      showDialog(
-        context: context,
-        builder: (_) => AlertDialog(
-          title: const Text('Error'),
-          content: Text(responseData['error'].toString()),
-          actions: [
-            TextButton(
-              onPressed: () async {
-                Navigator.pop(context);
-                await prefs.remove('punchedInTaskId');
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        ),
-      );
-    } else {
-      debugPrint("Punch-out response: $responseData");
+      final db = DBHelper();
+      await db.insertPunchAction({
+        'task_id': taskId,
+        'type': 'punch_out',
+        'lat': position.latitude.toStringAsFixed(6),
+        'long': position.longitude.toStringAsFixed(6),
+        'remark': controller.text.trim(),
+        'image_path': images.first.path, // store first image path (extend if needed)
+        'timestamp': DateTime.now().toIso8601String(),
+        'synced': 0,
+      });
 
-      // 🧹 Step 6: Clear punch-in/timer data
+      // Clear prefs locally as if punched out
       await prefs.remove('punchedInTaskId');
       await prefs.remove('punchInStartTime');
       await prefs.remove('onBreak');
 
-      // Step 7: Notify success
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Punch-out successful')),
+        const SnackBar(content: Text('Punch-out saved offline. Will sync when online.')),
       );
-
-      // ✅ Step 8: Navigate directly to Dashboard and remove history
-
-
-      // Optional debug logs
-      final timestamp = responseData['timestamp'] ?? '';
-      final punchType = responseData['punch_type'] ?? '';
-      final userId = responseData['user']?.toString() ?? '';
 
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (context) => MainApp()),
+        MaterialPageRoute(builder: (_) => MainApp()),
             (route) => false,
       );
-      debugPrint("Timestamp: $timestamp, Punch Type: $punchType, User: $userId");
     }
   } catch (e) {
-    debugPrint('Punch-out failed: $e');
+    debugPrint('Punch-out exception: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: $e')),
     );
   }
 }
-
 
 
 /// Bottom sheet popup

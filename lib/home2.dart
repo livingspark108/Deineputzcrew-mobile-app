@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:diveinpuits/settings.dart';
 import 'package:diveinpuits/task.dart';
 import 'package:diveinpuits/taskdetails.dart';
@@ -18,6 +19,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
+
+import 'db_helper.dart';
+import 'home.dart';
+import 'task_model.dart';
 
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
@@ -69,12 +74,15 @@ class DashboardScreen extends StatefulWidget {
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
+
+
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
 
-  Duration _workingDuration = Duration.zero;
-  DateTime? _punchInTime;
+  static  Duration _workingDuration = Duration.zero;
+  static DateTime? _punchInTime;
+
   bool _isLoadingBreak = false;
   String? punchedInTaskId;
 
@@ -83,74 +91,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<dynamic> tasks = [];
   bool isClockedIn = false;
   bool isClockedOut = true;
-  Timer? _timer;
+  static Timer? _timer;
   bool isOnBreak = false;
   Stopwatch stopwatch = Stopwatch();
   Timer? timer;
 
-  bool _onBreak = false;
-
-  Duration _pausedDuration = Duration.zero; // total break time
-    DateTime? _breakStartTime; // when break started
-
+  static Duration _pausedDuration = Duration.zero;
+  static bool _onBreak = false;
 
 
   @override
   void initState() {
     super.initState();
     loadUserData();
-    _restoreTimerState().then((_) {
-      // Resume the timer only if there is a punched-in task and not on break
-      if (!_onBreak && _punchInTime != null) {
-        startDashboardWorkTimer(isResuming: true);
-      }
-    });
+    // _restoreTimerState();
+    syncOfflineActions();
 
-  }
-  void resumeDashboardWorkTimer() async {
-    if (_punchInTime != null) {
-      _timer?.cancel();
-      _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-        setState(() {
-          _workingDuration = DateTime.now().difference(_punchInTime!) - _pausedDuration;
-        });
-      });
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('onBreak', false);
-      setState(() => _onBreak = false);
-    }
-  }
 
-  void startDashboardWorkTimer({bool isResuming = false}) async {
-    final prefs = await SharedPreferences.getInstance();
 
-    if (!isResuming) {
-      _punchInTime = DateTime.now();
-      _pausedDuration = Duration.zero;
-      await prefs.setString('punchInStartTime', _punchInTime!.toIso8601String());
-      await prefs.setInt('pausedDuration', 0);
-      await prefs.setString('punchedInTaskId', selectedTaskId);
-    }
-
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_punchInTime != null) {
-        setState(() {
-          _workingDuration = DateTime.now().difference(_punchInTime!) - _pausedDuration;
-        });
-      }
-    });
-    setState(() => _onBreak = false);
   }
 
 
-
+  // =========================
+  // RESTORE TIMER STATE
+  // =========================
   Future<void> _restoreTimerState() async {
     final prefs = await SharedPreferences.getInstance();
+
     final storedTaskId = prefs.getString('punchedInTaskId');
     final startTimeStr = prefs.getString('punchInStartTime');
     final pausedDurationMillis = prefs.getInt('pausedDuration') ?? 0;
     final onBreak = prefs.getBool('onBreak') ?? false;
+    final breakDurationMillis = prefs.getInt('breakDuration') ?? 0;
 
     if (storedTaskId != null &&
         storedTaskId.isNotEmpty &&
@@ -162,38 +134,139 @@ class _DashboardScreenState extends State<DashboardScreen> {
         selectedTaskId = storedTaskId;
         _punchInTime = startTime;
         _pausedDuration = Duration(milliseconds: pausedDurationMillis);
-        _workingDuration = DateTime.now().difference(startTime) - _pausedDuration;
         _onBreak = onBreak;
+        isClockedIn = true;
+        isClockedOut = false;
       });
+
+      if (_onBreak) {
+        // ✅ Restore break state
+        _breakDuration = Duration(milliseconds: breakDurationMillis);
+        _breakStartTime = DateTime.now().subtract(_breakDuration);
+
+        _breakTimer?.cancel();
+        _breakTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          setState(() {
+            _breakDuration = DateTime.now().difference(_breakStartTime!);
+          });
+        });
+
+        // ✅ Adjust working duration so it excludes ongoing break
+        _workingDuration = DateTime.now().difference(_punchInTime!) -
+            (_pausedDuration + _breakDuration);
+      } else {
+        // ✅ Resume work timer
+        _workingDuration =
+            DateTime.now().difference(_punchInTime!) - _pausedDuration;
+
+        _timer?.cancel();
+        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+          setState(() {
+            _workingDuration =
+                DateTime.now().difference(_punchInTime!) - _pausedDuration;
+            if (_workingDuration.isNegative) {
+              _workingDuration = Duration.zero;
+            }
+          });
+        });
+      }
     } else {
-      // Reset
+      // Reset state if nothing found
       setState(() {
+        selectedTaskId = "";
         _punchInTime = null;
         _workingDuration = Duration.zero;
         _pausedDuration = Duration.zero;
+        _breakDuration = Duration.zero;
         _onBreak = false;
-        selectedTaskId = "";
+        isClockedIn = false;
+        isClockedOut = true;
       });
     }
   }
 
-  void pauseDashboardWorkTimer() async {
-    if (_punchInTime != null) {
-      _timer?.cancel();
-      _pausedDuration += DateTime.now().difference(_punchInTime!);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt('pausedDuration', _pausedDuration.inMilliseconds);
-      await prefs.setBool('onBreak', true);
-      setState(() => _onBreak = true);
+// -------------------- START WORK TIMER --------------------
+  static void startDashboardWorkTimer({bool isResuming = false}) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (!isResuming) {
+      _punchInTime = DateTime.now();
+      _pausedDuration = Duration.zero;
+      await prefs.setString('punchInStartTime', _punchInTime!.toIso8601String());
+      await prefs.setInt('pausedDuration', 0);
+      await prefs.setBool('onBreak', false);
     }
-  }
 
-
-  void stopTimer() {
     _timer?.cancel();
-    _timer = null;
-    _workingDuration = Duration.zero;
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!_onBreak && _punchInTime != null) {
+        _workingDuration =
+            DateTime.now().difference(_punchInTime!) - _pausedDuration;
+        print("Working Duration: $_workingDuration");
+      }
+    });
   }
+
+// -------------------- PAUSE WORK (BREAK IN) --------------------
+  void pauseDashboardWorkTimer() async {
+    _timer?.cancel();
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onBreak', true);
+
+    // Start break timer fresh
+    _breakDuration = Duration.zero;
+    _breakStartTime = DateTime.now();
+
+    _breakTimer?.cancel();
+    _breakTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      setState(() {
+        _breakDuration = DateTime.now().difference(_breakStartTime!);
+      });
+    });
+
+    setState(() => _onBreak = true);
+  }
+
+// -------------------- RESUME WORK (BREAK OUT) --------------------
+  void resumeDashboardWorkTimer() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('onBreak', false);
+
+    if (_breakStartTime != null) {
+      // ✅ Add break duration into paused duration
+      final breakElapsed = DateTime.now().difference(_breakStartTime!);
+      _pausedDuration += breakElapsed;
+      _breakStartTime = null;
+    }
+
+    _breakTimer?.cancel();
+    _breakDuration = Duration.zero;
+    await prefs.setInt('breakDuration', 0);
+
+    // Save updated paused duration
+    await prefs.setInt('pausedDuration', _pausedDuration.inMilliseconds);
+
+    setState(() => _onBreak = false);
+
+    // Resume work timer
+    _timer?.cancel();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_punchInTime != null) {
+        setState(() {
+          _workingDuration =
+              DateTime.now().difference(_punchInTime!) - _pausedDuration;
+          if (_workingDuration.isNegative) {
+            _workingDuration = Duration.zero; // safety check
+          }
+        });
+      }
+    });
+  }
+
+
+
+
 
   Future<void> loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
@@ -204,12 +277,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   List<Task> taskList = [];
   List<Task> allTasks = [];
+  Duration _breakDuration = Duration.zero;
+  DateTime? _breakStartTime;
+  Timer? _breakTimer;
 
 
-  Future<void> fetchTasks() async {
+  /* Future<void> fetchTasks() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? "";
+
     final response = await http.post(
       Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
-      headers: {'Content-Type': 'application/json'},
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'token $token', // 🔑 add token here
+      },
       body: jsonEncode({"id": userId}),
     );
 
@@ -217,10 +299,149 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (data['success']) {
       setState(() {
         allTasks = List<Task>.from(data['task'].map((t) => Task.fromJson(t)));
-        taskList = List.from(allTasks);  // Initialize visible list to all tasks
+        taskList = List.from(allTasks);
+
+        _restoreTimerState(); // Initialize visible list to all tasks
       });
+    } else {
+      // handle unauthorized or failed response
+
+    }
+  }*/
+
+
+  Future<void> fetchTasks() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? "";
+
+    if (connectivityResult != ConnectivityResult.none) {
+      // ✅ Online
+      final response = await http.post(
+        Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'token $token',
+        },
+        body: jsonEncode({"id": userId}),
+      );
+
+      final data = jsonDecode(response.body);
+
+      if (data['success']) {
+        // ✅ Extract from "task_by_date" -> first element -> "tasks"
+        final List<dynamic> taskByDate = data['task_by_date'] ?? [];
+        final List<dynamic> jsonTasks =
+        taskByDate.isNotEmpty ? taskByDate[0]['tasks'] ?? [] : [];
+
+        final tasks = jsonTasks.map((t) => Task.fromJson(t)).toList();
+
+        setState(() {
+          allTasks = tasks;
+          taskList = List.from(allTasks);
+        });
+        _restoreTimerState();
+        // Save offline
+        await DBHelper().clearTasks();
+        for (var taskk in tasks) {
+          await DBHelper().insertTask(taskk.toMap());
+        }
+      }
+    } else {
+      // ❌ Offline → load from SQLite
+      final offlineTasks = await DBHelper().getTasks();
+      setState(() {
+        allTasks = offlineTasks.map((t) => Task.fromJson(t)).toList();
+        taskList = List.from(allTasks);
+      });
+      _restoreTimerState();
+    }
+
+
+  }
+
+
+  Future<void> syncOfflineActions() async {
+    final connectivityResult = await Connectivity().checkConnectivity();
+    if (connectivityResult == ConnectivityResult.none) {
+      debugPrint("📴 No internet, skipping sync");
+      return;
+    }
+
+    final pending = await DBHelper().getPunchActions();
+
+    for (var action in pending) {
+      try {
+        final type = action['type']; // punch-in / punch-out / break_in / break_out
+        String endpoint = "";
+
+        // Map DB type to API endpoint
+        switch (type) {
+          case "punch-in":
+            endpoint = "punch-in";
+            break;
+          case "punch-out":
+            endpoint = "punch-out";
+            break;
+          case "break_in":
+            endpoint = "break-in";
+            break;
+          case "break_out":
+            endpoint = "break-out";
+            break;
+          default:
+            debugPrint("⚠️ Unknown action type: $type");
+            continue;
+        }
+
+        final uri = Uri.parse("https://admin.deineputzcrew.de/api/$endpoint/");
+        var request = http.MultipartRequest("POST", uri);
+
+        final prefs = await SharedPreferences.getInstance();
+        String? token = prefs.getString("token");
+        if (token != null) {
+          request.headers["Authorization"] = "token $token";
+        }
+
+        // Common fields
+        request.fields["task_id"] = action["task_id"] ?? "";
+        request.fields["lat"] = action["lat"] ?? "";
+        request.fields["long"] = action["long"] ?? "";
+        request.fields["timestamp"] = action["timestamp"] ?? "";
+
+        // Optional: remark for punch-out
+        if (action.containsKey("remark") && action["remark"] != null) {
+          request.fields["remark"] = action["remark"];
+        }
+
+        // Optional: attach image (punch only, not break)
+        if (action["image_path"] != null &&
+            action["image_path"].toString().isNotEmpty) {
+          request.files.add(await http.MultipartFile.fromPath(
+            "images",
+            action["image_path"],
+            filename: basename(action["image_path"]),
+          ));
+        }
+
+        // Send to API
+        final response = await request.send();
+        final resBody = await http.Response.fromStream(response);
+        debugPrint("📡 Sync response ($type): ${resBody.statusCode} ${resBody.body}");
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          await DBHelper().deletePunchAction(action["id"]);
+          debugPrint("✅ Synced action: ${action['id']} ($type)");
+        } else {
+          debugPrint("❌ Failed sync ($type): ${resBody.body}");
+        }
+      } catch (e) {
+        debugPrint("❌ Sync error: $e");
+      }
     }
   }
+
+
 
   Future<Position> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -246,84 +467,491 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
 
+
+  /*Future<bool> callBreakInApi(String taskId, BuildContext context) async {
+    try {
+      final position = await _getCurrentLocation();
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Authentication error. Please log in again.")),
+        );
+        return false;
+      }
+
+      final uri = Uri.parse('https://admin.deineputzcrew.de/api/break-in/');
+      final response = await http.post(
+        Uri.parse('https://admin.deineputzcrew.de/api/break-in/'),
+        headers: {
+          'Authorization': 'token $token',  // must be lowercase 'token'
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "task_id": taskId,                // should be a string UUID
+          "lat": position.latitude.toStringAsFixed(4),         // number
+          "long": position.longitude.toStringAsFixed(4),       // number
+        }),
+      );
+print(response.body);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await prefs.setBool('onBreak', true);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Break In Successful.")),
+        );
+
+        return true;
+      } else {
+        await prefs.setBool('onBreak', true);
+        print('Break-in failed: ${response.statusCode} ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Break In failed (${response.statusCode}).")),
+        );
+        return true;
+      }
+    } catch (e) {
+      print("Break-in error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Break In error: $e")),
+      );
+      return false;
+    }
+  }*/
+  /*Future<bool> callBreakOutApi(String taskId,BuildContext context) async {
+    try {
+      final position = await _getCurrentLocation();
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Authentication error. Please log in again.")),
+        );
+        return false;
+      }
+
+      final uri = Uri.parse('https://admin.deineputzcrew.de/api/break-out/');
+      final response = await http.post(
+        uri,
+        headers: {
+          'Authorization': 'token $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "task_id": taskId,
+          "lat": position.latitude.toStringAsFixed(6),
+          "long": position.longitude.toStringAsFixed(6),
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await prefs.setBool('onBreak', false);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Break In Successful.")),
+        );
+
+        return true;
+      } else {
+        print('Break-out failed: ${response.statusCode} ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Break In failed (${response.statusCode}).")),
+        );
+        return false;
+      }
+    } catch (e) {
+      print("Break-in error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Break In error: $e")),
+      );
+      return false;
+    }// Or false if failed
+  }*/
   Future<bool> callBreakInApi(String taskId, BuildContext context) async {
     try {
-      // When starting break
-
-
-// When ending break
-
       final position = await _getCurrentLocation();
-
-      var uri = Uri.parse('https://admin.deineputzcrew.de/api/break-in/');
-      var request = http.MultipartRequest('POST', uri);
       final prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      request.headers['Authorization'] = 'token $token';
-      request.fields['task_id'] = taskId;
-      request.fields['lat'] = position.latitude.toString();
-      request.fields['long'] = position.longitude.toString();
-
-      // No image is added since you want image to be blank
-      // If needed, leave it as is or comment out
-      // request.files.add(await http.MultipartFile.fromPath('images', ''));
-
-      var response = await request.send();
-
-      if (response.statusCode == 200||response.statusCode == 201) {
+      if (token == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Break In Successful.")),
+          const SnackBar(content: Text("Authentication error. Please log in again.")),
         );
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setBool('onBreak', true);
-        await Future.delayed(Duration(seconds: 1)); // Simulate delay
+        return false;
+      }
 
+      final connectivityResult = await Connectivity().checkConnectivity();
+
+      if (connectivityResult == ConnectivityResult.none) {
+        // ❌ Offline → Save locally
+        await DBHelper().insertPunchAction({
+          'task_id': taskId,
+          'type': 'break_in',
+          'lat': position.latitude.toStringAsFixed(6),
+          'long': position.longitude.toStringAsFixed(6),
+          'image_path': '', // optional for break
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+
+        await prefs.setBool('onBreak', true);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Break-In saved offline. Will sync later.")),
+        );
+        return true;
+      }
+
+      // ✅ Online → Call API
+      final response = await http.post(
+        Uri.parse('https://admin.deineputzcrew.de/api/break-in/'),
+        headers: {
+          'Authorization': 'token $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "task_id": taskId,
+          "lat": position.latitude.toStringAsFixed(6),
+          "long": position.longitude.toStringAsFixed(6),
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await prefs.setBool('onBreak', true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("✅ Break-In successful.")),
+        );
+        return true;
       } else {
-        print('Break-in failed: ${response.statusCode}');
+        print('Break-in failed: ${response.statusCode} ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Break-In failed (${response.statusCode}).")),
+        );
+        return false;
       }
     } catch (e) {
       print("Break-in error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+      return false;
     }
-    return true;
   }
-  Future<bool> callBreakOutApi(String taskId,BuildContext context) async {
+  Future<bool> callBreakOutApi(String taskId, BuildContext context) async {
     try {
       final position = await _getCurrentLocation();
-
-      var uri = Uri.parse('https://admin.deineputzcrew.de/api/break-in/');
-      var request = http.MultipartRequest('POST', uri);
-
       final prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      request.headers['Authorization'] = 'token $token';
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Authentication error. Please log in again.")),
+        );
+        return false;
+      }
 
+      final connectivityResult = await Connectivity().checkConnectivity();
 
-      request.fields['task_id'] = taskId;
-      request.fields['lat'] = position.latitude.toString();
-      request.fields['long'] = position.longitude.toString();
+      if (connectivityResult == ConnectivityResult.none) {
+        // ❌ Offline → Save locally
+        await DBHelper().insertPunchAction({
+          'task_id': taskId,
+          'type': 'break_out',
+          'lat': position.latitude.toStringAsFixed(6),
+          'long': position.longitude.toStringAsFixed(6),
+          'image_path': '',
+          'timestamp': DateTime.now().toIso8601String(),
+        });
 
-      // No image is added since you want image to be blank
-      // If needed, leave it as is or comment out
-      // request.files.add(await http.MultipartFile.fromPath('images', ''));
+        await prefs.setBool('onBreak', false);
 
-      var response = await request.send();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Break-Out saved offline. Will sync later.")),
+        );
+        return true;
+      }
 
-      if (response.statusCode == 200||response.statusCode == 201) {
-        final prefs = await SharedPreferences.getInstance();
+      // ✅ Online → Call API
+      final response = await http.post(
+        Uri.parse('https://admin.deineputzcrew.de/api/break-out/'),
+        headers: {
+          'Authorization': 'token $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode({
+          "task_id": taskId,
+          "lat": position.latitude.toStringAsFixed(6),
+          "long": position.longitude.toStringAsFixed(6),
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setBool('onBreak', false);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Break In Successful.")),
+          const SnackBar(content: Text("✅ Break-Out successful.")),
         );
+        return true;
       } else {
-        print('Break-in failed: ${response.statusCode}');
+        print('Break-out failed: ${response.statusCode} ${response.body}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("❌ Break-Out failed (${response.statusCode}).")),
+        );
+        return false;
       }
     } catch (e) {
-      print("Break-in error: $e");
+      print("Break-out error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+      return false;
     }
-    await Future.delayed(Duration(seconds: 1)); // Simulate delay
-    return true; // Or false if failed
+  }
+
+  void stopTimer() {
+    _timer?.cancel();
+    _timer = null;
+    _workingDuration = Duration.zero;
+  }
+  Widget buildTimerCard(BuildContext context, String date) {
+    // Get selected task safely from allTasks
+    final Duration currentDuration = _onBreak ? _breakDuration : _workingDuration;
+
+    final Task selectedTask = allTasks.firstWhere(
+          (task) => task.id == selectedTaskId,
+      orElse: () => Task(
+        id: 'N/A',
+        taskName: 'No Task Selected',
+        startTime: '',
+        endTime: '',
+        locationName: '',
+        priority: '',
+        status: '',
+        punchIn: false,
+        punchOut: false,
+        breakIn: false,
+        breakOut: false,
+          day: "",
+          date:""
+      ),
+    );
+
+    // Reset timer if no task selected
+    if (selectedTask.id == 'N/A') {
+      setState(() {
+        _timer?.cancel();
+        _workingDuration = Duration.zero;
+        _pausedDuration = Duration.zero;   // also reset paused duration
+        _breakDuration = Duration.zero;    // also reset break duration
+        _onBreak = false;
+      });
+    }
+
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 12,
+            offset: const Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Date Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                date,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: 'Poppins',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Timer Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              _TimerDigit(
+                value: currentDuration.inHours.toString().padLeft(2, '0'),
+                label: 'Hrs',
+                color: Colors.blue,
+              ),
+              const SizedBox(width: 6),
+              _TimerDigit(
+                value: (currentDuration.inMinutes % 60).toString().padLeft(2, '0'),
+                label: 'Mins',
+                color: Colors.purple,
+              ),
+              const SizedBox(width: 6),
+              _TimerDigit(
+                value: (currentDuration.inSeconds % 60).toString().padLeft(2, '0'),
+                label: 'Secs',
+                color: Colors.pink,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Task info
+          ListTile(
+            contentPadding: EdgeInsets.zero,
+            title: Text(
+              selectedTask.taskName,
+              style: const TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Poppins',
+              ),
+            ),
+            subtitle: Text(
+              selectedTask.locationName.isNotEmpty
+                  ? selectedTask.locationName
+                  : 'No Task Selected',
+              style: const TextStyle(fontFamily: 'Poppins'),
+            ),
+            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+          ),
+          const SizedBox(height: 12),
+
+          // Clock In / Clock Out Buttons
+
+
+
+
+          // Break + Clock Out Row
+          Row(
+            children: [
+              // Break button
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    if (selectedTaskId == null || selectedTaskId!.isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Please select a task before starting a break.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    setState(() => _isLoadingBreak = true);
+                    final prefs = await SharedPreferences.getInstance();
+
+                    if (_onBreak) {
+                      // ✅ Break OUT
+                      bool success = await callBreakOutApi(selectedTaskId!, context);
+                      if (success) {
+                        resumeDashboardWorkTimer();
+                      }
+                    } else {
+                      // ✅ Break IN
+                      bool success = await callBreakInApi(selectedTaskId!, context);
+                      if (success) {
+                        pauseDashboardWorkTimer();
+                        await prefs.setBool('onBreak', true);
+                      }
+                    }
+
+                    setState(() => _isLoadingBreak = false);
+                  },
+                  icon: _isLoadingBreak
+                      ? const SizedBox(
+                    height: 18,
+                    width: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                      : Icon(
+                    Icons.free_breakfast,
+                    color: _onBreak ? Colors.green : Colors.orange,
+                  ),
+                  label: Text(
+                    _onBreak ? 'End Break' : 'Go for Break',
+                    style: TextStyle(
+                      fontFamily: 'Poppins',
+                      color: _onBreak ? Colors.green : Colors.orange,
+                    ),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    side: BorderSide(color: _onBreak ? Colors.green : Colors.orange),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+
+
+              const SizedBox(width: 12),
+
+              // Clock Out button
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    Task? punchedInTask;
+                    try {
+                      punchedInTask =
+                          allTasks.firstWhere((task) => task.id == selectedTaskId);
+                    } catch (e) {
+                      punchedInTask = null;
+                    }
+
+                    if (punchedInTask != null) {
+                      final totalDuration = _workingDuration; // Already contains accumulated work time
+
+                      final bool? punchedOut = await Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => TaskDetailsScreen(
+                            title: punchedInTask!.taskName,
+                            time: punchedInTask.timeRange,
+                            location: punchedInTask.locationName,
+                            duration: formatDuration(totalDuration), // pass total work duration
+                            highPriority: punchedInTask.priority,
+                            completed: punchedInTask.status,
+                            taskId: punchedInTask.id,
+                          ),
+                        ),
+                      );
+
+                      if (punchedOut == true) {
+                        stopTimer(); // stops both work and break timers
+                      }
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text("No punched-in task found.")),
+                      );
+                    }
+
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.red,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text(
+                    'Clock Out',
+                    style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
   @override
   Widget build(BuildContext context) {
@@ -346,7 +974,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             const SizedBox(height: 18),
             buildTimerCard(context,date),
             const SizedBox(height: 28),
-            _buildTaskHeader(),
+            _buildTaskHeader(context),
             const SizedBox(height: 14),
             _buildTaskList(),
           ],
@@ -356,275 +984,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
 
-  Widget buildTimerCard(BuildContext context, String date) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        // Get selected task safely from allTasks
-        final Task selectedTask = allTasks.firstWhere(
-              (task) => task.id == selectedTaskId,
-          orElse: () => Task(
-            id: 'N/A',
-            taskName: 'No Task Selected',
-            startTime: '',
-            endTime: '',
-            locationName: '',
-            priority: '',
-            status: '',
-            punchIn: false,
-            punchOut: false,
-            breakIn: false,
-            breakOut: false,
-          ),
-        );
 
-        // Reset timer if no task selected
-        if (selectedTask.id == 'N/A') {
-          setState(() {
-            _timer?.cancel();
-            _workingDuration = Duration.zero;
-            _pausedDuration = Duration.zero;   // also reset paused duration
-                // also reset break duration
-            _onBreak = false;
-          });
-        }
-
-
-        return Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 12,
-                offset: const Offset(0, 5),
-              )
-            ],
-          ),
-          child: Column(
-            children: [
-              // Date Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    date,
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      fontFamily: 'Poppins',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Timer Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  _TimerDigit(
-                      value: _workingDuration.inHours.toString().padLeft(2, '0'),
-                      label: 'Hrs',
-                      color: Colors.blue),
-                  const SizedBox(width: 6),
-                  _TimerDigit(
-                      value: (_workingDuration.inMinutes % 60)
-                          .toString()
-                          .padLeft(2, '0'),
-                      label: 'Mins',
-                      color: Colors.purple),
-                  const SizedBox(width: 6),
-                  _TimerDigit(
-                      value: (_workingDuration.inSeconds % 60)
-                          .toString()
-                          .padLeft(2, '0'),
-                      label: 'Secs',
-                      color: Colors.pink),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Task info
-              ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(
-                  selectedTask.taskName,
-                  style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.bold,
-                    fontFamily: 'Poppins',
-                  ),
-                ),
-                subtitle: Text(
-                  selectedTask.locationName.isNotEmpty
-                      ? selectedTask.locationName
-                      : 'No Task Selected',
-                  style: const TextStyle(fontFamily: 'Poppins'),
-                ),
-                trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-              ),
-              const SizedBox(height: 12),
-
-              // Clock In / Clock Out Buttons
-              Visibility(
-                visible: isClockedIn,
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      setState(() {
-                        isClockedIn = false;
-                        isClockedOut = true;
-                      });
-                    },
-                    icon: const Icon(Icons.access_time),
-                    label: const Text('Clock In',
-                        style: TextStyle(fontFamily: 'Poppins')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 12),
-
-              // Break + Clock Out Row
-              Row(
-                children: [
-                  // Break button
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        if (selectedTaskId == null || selectedTaskId!.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                                content:
-                                Text('Please select a task before starting a break.')),
-                          );
-                          return;
-                        }
-
-                        setState(() => _isLoadingBreak = true);
-                        final prefs = await SharedPreferences.getInstance();
-
-                        if (_onBreak) {
-                          // Break OUT
-                          bool success =
-                          await callBreakOutApi(selectedTaskId, context);
-                          if (success) {
-                            resumeDashboardWorkTimer();
-                            await prefs.setBool('onBreak', false);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Break ended. Timer resumed.')),
-                            );
-                          }
-                        } else {
-                          // Break IN
-                          pauseDashboardWorkTimer();
-                          bool success =
-                          await callBreakInApi(selectedTaskId, context);
-                          if (success) {
-                            await prefs.setBool('onBreak', true);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Break started. Timer paused.')),
-                            );
-                          }
-                        }
-
-                        setState(() => _isLoadingBreak = false);
-                      },
-                      icon: _isLoadingBreak
-                          ? const SizedBox(
-                        height: 18,
-                        width: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                          : Icon(
-                        Icons.free_breakfast,
-                        color: _onBreak ? Colors.green : Colors.orange,
-                      ),
-                      label: Text(
-                        _onBreak ? 'End Break' : 'Go for Break',
-                        style: TextStyle(
-                          fontFamily: 'Poppins',
-                          color: _onBreak ? Colors.green : Colors.orange,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(color: _onBreak ? Colors.green : Colors.orange),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(width: 12),
-
-                  // Clock Out button
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        Task? punchedInTask;
-                        try {
-                          punchedInTask =
-                              allTasks.firstWhere((task) => task.id == selectedTaskId);
-                        } catch (e) {
-                          punchedInTask = null;
-                        }
-
-                        if (punchedInTask != null) {
-                          final bool? punchedOut = await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => TaskDetailsScreen(
-                                title: punchedInTask!.taskName,
-                                time: punchedInTask.timeRange,
-                                location: punchedInTask.locationName,
-                                duration: punchedInTask.duration,
-                                highPriority: punchedInTask.priority,
-                                completed: punchedInTask.status,
-                                taskId: punchedInTask.id,
-                              ),
-                            ),
-                          );
-
-                          if (punchedOut == true) stopTimer();
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("No punched-in task found.")),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.red,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12)),
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                      ),
-                      child: const Text(
-                        'Clock Out',
-                        style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -640,6 +1000,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  String formatDuration(Duration d) {
+    final hours = d.inHours.toString().padLeft(2, '0');
+    final minutes = (d.inMinutes % 60).toString().padLeft(2, '0');
+    final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds';
+  }
 
   Widget _buildSearchBar() {
     return TextField(
@@ -655,7 +1021,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
 
-  Widget _buildTaskHeader() {
+  Widget _buildTaskHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -665,7 +1031,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 fontSize: 18,
                 fontFamily: 'Poppins')),
         TextButton(
-          onPressed: () {},
+          onPressed: () {
+
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => AllTasksScreen()),
+            );
+
+          },
           child: const Text('View all',
               style: TextStyle(fontFamily: 'Poppins', color: Colors.blue)),
         )
@@ -715,6 +1088,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               // ✅ Allow selecting if it's the active punched-in task
               setState(() {
                 selectedTaskId = id;
+
+                if(task.punchIn==true){
+                  startDashboardWorkTimer();
+
+                }
               });
             },
 
@@ -722,7 +1100,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             onPunchIn: () async {
               setState(() {
                 selectedTaskId = task.id; // Select the task
-                 // Mark as punched in
+                // Mark as punched in
               });
 
 
@@ -819,14 +1197,14 @@ class TaskCard extends StatefulWidget {
   final String highPriority;
   final String completed;
   final bool punchIn;
-   String selectedTaskId;
+  String selectedTaskId;
   String punchedInTaskId;
   final Function(String) onTaskSelected;
   final VoidCallback onPunchIn;
   final VoidCallback onPunchStart;
   final List<Task> taskList;
 
-   TaskCard({
+  TaskCard({
     super.key,
     required this.taskId,
     required this.title,
@@ -837,11 +1215,11 @@ class TaskCard extends StatefulWidget {
     required this.completed,
     required this.punchIn,
     required this.selectedTaskId,
-     required this.punchedInTaskId,
+    required this.punchedInTaskId,
     required this.onTaskSelected,
     required this.onPunchIn,
     required this.onPunchStart,
-     required this.taskList,
+    required this.taskList,
   });
 
   @override
@@ -874,6 +1252,100 @@ class _TaskCardState extends State<TaskCard> {
     return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
   }
+/* Future<void> _handlePunchIn(BuildContext context) async {
+    try {
+      widget.onPunchStart();
+
+      // Show loading
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      // Take photo
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      if (image == null) {
+        Navigator.pop(context);
+        return;
+      }
+
+      // Get location
+      final position = await _getCurrentLocation();
+
+      // Check internet
+      final connectivityResult = await Connectivity().checkConnectivity();
+
+      if (connectivityResult == ConnectivityResult.none) {
+        // ❌ Offline → Save in SQLite
+        await DBHelper().insertPunchAction({
+          'task_id': widget.taskId,
+          'type': 'punch-in',
+          'lat': position.latitude.toStringAsFixed(4),
+          'long': position.longitude.toStringAsFixed(4),
+          'image_path': image.path,
+          'timestamp': DateTime.now().toIso8601String(),
+        });
+
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Punch saved offline. Will sync later.')),
+        );
+
+         widget.onPunchIn();
+        setState(() {
+          widget.punchedInTaskId = widget.taskId;
+          widget.onTaskSelected(widget.taskId);
+        });
+
+        setState(() {
+          isSelected = true;
+        });
+        return;
+      }
+
+      // ✅ Online → Send API directly
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+      );
+
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      request.headers['Authorization'] = 'token $token';
+      request.fields['task_id'] = widget.taskId;
+      request.fields['lat'] = position.latitude.toStringAsFixed(4);
+      request.fields['long'] = position.longitude.toStringAsFixed(4);
+
+      request.files.add(await http.MultipartFile.fromPath(
+        'images',
+        image.path,
+        filename: basename(image.path),
+      ));
+
+      final response = await request.send();
+      final responseBody = await http.Response.fromStream(response);
+
+
+      final Map<String, dynamic> responseData = jsonDecode(responseBody.body);
+
+      if (response.statusCode == 200 && responseData['success'] == true) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Punch-in successful')),
+        );
+        widget.onPunchIn();
+      } else {
+        throw Exception("Server error: ${responseBody.body}");
+      }
+    } catch (e) {
+      Navigator.pop(context);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
+    }
+  }*/
 
 
   Future<void> _handlePunchIn(BuildContext context) async {
@@ -949,7 +1421,8 @@ class _TaskCardState extends State<TaskCard> {
             ],
           ),
         );
-      } else {
+      }
+      else {
         debugPrint("Punch-in response: $responseData");
 
         setState(() {
@@ -963,6 +1436,7 @@ class _TaskCardState extends State<TaskCard> {
         widget.onPunchIn();
         setState(() {
           widget.punchedInTaskId = widget.taskId;
+          widget.onTaskSelected(widget.taskId);
         });
         final timestamp = responseData['timestamp'] ?? '';
         final punchType = responseData['punch_type'] ?? '';
@@ -1014,11 +1488,18 @@ class _TaskCardState extends State<TaskCard> {
           );
           return;
         }
+        else{
 
+          if (!isCurrentPunchedIn) {
+            await prefs.remove('punchedInTaskId');
+            storedPunchedInTaskId = "";
+          }
+
+        }
         // ✅ If no task is punched in → punch this one in
         if (storedPunchedInTaskId.isEmpty) {
           await _handlePunchIn(context); // your punch-in function
-          widget.onTaskSelected(widget.taskId);
+
           return;
         }
 
@@ -1033,6 +1514,7 @@ class _TaskCardState extends State<TaskCard> {
           );
 
           final String taskName = punchedInTask?.taskName ?? 'another task';
+
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1081,181 +1563,122 @@ class _TaskCardState extends State<TaskCard> {
               ? Border.all(color: Colors.blueAccent, width: 1.5)
               : null,
         ),        child: Row(
-          children: [
-            Icon(
-              isCompleted ? Icons.check_circle : Icons.circle_outlined,
-              color: isCompleted ? Colors.green : Colors.grey.shade400,
-              size: 28,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Flexible(
+        children: [
+          Icon(
+            isCompleted ? Icons.check_circle : Icons.circle_outlined,
+            color: isCompleted ? Colors.green : Colors.grey.shade400,
+            size: 28,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.title,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          fontFamily: 'Poppins',
+                        ),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (isHigh)
+                      Container(
+                        margin: const EdgeInsets.only(left: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                         child: Text(
-                          widget.title,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                          'High',
+                          style: TextStyle(
+                            color: Colors.red.shade600,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
                             fontFamily: 'Poppins',
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      if (isHigh)
-                        Container(
-                          margin: const EdgeInsets.only(left: 6),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.red.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'High',
-                            style: TextStyle(
-                              color: Colors.red.shade600,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: 'Poppins',
-                            ),
+                    if (widget.punchIn && widget.completed!='completed')
+                      Container(
+                        margin: const EdgeInsets.only(left: 6),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          'Punched In',
+                          style: TextStyle(
+                            color: Colors.green.shade700,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                            fontFamily: 'Poppins',
                           ),
                         ),
-                      if (widget.punchIn)
-                        Container(
-                          margin: const EdgeInsets.only(left: 6),
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.green.shade100,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            'Punched In',
-                            style: TextStyle(
-                              color: Colors.green.shade700,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
-                              fontFamily: 'Poppins',
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.schedule,
-                          size: 14, color: Colors.orange),
-                      const SizedBox(width: 4),
-                      Text(
-                        widget.time,
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(Icons.schedule,
+                        size: 14, color: Colors.orange),
+                    const SizedBox(width: 4),
+                    Text(
+                      widget.time,
+                      style: const TextStyle(
+                          fontSize: 13, fontFamily: 'Poppins'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    const Icon(Icons.location_on,
+                        size: 14, color: Colors.blue),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: Text(
+                        widget.location,
                         style: const TextStyle(
                             fontSize: 13, fontFamily: 'Poppins'),
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on,
-                          size: 14, color: Colors.blue),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          widget.location,
-                          style: const TextStyle(
-                              fontSize: 13, fontFamily: 'Poppins'),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Row(
-              children: [
-                const Icon(Icons.access_time,
-                    size: 16, color: Colors.black54),
-                const SizedBox(width: 4),
-                Text(
-                  widget. duration,
-                  style:
-                  const TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+                    ),
+                  ],
                 ),
               ],
-            )
-          ],
-        ),
+            ),
+          ),
+          Row(
+            children: [
+              const Icon(Icons.access_time,
+                  size: 16, color: Colors.black54),
+              const SizedBox(width: 4),
+              Text(
+                widget. duration,
+                style:
+                const TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+              ),
+            ],
+          )
+        ],
+      ),
       ),
     );
   }
 }
 
-class Task {
-  final String id;
-  final String taskName;
-  final String startTime;
-  final String endTime;
-  final String locationName;
-  final String priority;
-  final String status;
-  final bool punchIn;
-  final bool punchOut;
-  final bool breakIn;
-  final bool breakOut;
 
-  Task({
-    required this.id,
-    required this.taskName,
-    required this.startTime,
-    required this.endTime,
-    required this.locationName,
-    required this.priority,
-    required this.status,
-    required this.punchIn,
-    required this.punchOut,
-    required this.breakIn,
-    required this.breakOut,
-  });
-
-  factory Task.fromJson(Map<String, dynamic> json) {
-    return Task(
-      id: json['id'],
-      taskName: json['task_name'],
-      startTime: json['start_time'],
-      endTime: json['end_time'],
-      locationName: json['location_name'],
-      priority: json['priority'],
-      status: json['status'],
-      punchIn: json['punch_in'],
-      punchOut: json['punch_out'],
-      breakIn: json['break_in'],
-      breakOut: json['break_out'],
-    );
-  }
-
-  String get duration {
-    final start = DateTime.tryParse("2000-01-01 $startTime");
-    final end = DateTime.tryParse("2000-01-01 $endTime");
-    if (start != null && end != null) {
-      final diff = end.difference(start);
-      final hours = diff.inHours;
-      final minutes = diff.inMinutes % 60;
-      return '${hours}h ${minutes}m';
-    }
-    return '0h 0m';
-  }
-
-  String get timeRange => "$startTime - $endTime";
-
-  bool get isHighPriority => priority.toLowerCase() == 'high';
-  bool get isCompleted => status.toLowerCase() == 'completed';
-}
 
 class PunchResponse {
   final String? error;
