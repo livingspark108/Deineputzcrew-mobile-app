@@ -143,12 +143,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                icon: Icon(Icons.arrow_back_ios_new_rounded),
-              ),
+
               const SizedBox(height: 10),
               Text('Log in', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
@@ -204,13 +199,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
-              Align(
-                alignment: Alignment.centerRight,
-                child: TextButton(
-                  onPressed: () {},
-                  child: Text('Forget Password?'),
-                ),
-              ),
+
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
@@ -229,48 +218,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              Center(
-                child: Text.rich(
-                  TextSpan(
-                    text: 'By logging in, you agree to our ',
-                    children: [
-                      TextSpan(
-                        text: 'Terms of Use.',
-                        style: TextStyle(color: Colors.deepPurple),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Expanded(child: Divider(thickness: 0.8)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: Text('or'),
-                  ),
-                  Expanded(child: Divider(thickness: 0.8)),
-                ],
-              ),
-              const SizedBox(height: 16),
-              _socialButton(icon: Icons.g_mobiledata, text: 'Log in using Google'),
-              const SizedBox(height: 10),
-              _socialButton(icon: Icons.vpn_key, text: 'Log in using SSO'),
-              const SizedBox(height: 20),
-              Center(
-                child: Text.rich(
-                  TextSpan(
-                    text: 'Having trouble logging in? ',
-                    children: [
-                      TextSpan(
-                        text: 'Contact Admin',
-                        style: TextStyle(color: Colors.deepPurple),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+
             ],
           ),
         ),

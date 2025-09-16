@@ -47,7 +47,7 @@ class _MainAppState extends State<MainApp> {
   final List<Widget> _pages = const [
     DashboardScreen(),
     AllTasksScreen(),
-    SettingsScreen(),
+
   ];
 
   void _onTabTapped(int index) {
@@ -69,7 +69,7 @@ class _MainAppState extends State<MainApp> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Tasks'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
+
         ],
       ),
     );
@@ -362,7 +362,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           final String day = dayData['day'] ?? "";
           final String date = dayData['date'] ?? "";
           final List<dynamic> jsonTasks = dayData['tasks'] ?? [];
-          return jsonTasks.map((t) => Task.fromJson(t, day: day, date: date));
+          return jsonTasks
+              .where((t) => (t['status'] ?? '').toLowerCase() != 'completed')
+              .map((t) => Task.fromJson(t, day: day, date: date));
         })
             .toList();
         setState(() {
@@ -998,7 +1000,7 @@ print(response.body);
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const Text(
-                'Hello Thomas',
+                '',
                 style: TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
@@ -1927,7 +1929,7 @@ int? userId;
                 } else if (index == 1) {
                   count = tasks.where((t) => t.status== 'pending').length;
                 } else if (index == 2) {
-                  count = tasks.where((t) => t.status == 'Completed').length;
+                  count = tasks.where((t) => t.status == 'completed').length;
                 }
 
                 return GestureDetector(
