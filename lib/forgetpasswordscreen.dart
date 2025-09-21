@@ -42,7 +42,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           'Forgot Password',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
-        backgroundColor: const Color(0xFF2575FC),
+        backgroundColor: const Color(0xFF000000),
         elevation: 0,
       ),
       body: Padding(
@@ -88,7 +88,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               child: ElevatedButton(
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2575FC),
+                  backgroundColor: const Color(0xFF000000),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                 ),

@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'forgetpasswordscreen.dart';
+
 // Dummy dashboard screen
 
 
@@ -235,7 +237,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 recognizer: TapGestureRecognizer()
                   ..onTap = () {
                     // Navigate to Forgot Password Screen
-                    Navigator.pushNamed(context, '/forgot-password');
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
+                    );
                   },
               ),
             ),)
