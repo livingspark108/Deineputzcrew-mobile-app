@@ -47,6 +47,7 @@ class _MainAppState extends State<MainApp> {
   final List<Widget> _pages = const [
     DashboardScreen(),
     AllTasksScreen(),
+    SettingsScreen()
 
   ];
 

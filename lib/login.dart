@@ -1,4 +1,5 @@
 import 'package:diveinpuits/home.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -60,10 +61,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200 && data['success'] == true) {
         final token = data['token'];
         final userid = data['data']['id'];
+        final username = data['data']['name'];
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
         await prefs.setInt('userid', userid);
+        await prefs.setInt('username', username);
         await prefs.setString('saved_email', email);
         await prefs.setString('saved_password', password);
 
@@ -218,7 +221,24 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-
+          Align(
+            alignment: Alignment.centerRight,
+            child: RichText(
+              text: TextSpan(
+                text: 'Forgot Password?',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black,
+                  decoration: TextDecoration.underline,
+                ),
+                recognizer: TapGestureRecognizer()
+                  ..onTap = () {
+                    // Navigate to Forgot Password Screen
+                    Navigator.pushNamed(context, '/forgot-password');
+                  },
+              ),
+            ),)
             ],
           ),
         ),

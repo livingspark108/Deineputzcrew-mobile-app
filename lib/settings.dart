@@ -1,4 +1,6 @@
+import 'package:diveinpuits/login.dart';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 
 class SettingsScreen extends StatelessWidget {
@@ -42,7 +44,6 @@ class SettingsScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () {
-            Navigator.pop(context);
           },
         ),
         title: const Text(
@@ -104,8 +105,14 @@ class SettingsScreen extends StatelessWidget {
 
             // Logout Button
             GestureDetector(
-              onTap: () {
-                // Handle logout
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                prefs.clear();
+                Navigator.pop(context);
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                );
               },
               child: Container(
                 padding: const EdgeInsets.all(16),
