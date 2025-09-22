@@ -1,17 +1,20 @@
 import 'package:diveinpuits/login.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import 'changepassword.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
-  Widget _buildListTile(
-      {required IconData icon,
-        required String title,
-        Color? iconColor,
-        Color? textColor,
-        bool isLogout = false}) {
+  Widget _buildListTile({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    Color? iconColor,
+    Color? textColor,
+    bool isLogout = false,
+    VoidCallback? onTap, // add callback
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -23,13 +26,12 @@ class SettingsScreen extends StatelessWidget {
         title: Text(
           title,
           style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w500,
-              color: textColor ?? Colors.black),
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+            color: textColor ?? Colors.black,
+          ),
         ),
-        onTap: () {
-          // Handle navigation or action here
-        },
+        onTap: onTap,
       ),
     );
   }
@@ -44,6 +46,7 @@ class SettingsScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () {
+            Navigator.pop(context);
           },
         ),
         title: const Text(
@@ -88,18 +91,45 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 12),
 
             _buildListTile(
-                icon: Icons.notifications_none, title: "Notification Settings"),
-            _buildListTile(icon: Icons.shield_outlined, title: "Permissions"),
+              context: context,
+              icon: Icons.notifications_none,
+              title: "Notification Settings",
+            ),
             _buildListTile(
-                icon: Icons.refresh, title: "Change password", iconColor: Colors.black),
+              context: context,
+              icon: Icons.shield_outlined,
+              title: "Permissions",
+            ),
+            _buildListTile(
+              context: context,
+              icon: Icons.refresh,
+              title: "Change password",
+              iconColor: Colors.black,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ChangePasswordScreen(),
+                  ),
+                );
+              },
+            ),
 
             const SizedBox(height: 24),
             const Text("Legals",
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             const SizedBox(height: 12),
 
-            _buildListTile(icon: Icons.article_outlined, title: "Terms of Services"),
-            _buildListTile(icon: Icons.privacy_tip_outlined, title: "Privacy Policy"),
+            _buildListTile(
+              context: context,
+              icon: Icons.article_outlined,
+              title: "Terms of Services",
+            ),
+            _buildListTile(
+              context: context,
+              icon: Icons.privacy_tip_outlined,
+              title: "Privacy Policy",
+            ),
 
             const Spacer(),
 
@@ -108,10 +138,9 @@ class SettingsScreen extends StatelessWidget {
               onTap: () async {
                 final prefs = await SharedPreferences.getInstance();
                 prefs.clear();
-                Navigator.pop(context);
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
+                  MaterialPageRoute(builder: (context) =>  LoginScreen()),
                 );
               },
               child: Container(

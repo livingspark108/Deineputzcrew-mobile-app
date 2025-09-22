@@ -70,6 +70,7 @@ class _MainAppState extends State<MainApp> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Tasks'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
 
         ],
       ),

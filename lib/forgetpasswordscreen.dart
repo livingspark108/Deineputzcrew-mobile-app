@@ -1,4 +1,7 @@
+import 'dart:convert';
+import 'package:diveinpuits/resetpassword.dart';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -12,18 +15,50 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
   final TextEditingController _emailController = TextEditingController();
   bool _isSubmitting = false;
 
-  void _submit() {
-    if (_formKey.currentState!.validate()) {
-      setState(() => _isSubmitting = true);
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
 
-      // TODO: Call your API to send password reset email
-      Future.delayed(const Duration(seconds: 2), () {
-        setState(() => _isSubmitting = false);
+    setState(() => _isSubmitting = true);
+
+    final url = Uri.parse('https://admin.deineputzcrew.de/api/forgot-password/');
+    final body = jsonEncode({'email': _emailController.text.trim()});
+
+    try {
+      final response = await http.post(
+        url,
+        headers: {
+          'accept': 'application/json',
+          'Content-Type': 'application/json',
+        },
+        body: body,
+      );
+
+      setState(() => _isSubmitting = false);
+
+      if (response.statusCode == 200) {
+        final apiResponse = ForgotPasswordResponse.fromJson(jsonDecode(response.body));
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password reset link sent to your email')),
+          SnackBar(content: Text(apiResponse.message)),
         );
-        Navigator.pop(context); // Go back to login screen
-      });
+
+        if (apiResponse.success) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => ResetPasswordScreen()),
+          );
+          // Go back to login
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: ${response.statusCode}')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isSubmitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: $e')),
+      );
     }
   }
 
@@ -38,7 +73,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Forgot Password',
           style: TextStyle(fontWeight: FontWeight.w600),
         ),
@@ -64,19 +99,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 decoration: InputDecoration(
                   labelText: 'Email',
                   hintText: 'you@example.com',
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.email),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Email is required';
-                  }
-                  final emailRegex = RegExp(
-                      r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                  if (!emailRegex.hasMatch(value)) {
-                    return 'Enter a valid email';
-                  }
+                  if (value == null || value.isEmpty) return 'Email is required';
+                  final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
+                  if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
                   return null;
                 },
               ),
@@ -89,23 +118,32 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 onPressed: _isSubmitting ? null : _submit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF000000),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
                 child: _isSubmitting
-                    ? const CircularProgressIndicator(
-                  color: Colors.white,
-                )
-                    : Text(
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : const Text(
                   'Send Reset Link',
-                  style: TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                 ),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+class ForgotPasswordResponse {
+  final bool success;
+  final String message;
+
+  ForgotPasswordResponse({required this.success, required this.message});
+
+  factory ForgotPasswordResponse.fromJson(Map<String, dynamic> json) {
+    return ForgotPasswordResponse(
+      success: json['success'] ?? false,
+      message: json['message'] ?? '',
     );
   }
 }
