@@ -63,12 +63,12 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200 && data['success'] == true) {
         final token = data['token'];
         final userid = data['data']['id'];
-        final username = data['data']['name'];
+        final username = data['data']['first_name']+data['data']['last_name'];
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
         await prefs.setInt('userid', userid);
-        await prefs.setInt('username', username);
+        await prefs.setString('username', username);
         await prefs.setString('saved_email', email);
         await prefs.setString('saved_password', password);
 

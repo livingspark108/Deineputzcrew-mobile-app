@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:diveinpuits/login.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -54,7 +55,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       );
 
       if (resBody['success'] == true) {
-        Navigator.pop(context); // Go back to login
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
       }
     } catch (e) {
       setState(() => _isSubmitting = false);

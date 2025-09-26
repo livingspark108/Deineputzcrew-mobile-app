@@ -1,10 +1,33 @@
-import 'package:diveinpuits/login.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'changepassword.dart';
 
-class SettingsScreen extends StatelessWidget {
+import 'changepassword.dart';
+import 'login.dart';
+
+class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String _name = "";
+  String _employeeInfo = "";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _name = prefs.getString("username") ?? "User";
+      _employeeInfo = prefs.getString("employee_info") ?? "EMPLOYEE";
+    });
+  }
 
   Widget _buildListTile({
     required BuildContext context,
@@ -13,7 +36,7 @@ class SettingsScreen extends StatelessWidget {
     Color? iconColor,
     Color? textColor,
     bool isLogout = false,
-    VoidCallback? onTap, // add callback
+    VoidCallback? onTap,
   }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -46,7 +69,7 @@ class SettingsScreen extends StatelessWidget {
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () {
-            Navigator.pop(context);
+
           },
         ),
         title: const Text(
@@ -63,22 +86,21 @@ class SettingsScreen extends StatelessWidget {
             // Profile Section
             Row(
               children: [
-                const CircleAvatar(
-                  radius: 30,
-                  backgroundImage: AssetImage("assets/profile.jpg"), // Replace
-                ),
+
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
+                  children: [
                     Text(
-                      "Thomas Müller",
-                      style:
-                      TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      _name,
+                      style: const TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     Text(
-                      "General Cleaner • EMP001",
-                      style: TextStyle(color: Colors.black54),
+                      _employeeInfo,
+                      style: const TextStyle(color: Colors.black54),
                     ),
                   ],
                 ),
@@ -90,16 +112,6 @@ class SettingsScreen extends StatelessWidget {
                 style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             const SizedBox(height: 12),
 
-            _buildListTile(
-              context: context,
-              icon: Icons.notifications_none,
-              title: "Notification Settings",
-            ),
-            _buildListTile(
-              context: context,
-              icon: Icons.shield_outlined,
-              title: "Permissions",
-            ),
             _buildListTile(
               context: context,
               icon: Icons.refresh,
@@ -115,23 +127,6 @@ class SettingsScreen extends StatelessWidget {
               },
             ),
 
-            const SizedBox(height: 24),
-            const Text("Legals",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
-            const SizedBox(height: 12),
-
-            _buildListTile(
-              context: context,
-              icon: Icons.article_outlined,
-              title: "Terms of Services",
-            ),
-            _buildListTile(
-              context: context,
-              icon: Icons.privacy_tip_outlined,
-              title: "Privacy Policy",
-            ),
-
-            const Spacer(),
 
             // Logout Button
             GestureDetector(
@@ -140,7 +135,7 @@ class SettingsScreen extends StatelessWidget {
                 prefs.clear();
                 Navigator.pushReplacement(
                   context,
-                  MaterialPageRoute(builder: (context) =>  LoginScreen()),
+                  MaterialPageRoute(builder: (context) => LoginScreen()),
                 );
               },
               child: Container(
