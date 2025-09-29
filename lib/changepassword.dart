@@ -29,7 +29,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     // Get token from SharedPreferences
     final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString("auth_token");
+    final token = prefs.getString("token");
 
     if (token == null) {
       setState(() => _isSubmitting = false);
