@@ -19,6 +19,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'db_helper.dart';
 import 'task_model.dart';
@@ -762,6 +763,8 @@ print(response.body);
         locationName: '',
         priority: '',
         status: '',
+          lat: '',
+          longg: '',
         punchIn: false,
         punchOut: false,
         breakIn: false,
@@ -1120,12 +1123,16 @@ print(response.body);
             highPriority: task.priority,
             completed: task.status,
             taskId: task.id,
+
+
             punchIn: task.punchIn,
             selectedTaskId: selectedTaskId ?? "",
             punchedInTaskId: punchedInTaskId ?? "",
             taskList: taskList,
             day: task.day,
-            date: task.date,  // ✅ add this
+            date: task.date,
+              lat:task.lat,
+            longg: task.longg,// ✅ add this
             onTaskSelected: (id) {
               final taskObj = taskList.firstWhere((t) => t.id == id);
               setState(() {
@@ -1239,7 +1246,8 @@ class TaskCard extends StatefulWidget {
   final List<Task> taskList;
   final String? day;
   final String? date;
-
+  final String? lat;
+  final String? longg;
   TaskCard({
     super.key,
     required this.taskId,
@@ -1253,11 +1261,15 @@ class TaskCard extends StatefulWidget {
     required this.selectedTaskId,
     required this.punchedInTaskId,
     required this.onTaskSelected,
+
     required this.onPunchIn,
     required this.onPunchStart,
     required this.taskList,
     this.day,
     this.date,
+    required this.lat,
+    required this.longg,
+
   });
 
   @override
@@ -1514,6 +1526,16 @@ class _TaskCardState extends State<TaskCard> {
       );
     }
   }
+  Future<void> _openMap(double latitude, double longitude) async {
+    final Uri url = Uri.parse(
+      "https://www.google.com/maps/search/?api=1&query=$latitude,$longitude",
+    );
+
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      throw Exception('Could not launch $url');
+    }
+  }
+
 
 
   @override
@@ -1687,6 +1709,29 @@ class _TaskCardState extends State<TaskCard> {
                   ],
                 ),
                 const SizedBox(height: 6),
+                InkWell(
+                  onTap: () => _openMap(
+                    double.parse(widget.lat!) ,
+                    double.parse(widget.longg!) ,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.location_on, size: 14, color: Colors.blue),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          widget.location, // still show location name/address
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontFamily: 'Poppins',
+                            decoration: TextDecoration.underline, // looks clickable
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 Row(
                   children: [
                     const Icon(Icons.schedule,
@@ -1700,24 +1745,12 @@ class _TaskCardState extends State<TaskCard> {
                   ],
                 ),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.location_on,
-                        size: 14, color: Colors.blue),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(
-                        widget.location,
-                        style: const TextStyle(
-                            fontSize: 13, fontFamily: 'Poppins'),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                ),
+
               ],
             ),
           ),
+
+
           Row(
             children: [
               const Icon(Icons.access_time,
@@ -2023,6 +2056,8 @@ int? userId;
                     taskList: filteredTasks,
                     day: task.day,
                     date:task.date,
+                    lat: task.lat,
+                      longg: task.longg,
                     onTaskSelected: (id) {
                       final taskObj = filteredTasks.firstWhere((t) => t.id == id);
 

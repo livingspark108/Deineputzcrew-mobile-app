@@ -728,6 +728,8 @@ print(response.body);
         locationName: '',
         priority: '',
         status: '',
+          lat: '',
+          longg: '',
         punchIn: false,
         punchOut: false,
         breakIn: false,

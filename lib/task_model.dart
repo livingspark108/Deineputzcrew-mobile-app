@@ -6,6 +6,8 @@ class Task {
   final String locationName;
   final String priority;
   final String status;
+  final String lat;
+  final String longg;
   final bool punchIn;
   final bool punchOut;
   final bool breakIn;
@@ -21,6 +23,8 @@ class Task {
     required this.locationName,
     required this.priority,
     required this.status,
+    required this.lat,
+    required this.longg,
     required this.punchIn,
     required this.punchOut,
     required this.breakIn,
@@ -39,6 +43,8 @@ class Task {
       locationName: json['location_name'],
       priority: json['priority'],
       status: json['status'],
+      lat: json['lat'],
+      longg: json['long'],
       punchIn: json['punch_in'] == 1 || json['punch_in'] == true,
       punchOut: json['punch_out'] == 1 || json['punch_out'] == true,
       breakIn: json['break_in'] == 1 || json['break_in'] == true,
@@ -58,6 +64,8 @@ class Task {
       locationName: map['location_name'],
       priority: map['priority'],
       status: map['status'],
+      lat: map['lat'],
+      longg: map['long'],
       punchIn: map['punch_in'] == 1,
       punchOut: map['punch_out'] == 1,
       breakIn: map['break_in'] == 1,
@@ -78,6 +86,8 @@ class Task {
       'location_name': locationName,
       'priority': priority,
       'status': status,
+      'lat':lat,
+      'long':longg,
       'punch_in': punchIn ? 1 : 0,
       'punch_out': punchOut ? 1 : 0,
       'break_in': breakIn ? 1 : 0,
