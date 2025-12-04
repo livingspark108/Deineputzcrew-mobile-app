@@ -565,7 +565,7 @@ Future<void> _handlePunchOut(
       debugPrint("Network failed, saving Punch-Out offline: $networkError");
 
       final db = DBHelper();
-      await db.insertPunchAction({
+    /*  await db.insertPunchAction({
         'task_id': taskId,
         'type': 'punch_out',
         'lat': position.latitude.toStringAsFixed(6),
@@ -574,7 +574,7 @@ Future<void> _handlePunchOut(
         'image_path': images.first.path, // store first image path (extend if needed)
         'timestamp': DateTime.now().toIso8601String(),
         'synced': 0,
-      });
+      });*/
 
       // Clear prefs locally as if punched out
       await prefs.remove('punchedInTaskId');

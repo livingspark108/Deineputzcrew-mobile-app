@@ -1,14 +1,30 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'home.dart';
 import 'login.dart';
+final FlutterLocalNotificationsPlugin notificationsPlugin =
+FlutterLocalNotificationsPlugin();
+void main()  async {
+  WidgetsFlutterBinding.ensureInitialized();
 
-void main() {
+  await initializeNotifications();
+
+
+
   runApp(const MyApp());
 }
+Future<void> initializeNotifications() async {
+  const AndroidInitializationSettings androidSettings =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
 
+  const InitializationSettings settings =
+  InitializationSettings(android: androidSettings);
+
+  await notificationsPlugin.initialize(settings);
+}
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 

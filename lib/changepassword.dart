@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:diveinpuits/login.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -66,7 +67,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
 
       if (response.statusCode == 200) {
-        Navigator.pop(context); // Go back after success
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) =>  LoginScreen()),
+        );
+
+        // Go back after success
       }
     } catch (e) {
       setState(() => _isSubmitting = false);

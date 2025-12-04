@@ -1,3 +1,4 @@
+/*
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -282,7 +283,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Timer? _breakTimer;
 
 
-  /* Future<void> fetchTasks() async {
+  */
+/* Future<void> fetchTasks() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? "";
 
@@ -307,7 +309,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // handle unauthorized or failed response
 
     }
-  }*/
+  }*//*
+
 
 
   Future<void> fetchTasks() async {
@@ -468,7 +471,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
 
-  /*Future<bool> callBreakInApi(String taskId, BuildContext context) async {
+  */
+/*Future<bool> callBreakInApi(String taskId, BuildContext context) async {
     try {
       final position = await _getCurrentLocation();
       final prefs = await SharedPreferences.getInstance();
@@ -519,8 +523,10 @@ print(response.body);
       );
       return false;
     }
-  }*/
-  /*Future<bool> callBreakOutApi(String taskId,BuildContext context) async {
+  }*//*
+
+  */
+/*Future<bool> callBreakOutApi(String taskId,BuildContext context) async {
     try {
       final position = await _getCurrentLocation();
       final prefs = await SharedPreferences.getInstance();
@@ -569,7 +575,8 @@ print(response.body);
       );
       return false;
     }// Or false if failed
-  }*/
+  }*//*
+
   Future<bool> callBreakInApi(String taskId, BuildContext context) async {
     try {
       final position = await _getCurrentLocation();
@@ -1254,6 +1261,7 @@ class _TaskCardState extends State<TaskCard> {
     return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
   }
+*/
 /* Future<void> _handlePunchIn(BuildContext context) async {
     try {
       widget.onPunchStart();
@@ -1347,7 +1355,8 @@ class _TaskCardState extends State<TaskCard> {
         SnackBar(content: Text('Error: $e')),
       );
     }
-  }*/
+  }*//*
+
 
 
   Future<void> _handlePunchIn(BuildContext context) async {
@@ -1731,3 +1740,4 @@ class PunchResponse {
 
   bool get isSuccess => error == null;
 }
+*/

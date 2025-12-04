@@ -1,15 +1,13 @@
 import 'package:diveinpuits/home.dart';
+import 'package:diveinpuits/privacypolicy.dart';
+import 'package:diveinpuits/terms.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
 import 'forgetpasswordscreen.dart';
-
-// Dummy dashboard screen
-
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -26,7 +24,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final androidInfo = await deviceInfo.androidInfo;
     return androidInfo.id ?? "unknown";
   }
-
 
   Future<void> loginUser() async {
     final String email = emailController.text.trim();
@@ -47,8 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/");
 
     try {
-      final response = await http
-          .post(
+      final response = await http.post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
@@ -56,14 +52,13 @@ class _LoginScreenState extends State<LoginScreen> {
           "password": password,
           "device_id": deviceId,
         }),
-      )
-          .timeout(Duration(seconds: 10)); // avoid hanging if no net
+      ).timeout(Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
       if (response.statusCode == 200 && data['success'] == true) {
         final token = data['token'];
         final userid = data['data']['id'];
-        final username = data['data']['first_name']+data['data']['last_name'];
+        final username = data['data']['first_name'] + data['data']['last_name'];
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('token', token);
@@ -86,13 +81,11 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
-      // If API fails → check offline login
       final prefs = await SharedPreferences.getInstance();
       final savedEmail = prefs.getString('saved_email');
       final savedPassword = prefs.getString('saved_password');
 
       if (savedEmail == email && savedPassword == password) {
-        // Offline login success
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => MainApp()),
@@ -112,32 +105,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-
-  Widget _socialButton({required IconData icon, required String text}) {
-    return SizedBox(
-      width: double.infinity,
-      height: 48,
-      child: OutlinedButton.icon(
-        onPressed: () {},
-        icon: Icon(icon, color: Colors.black),
-        label: Text(text, style: TextStyle(color: Colors.black)),
-        style: OutlinedButton.styleFrom(
-          backgroundColor: Colors.white,
-          side: BorderSide(color: Colors.grey.shade300),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
-      ),
-    );
-  }
-  @override
-  void initState() {
-    super.initState();
-
-
-
-  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -148,12 +115,14 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-
               const SizedBox(height: 10),
-              Text('Log in', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+              Text('Log in',
+                  style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
               const SizedBox(height: 6),
-              Text('Please enter login credentials to continue.',
-                  style: TextStyle(fontSize: 16, color: Colors.black54)),
+              Text(
+                'Please enter login credentials to continue.',
+                style: TextStyle(fontSize: 16, color: Colors.black54),
+              ),
               const SizedBox(height: 28),
               TextField(
                 controller: emailController,
@@ -162,7 +131,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 16),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey.shade300),
@@ -173,7 +143,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.deepPurpleAccent, width: 1.2),
+                    borderSide:
+                    BorderSide(color: Colors.deepPurpleAccent, width: 1.2),
                   ),
                 ),
                 style: TextStyle(fontSize: 16),
@@ -187,7 +158,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   hintStyle: TextStyle(color: Colors.grey.shade600, fontSize: 16),
                   filled: true,
                   fillColor: Colors.white,
-                  contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+                  contentPadding:
+                  EdgeInsets.symmetric(horizontal: 16, vertical: 18),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide(color: Colors.grey.shade300),
@@ -198,13 +170,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide(color: Colors.deepPurpleAccent, width: 1.2),
+                    borderSide:
+                    BorderSide(color: Colors.deepPurpleAccent, width: 1.2),
                   ),
                 ),
                 style: TextStyle(fontSize: 16),
               ),
-              const SizedBox(height: 8),
-
               const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
@@ -222,28 +193,78 @@ class _LoginScreenState extends State<LoginScreen> {
                       : Text('Log in', style: TextStyle(fontSize: 16)),
                 ),
               ),
-              const SizedBox(height: 10),
-          Align(
-            alignment: Alignment.centerRight,
-            child: RichText(
-              text: TextSpan(
-                text: 'Forgot Password?',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black,
-                  decoration: TextDecoration.underline,
+              const SizedBox(height: 14),
+              Align(
+                alignment: Alignment.centerRight,
+                child: RichText(
+                  text: TextSpan(
+                    text: 'Forgot Password?',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black,
+                      decoration: TextDecoration.underline,
+                    ),
+                    recognizer: TapGestureRecognizer()
+                      ..onTap = () {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => ForgotPasswordScreen()),
+                        );
+                      },
+                  ),
                 ),
-                recognizer: TapGestureRecognizer()
-                  ..onTap = () {
-                    // Navigate to Forgot Password Screen
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => ForgotPasswordScreen()),
-                    );
-                  },
               ),
-            ),)
+              const SizedBox(height: 24),
+
+              // 👇 Terms and Privacy Section
+              Center(
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: TextSpan(
+                    text: 'By logging in, you agree to our ',
+                    style: TextStyle(color: Colors.black87, fontSize: 14),
+                    children: [
+                      TextSpan(
+                        text: 'Terms & Conditions',
+                        style: TextStyle(
+                          color: Colors.deepPurpleAccent,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            // TODO: Navigate to Terms & Conditions page
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => TermsConditionsScreen()),
+                            );
+                          },
+                      ),
+                      TextSpan(text: ' and '),
+                      TextSpan(
+                        text: 'Privacy Policy',
+                        style: TextStyle(
+                          color: Colors.deepPurpleAccent,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.underline,
+                        ),
+                        recognizer: TapGestureRecognizer()
+                          ..onTap = () {
+                            // TODO: Navigate to Privacy Policy page
+                            Navigator.pushReplacement(
+                              context,
+                              MaterialPageRoute(builder: (context) => PrivacyPolicyScreen()),
+                            );
+                          },
+                      ),
+                      TextSpan(text: '.'),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
             ],
           ),
         ),

@@ -5,11 +5,13 @@ import 'package:diveinpuits/settings.dart';
 import 'package:diveinpuits/task.dart';
 import 'package:diveinpuits/taskdetails.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:intl/intl.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -22,6 +24,7 @@ import 'package:path/path.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'db_helper.dart';
+import 'main.dart';
 import 'task_model.dart';
 
 import 'package:flutter/material.dart';
@@ -113,18 +116,180 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static Duration _pausedDuration = Duration.zero;
   static bool _onBreak = false;
 
+  Future<void> showAutoCheckoutNotification(String taskName) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+    AndroidNotificationDetails(
+      'auto_checkout_channel',
+      'Auto Checkout',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails platformChannelSpecifics =
+    NotificationDetails(android: androidPlatformChannelSpecifics);
+    final FlutterLocalNotificationsPlugin notificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+    await notificationsPlugin.show(
+      0,
+      'Auto Checkout',
+      'You were auto-checked out from "$taskName"',
+      platformChannelSpecifics,
+    );
+  }
+  Future<File> generateBlankImage() async {
+    final dir = await getTemporaryDirectory();
+    final file = File("${dir.path}/auto_checkout.jpg");
+
+    // Minimal JPEG header
+    await file.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]);
+    return file;
+  }
 
   @override
   void initState() {
     super.initState();
     loadUserData();
 
+    Timer.periodic(const Duration(seconds: 30), (_) {
+      _checkAutoCheckout();
+    });
 
 
     //syncOfflineActions();
 
 
 
+  }
+  Future<void> _checkAutoCheckout() async {
+    final prefs = await SharedPreferences.getInstance();
+    final punchedTaskId = prefs.getString('punchedInTaskId');
+
+    if (punchedTaskId == null || punchedTaskId.isEmpty) return;
+
+    Task? task;
+    try {
+      task = allTasks.firstWhere((t) => t.id == punchedTaskId);
+    } catch (_) {
+      return;
+    }
+
+    // If completed, skip
+    if (task.status.toLowerCase() == "completed") return;
+
+    // TIME-BASED AUTO CHECKOUT
+    if (_isTimeExceeded(task)) {
+      await _autoPunchOut(task);
+      return;
+    }
+
+    // LOCATION CHECK
+    try {
+      final pos = await Geolocator.getCurrentPosition();
+
+      double distance = Geolocator.distanceBetween(
+        pos.latitude,
+        pos.longitude,
+        double.tryParse(task.lat) ?? 0.0,
+        double.tryParse(task.longg) ?? 0.0,
+      );
+
+      // More than 300m away
+      if (distance > 300) {
+        await _autoPunchOut(task);
+        return;
+      }
+    } catch (e) {
+      debugPrint("Location error: $e");
+    }
+  }
+
+  bool _isTimeExceeded(Task task) {
+    final now = DateTime.now();
+
+    List<int> hm(String s) {
+      final p = s.split(':').map((e) => int.tryParse(e) ?? 0).toList();
+      return [p[0], p[1], p.length > 2 ? p[2] : 0];
+    }
+
+    final endParts = hm(task.endTime);
+    final endTime = DateTime(now.year, now.month, now.day,
+        endParts[0], endParts[1], endParts[2]);
+
+    // Handle overnight shifts
+    if (endTime.isBefore(now)) {
+      return true;
+    }
+    return false;
+  }
+  Future<void> _autoPunchOut(Task task) async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token');
+
+    final position = await Geolocator.getCurrentPosition();
+    final blankImage = await generateBlankImage();
+
+    final now = DateTime.now().toIso8601String();
+
+    final connectivity = await Connectivity().checkConnectivity();
+
+    // OFFLINE → Save to SQLite
+
+
+    // ONLINE → Send to API
+    var request = http.MultipartRequest(
+      'POST',
+      Uri.parse("https://admin.deineputzcrew.de/api/punch-out/"),
+    );
+
+    request.headers["Authorization"] = "token $token";
+    request.fields["task_id"] = task.id;
+    request.fields["lat"] = position.latitude.toStringAsFixed(6);
+    request.fields["long"] = position.longitude.toStringAsFixed(6);
+    request.fields["remark"] = "Auto Punch-out";
+
+    request.files.add(await http.MultipartFile.fromPath(
+      'images',
+      blankImage.path,
+      filename: "auto_checkout.jpg",
+    ));
+
+    final resp = await request.send();
+    final body = await http.Response.fromStream(resp);
+
+    if (resp.statusCode == 200 || resp.statusCode == 201) {
+      await _clearPunchPrefs();
+      await showAutoCheckoutNotification(task.taskName);
+    } else {
+      // Save offline fallback
+
+    }
+  }
+
+  Future<void> _clearPunchPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    await prefs.remove('punchedInTaskId');
+    await prefs.remove('punchInStartTime');
+    await prefs.remove('pausedDuration');
+    await prefs.remove('breakDuration');
+    await prefs.remove('onBreak');
+
+    _timer?.cancel();
+    _timer = null;
+
+    _breakTimer?.cancel();
+    _breakTimer = null;
+
+    // ✔ Prevent setState after widget is disposed
+    if (!mounted) return;
+
+    setState(() {
+      selectedTaskId = "";
+      _onBreak = false;
+      _workingDuration = Duration.zero;
+      _pausedDuration = Duration.zero;
+      _breakDuration = Duration.zero;
+    });
   }
 
 
@@ -337,6 +502,200 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }*/
 
+  Future<void> _checkAutoPunchIn() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+      throw Exception('Location services are disabled.');
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permissions are denied');
+      }
+    }
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('Location permissions are permanently denied.');
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    String? alreadyPunchedTaskId = prefs.getString('punchedInTaskId');
+
+    if (alreadyPunchedTaskId != null && alreadyPunchedTaskId.isNotEmpty) {
+      print("⛔ Already punched into: $alreadyPunchedTaskId");
+      return;
+    }
+
+    final connectivity = await Connectivity().checkConnectivity();
+    if (connectivity == ConnectivityResult.none) {
+      print("📴 Offline — auto punch-in disabled");
+      return;
+    }
+
+    // CURRENT LOCATION
+    Position pos;
+    try {
+      pos = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+    } catch (e) {
+      print("❌ Cannot get location: $e");
+      return;
+    }
+
+    final now = DateTime.now();
+    final todayDate = DateFormat("yyyy-MM-dd").format(now);
+
+    // TIME PARSER
+    List<int> _toHMS(String time) {
+      final parts = time.trim().split(':');
+      return [
+        int.tryParse(parts[0]) ?? 0,
+        parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0,
+        parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0
+      ];
+    }
+
+    List<Map<String, dynamic>> matchedTasks = [];
+
+    for (var t in allTasks) {
+      print("Checking task: ${t.taskName}");
+
+      // ❌ Skip completed
+      if (t.status.toLowerCase() == "completed") continue;
+
+
+      if (t.autoCheckin == false) continue;
+
+      // 🔥 DATE CHECK (IMPORTANT)
+      if (t.date != todayDate) {
+        print("⛔ Date does not match today: ${t.date}");
+        continue;
+      }
+
+      // TIME PARSING
+      final start = _toHMS(t.startTime);
+      final end = _toHMS(t.endTime);
+
+      DateTime startDt = DateTime(now.year, now.month, now.day, start[0], start[1], start[2]);
+      DateTime endDt = DateTime(now.year, now.month, now.day, end[0], end[1], end[2]);
+
+      if (endDt.isBefore(startDt)) {
+        endDt = endDt.add(const Duration(days: 1));
+      }
+
+      if (now.isBefore(startDt) || now.isAfter(endDt)) {
+        print("⛔ Not in time window");
+        continue;
+      }
+
+      // DISTANCE CHECK
+      double distance = Geolocator.distanceBetween(
+        _toSixDecimals(pos.latitude),
+        _toSixDecimals(pos.longitude),
+        double.tryParse(t.lat) ?? 0.0,
+        double.tryParse(t.longg) ?? 0.0,
+      );
+
+
+      if (distance > 2000) {
+        print("⛔ Too far (>1km)");
+        continue;
+      }
+
+      matchedTasks.add({
+        "task": t,
+        "distance": distance,
+        "startDt": startDt,
+      });
+    }
+
+    if (matchedTasks.isEmpty) {
+      print("ℹ No valid tasks for auto punch-in.");
+      return;
+    }
+
+    // SORT NEAREST FIRST → THEN EARLIEST START
+    matchedTasks.sort((a, b) {
+      int d = (a["distance"] as double).compareTo(b["distance"] as double);
+      if (d != 0) return d;
+      return (a["startDt"] as DateTime).compareTo(b["startDt"] as DateTime);
+    });
+
+    Task bestTask = matchedTasks.first["task"];
+    print("🔥 Auto Punching-In Task: ${bestTask.taskName}");
+
+    await _autoPunchIn(bestTask);
+  }
+
+  Future<void> requestNotificationPermission() async {
+    final androidImplementation = notificationsPlugin
+        .resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    await androidImplementation?.requestNotificationsPermission();
+  }
+
+  Future<void> _autoPunchIn(Task task) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      String? token = prefs.getString('token');
+
+      // Get current location
+      final position = await Geolocator.getCurrentPosition(
+          desiredAccuracy: LocationAccuracy.high);
+
+      // Create a temporary empty image file
+      final Directory tempDir = await getTemporaryDirectory();
+      final File emptyImage = File("${tempDir.path}/auto_punch_blank.jpg");
+
+      // Write empty content (0 bytes) or minimal JPG header
+      await emptyImage.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]); // minimal valid JPG
+
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+      );
+
+      request.headers['Authorization'] = 'token $token';
+
+      request.fields['task_id'] = task.id;
+      request.fields['lat'] = _toSixDecimals(position.latitude).toString();
+      request.fields['long'] = _toSixDecimals(position.longitude).toString();
+
+
+
+      // Attach blank file instead of camera image
+      request.files.add(await http.MultipartFile.fromPath(
+        'images',
+        emptyImage.path,
+        filename: "auto_punch_blank.jpg",
+      ));
+
+      final response = await request.send();
+      final body = await http.Response.fromStream(response);
+
+      print("📡 Auto Punch-In Response: ${body.body}");
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        await prefs.setString('punchedInTaskId', task.id);
+        selectedTaskId = task.id;
+
+        startDashboardWorkTimer();
+
+        // No snackbar needed (silent auto punch-in)
+      }
+    } catch (e) {
+      print("❌ Auto punch-in failed: $e");
+    }
+  }
+  double _toSixDecimals(double value) {
+    // Convert to 3 decimals → then format to 6 decimals
+    String three = value.toStringAsFixed(3);   // e.g. "26.892"
+    String six = double.parse(three).toStringAsFixed(6); // "26.892000"
+    return double.parse(six);
+  }
 
   Future<void> fetchTasks() async {
     final connectivityResult = await Connectivity().checkConnectivity();
@@ -377,10 +736,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         _restoreTimerState();
 
+
+        await _checkAutoPunchIn();
+
         // Save offline
-        await DBHelper().clearTasks();
+      //  await DBHelper().clearTasks();
         for (var taskk in tasks) {
-          await DBHelper().insertTask(taskk.toMap());
+       //   await DBHelper().insertTask(taskk.toMap());
         }
       }
     } else {
@@ -620,24 +982,7 @@ print(response.body);
 
       final connectivityResult = await Connectivity().checkConnectivity();
 
-      if (connectivityResult == ConnectivityResult.none) {
-        // ❌ Offline → Save locally
-        await DBHelper().insertPunchAction({
-          'task_id': taskId,
-          'type': 'break_in',
-          'lat': position.latitude.toStringAsFixed(6),
-          'long': position.longitude.toStringAsFixed(6),
-          'image_path': '', // optional for break
-          'timestamp': DateTime.now().toIso8601String(),
-        });
 
-        await prefs.setBool('onBreak', true);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Break-In saved offline. Will sync later.")),
-        );
-        return true;
-      }
 
       // ✅ Online → Call API
       final response = await http.post(
@@ -691,14 +1036,14 @@ print(response.body);
 
       if (connectivityResult == ConnectivityResult.none) {
         // ❌ Offline → Save locally
-        await DBHelper().insertPunchAction({
+       /* await DBHelper().insertPunchAction({
           'task_id': taskId,
           'type': 'break_out',
           'lat': position.latitude.toStringAsFixed(6),
           'long': position.longitude.toStringAsFixed(6),
           'image_path': '',
           'timestamp': DateTime.now().toIso8601String(),
-        });
+        });*/
 
         await prefs.setBool('onBreak', false);
 
@@ -760,6 +1105,7 @@ print(response.body);
         taskName: 'No Task Selected',
         startTime: '',
         endTime: '',
+        autoCheckin: false,
         locationName: '',
         priority: '',
         status: '',

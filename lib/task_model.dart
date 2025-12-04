@@ -14,6 +14,7 @@ class Task {
   final bool breakOut;
   final String day;
   final String date;
+  final bool autoCheckin;
 
   Task({
     required this.id,
@@ -31,6 +32,7 @@ class Task {
     required this.breakOut,
     required this.day,
     required this.date,
+    required this.autoCheckin,
   });
 
   /// ✅ From API JSON
@@ -51,6 +53,8 @@ class Task {
       breakOut: json['break_out'] == 1 || json['break_out'] == true,
       day: day ?? "",   // 🔑 fallback to empty string instead of crashing
       date: date ?? "",
+      autoCheckin: json['auto_checkin'],   // ✅ important
+
     );
   }
 
@@ -72,6 +76,8 @@ class Task {
       breakOut: map['break_out'] == 1,
       day: map['day'] ?? "",   // ✅ load from DB correctly
       date: map['date'] ?? "",
+      autoCheckin: map['auto_checkin'] == 1,        // ✅ NEW
+
     );
   }
 
@@ -94,6 +100,8 @@ class Task {
       'break_out': breakOut ? 1 : 0,
       'day': day,
       'date': date,
+      'auto_checkin': autoCheckin ? 1 : 0,          // ✅ NEW
+
     };
   }
 
