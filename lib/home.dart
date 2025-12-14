@@ -599,7 +599,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
 
 
-      if (distance > 2000) {
+      if (distance > 500) {
         print("⛔ Too far (>1km)");
         continue;
       }
