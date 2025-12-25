@@ -96,6 +96,7 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
+  String selectedPriority = "all"; // all | low | medium | high
 
   static  Duration _workingDuration = Duration.zero;
   static DateTime? _punchInTime;
@@ -590,7 +591,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
         continue;
       }
 
-      // DISTANCE CHECK
       double distance = Geolocator.distanceBetween(
         _toSixDecimals(pos.latitude),
         _toSixDecimals(pos.longitude),
@@ -1088,6 +1088,64 @@ print(response.body);
       return false;
     }
   }
+  Widget _priorityChip(String label) {
+    final bool isSelected =
+        selectedPriority == label.toLowerCase();
+
+    Color chipColor;
+    switch (label.toLowerCase()) {
+      case "high":
+        chipColor = Colors.red;
+        break;
+      case "medium":
+        chipColor = Colors.orange;
+        break;
+      case "low":
+        chipColor = Colors.green;
+        break;
+      default:
+        chipColor = Colors.black;
+    }
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: chipColor,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black,
+        fontWeight: FontWeight.w500,
+      ),
+      onSelected: (_) {
+        setState(() {
+          selectedPriority = label.toLowerCase();
+          _applyDashboardFilters();
+        });
+      },
+    );
+  }
+  void _applyDashboardFilters() {
+    List<Task> filtered = allTasks;
+
+    // 🔹 Priority filter
+    if (selectedPriority != "all") {
+      filtered = filtered
+          .where((t) =>
+      t.priority.toLowerCase() == selectedPriority)
+          .toList();
+    }
+
+    final query = _searchController.text.trim().toLowerCase();
+    if (query.isNotEmpty) {
+      filtered = filtered
+          .where((t) =>
+          t.taskName.toLowerCase().contains(query))
+          .toList();
+    }
+
+    setState(() {
+      taskList = filtered;
+    });
+  }
 
   void stopTimer() {
     _timer?.cancel();
@@ -1360,6 +1418,18 @@ print(response.body);
               ),
               const SizedBox(height: 14),
               _buildSearchBar(),
+              const SizedBox(height: 10),
+
+              Wrap(
+                spacing: 10,
+                children: [
+                  _priorityChip("All"),
+                  _priorityChip("Low"),
+                  _priorityChip("Medium"),
+                  _priorityChip("High"),
+                ],
+              ),
+
               const SizedBox(height: 18),
 
 
@@ -2175,6 +2245,8 @@ class AllTasksScreen extends StatefulWidget {
 }
 
 class _AllTasksScreenState extends State<AllTasksScreen> {
+  String selectedPriority = "all"; // all | low | medium | high
+
   int selectedTabIndex = 0;
   List<Task> tasks = [];
   List<Task> filteredTasks = [];
@@ -2235,15 +2307,47 @@ int? userId;
 
 
   void applyFilter() {
-    if (selectedTabIndex == 0) {
-      filteredTasks = tasks;
-    } else {
-      filteredTasks = tasks
-          .where((task) =>
-      task.status.toString().toLowerCase() ==
-          tabs[selectedTabIndex].toLowerCase())
+    List<Task> temp = tasks;
+
+    // 🔹 STATUS FILTER
+    if (selectedTabIndex != 0) {
+      final status = tabs[selectedTabIndex].toLowerCase();
+      temp = temp.where((t) => t.status.toLowerCase() == status).toList();
+    }
+
+    // 🔹 PRIORITY FILTER
+    if (selectedPriority != "all") {
+      temp = temp
+          .where((t) => t.priority.toLowerCase() == selectedPriority)
           .toList();
     }
+
+    filteredTasks = temp;
+  }
+  int priorityCount(String priority) {
+    return tasks
+        .where((t) => t.priority.toLowerCase() == priority)
+        .length;
+  }
+
+  Widget _priorityChip(String label) {
+    final isSelected = selectedPriority == label.toLowerCase();
+
+    return ChoiceChip(
+      label: Text(label),
+      selected: isSelected,
+      selectedColor: Colors.black,
+      labelStyle: TextStyle(
+        color: isSelected ? Colors.white : Colors.black,
+        fontWeight: FontWeight.w500,
+      ),
+      onSelected: (_) {
+        setState(() {
+          selectedPriority = label.toLowerCase();
+          applyFilter();
+        });
+      },
+    );
   }
 
   void onTabChanged(int index) {
@@ -2353,6 +2457,17 @@ int? userId;
             ),
 
             const SizedBox(height: 16),
+
+
+            Wrap(
+              spacing: 10,
+              children: [
+                _priorityChip("All"),
+                _priorityChip("Low"),
+                _priorityChip("Medium"),
+                _priorityChip("High"),
+              ],
+            ),
 
             // Search Bar
             Container(

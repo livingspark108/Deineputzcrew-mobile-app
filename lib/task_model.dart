@@ -41,7 +41,7 @@ class Task {
       id: json['id'],
       taskName: json['task_name'],
       startTime: json['start_time'],
-      endTime: json['end_time'],
+      endTime: json['end_time']??"",
       locationName: json['location_name'],
       priority: json['priority'],
       status: json['status'],
