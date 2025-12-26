@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:diveinpuits/settings.dart';
 import 'package:diveinpuits/task.dart';
+import 'package:diveinpuits/taskall.dart';
 import 'package:diveinpuits/taskdetails.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -718,43 +719,81 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (data['success']) {
         final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
-        // 🔑 Flatten all tasks from all dates
-        final List<Task> tasks = taskByDate
-            .expand((dayData) {
+        // 🔑 Flatten all tasks
+        final List<Task> tasks = taskByDate.expand((dayData) {
           final String day = dayData['day'] ?? "";
           final String date = dayData['date'] ?? "";
           final List<dynamic> jsonTasks = dayData['tasks'] ?? [];
+
           return jsonTasks
               .where((t) => (t['status'] ?? '').toLowerCase() != 'completed')
               .map((t) => Task.fromJson(t, day: day, date: date));
-        })
-            .toList();
+        }).toList();
+
+        // 🔥 SORT → LATEST FIRST (DATE + START TIME)
+        tasks.sort((a, b) {
+          DateTime parseDateTime(Task t) {
+            try {
+              final d = DateTime.parse(t.date!); // yyyy-MM-dd
+
+              final parts = t.startTime.split(':');
+              final h = int.tryParse(parts[0]) ?? 0;
+              final m = int.tryParse(parts[1]) ?? 0;
+              final s = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+
+              return DateTime(d.year, d.month, d.day, h, m, s);
+            } catch (_) {
+              return DateTime(1970);
+            }
+          }
+
+          return parseDateTime(b).compareTo(parseDateTime(a));
+        });
+
         setState(() {
           allTasks = tasks;
           taskList = List.from(allTasks);
         });
 
         _restoreTimerState();
-
-
         await _checkAutoPunchIn();
-
-        // Save offline
-      //  await DBHelper().clearTasks();
-        for (var taskk in tasks) {
-       //   await DBHelper().insertTask(taskk.toMap());
-        }
       }
     } else {
       // ❌ Offline → load from SQLite
       final offlineTasks = await DBHelper().getTasks();
+
+      final parsed = offlineTasks.map((t) => Task.fromJson(t)).toList();
+
+      // 🔥 SORT OFFLINE TASKS ALSO
+      parsed.sort((a, b) {
+        DateTime parseDateTime(Task t) {
+          try {
+            final d = DateTime.parse(t.date!);
+            final parts = t.startTime.split(':');
+            return DateTime(
+              d.year,
+              d.month,
+              d.day,
+              int.tryParse(parts[0]) ?? 0,
+              int.tryParse(parts[1]) ?? 0,
+            );
+          } catch (_) {
+            return DateTime(1970);
+          }
+        }
+
+        return parseDateTime(b).compareTo(parseDateTime(a));
+      });
+
       setState(() {
-        allTasks = offlineTasks.map((t) => Task.fromJson(t)).toList();
+        allTasks = parsed;
         taskList = List.from(allTasks);
       });
+
       _restoreTimerState();
     }
   }
+
 
 
 
@@ -1496,9 +1535,9 @@ print(response.body);
         TextButton(
           onPressed: () {
 
-            Navigator.pushReplacement(
+            Navigator.push(
               context,
-              MaterialPageRoute(builder: (context) => AllTasksScreen()),
+              MaterialPageRoute(builder: (context) => AllTasksScreen2()),
             );
 
           },
@@ -2283,22 +2322,58 @@ int? userId;
       if (data['success']) {
         final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
-        // 🔑 Flatten tasks across all days
         final List<Task> parsed = taskByDate
             .expand((dayData) {
           final String day = dayData['day'] ?? "";
           final String date = dayData['date'] ?? "";
           final List<dynamic> jsonTasks = dayData['tasks'] ?? [];
-          return jsonTasks.map((t) => Task.fromJson(t, day: day, date: date));
+          return jsonTasks.map(
+                (t) => Task.fromJson(t, day: day, date: date),
+          );
         })
             .toList();
 
+        // 🔥 SORT: Latest date + latest start time FIRST
+        parsed.sort((a, b) {
+          // ✅ Combine DATE + START TIME into DateTime
+          DateTime parseDateTime(Task t) {
+            try {
+              final date = DateTime.parse(t.date!); // yyyy-MM-dd
+
+              final parts = t.startTime.split(':');
+              final hour = int.tryParse(parts[0]) ?? 0;
+              final minute = int.tryParse(parts[1]) ?? 0;
+              final second = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+
+              return DateTime(
+                date.year,
+                date.month,
+                date.day,
+                hour,
+                minute,
+                second,
+              );
+            } catch (_) {
+              return DateTime(1970);
+            }
+          }
+
+          final dtA = parseDateTime(a);
+          final dtB = parseDateTime(b);
+
+          // 🔥 Latest FIRST
+          return dtB.compareTo(dtA);
+        });
+
+
+
         setState(() {
           tasks = parsed;
-          applyFilter(); // ✅ still applies your filtering logic
+          applyFilter(); // keeps status + priority filters
           isLoading = false;
         });
       }
+
     } else {
       // ❌ Offline → load from SQLite
       setState(() => isLoading = false);

@@ -25,42 +25,64 @@ class _LoginScreenState extends State<LoginScreen> {
     return androidInfo.id ?? "unknown";
   }
 
+  Future<String> getDeviceName() async {
+    final deviceInfo = DeviceInfoPlugin();
+    final androidInfo = await deviceInfo.androidInfo;
+    return "${androidInfo.manufacturer} ${androidInfo.model}";
+  }
+
   Future<void> loginUser() async {
     final String email = emailController.text.trim();
     final String password = passwordController.text;
 
     if (email.isEmpty || password.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Email and password are required")),
+        const SnackBar(content: Text("Email and password are required")),
       );
       return;
     }
 
-    setState(() {
-      isLoading = true;
-    });
-
-    final deviceId = await getDeviceId();
-    final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/");
+    setState(() => isLoading = true);
 
     try {
-      final response = await http.post(
+      /// 🔑 Device info
+      final deviceId = await getDeviceId();
+      final prefs = await SharedPreferences.getInstance();
+
+      /// 🔔 FCM token (already created in main.dart)
+      final String? fcmToken = prefs.getString('fcm_token');
+
+      final Uri url =
+      Uri.parse("https://admin.deineputzcrew.de/api/login/");
+
+      final response = await http
+          .post(
         url,
         headers: {"Content-Type": "application/json"},
         body: jsonEncode({
           "username": email,
           "password": password,
           "device_id": deviceId,
+
+          // 🔔 PUSH NOTIFICATION FIELDS
+          "fcm_token": fcmToken ?? "",
+          "device_token": fcmToken ?? "",
+          "device_type": "android",
+          "device_name": await getDeviceName(),
+          "platform": "flutter",
         }),
-      ).timeout(Duration(seconds: 10));
+      )
+          .timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
+
       if (response.statusCode == 200 && data['success'] == true) {
         final token = data['token'];
         final userid = data['data']['id'];
-        final username = data['data']['first_name'] + data['data']['last_name'];
+        final username =
+            "${data['data']['first_name']} ${data['data']['last_name']}";
 
-        final prefs = await SharedPreferences.getInstance();
+        /// 💾 Save locally
         await prefs.setString('token', token);
         await prefs.setInt('userid', userid);
         await prefs.setString('username', username);
@@ -73,7 +95,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => MainApp()),
+          MaterialPageRoute(builder: (_) => const MainApp()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -81,6 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } catch (e) {
+      /// 🌐 OFFLINE LOGIN FALLBACK
       final prefs = await SharedPreferences.getInstance();
       final savedEmail = prefs.getString('saved_email');
       final savedPassword = prefs.getString('saved_password');
@@ -88,22 +111,22 @@ class _LoginScreenState extends State<LoginScreen> {
       if (savedEmail == email && savedPassword == password) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => MainApp()),
+          MaterialPageRoute(builder: (_) => const MainApp()),
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("Offline login successful")),
+          const SnackBar(content: Text("Offline login successful")),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("No internet and no saved login found")),
+          const SnackBar(
+              content: Text("No internet and no saved login found")),
         );
       }
     } finally {
-      setState(() {
-        isLoading = false;
-      });
+      setState(() => isLoading = false);
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
