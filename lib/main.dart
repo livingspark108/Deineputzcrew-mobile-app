@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+// import 'package:firebase_core/firebase_core.dart';
+// import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'home.dart';
 import 'login.dart';
@@ -14,20 +14,20 @@ final FlutterLocalNotificationsPlugin notificationsPlugin =
 FlutterLocalNotificationsPlugin();
 
 /// 🔔 Background FCM handler (TOP LEVEL ONLY)
-Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
-}
+// Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+//   await Firebase.initializeApp();
+// }
 
 /// 🔥 MAIN
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   /// 🔥 Firebase MUST be awaited
-  await Firebase.initializeApp();
+  // await Firebase.initializeApp();
 
   /// 🔔 Background messages
-  FirebaseMessaging.onBackgroundMessage(
-      firebaseMessagingBackgroundHandler);
+  // FirebaseMessaging.onBackgroundMessage(
+  //     firebaseMessagingBackgroundHandler);
 
   /// 🔔 Local notifications
   await _initLocalNotifications();
@@ -112,11 +112,12 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _initFCM();
+    // _initFCM();
     _navigate();
   }
 
   /// 🔔 SAFE FCM INIT
+  /*
   Future<void> _initFCM() async {
     final FirebaseMessaging messaging = FirebaseMessaging.instance;
     final prefs = await SharedPreferences.getInstance();
@@ -162,6 +163,7 @@ class _SplashScreenState extends State<SplashScreen> {
       debugPrint("📲 Notification clicked");
     });
   }
+  */
 
   /// 🔄 Navigation
   Future<void> _navigate() async {
