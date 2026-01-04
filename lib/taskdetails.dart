@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:diveinpuits/a.dart';
-import 'package:diveinpuits/complete.dart';
+import 'package:deineputzcrew/a.dart';
+import 'package:deineputzcrew/complete.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';

@@ -37,32 +37,45 @@ Future<void> main() async {
 
 /// 🔔 Local Notifications Init (SAFE)
 Future<void> _initLocalNotifications() async {
-  const AndroidInitializationSettings androidSettings =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
+  try {
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
 
-  const InitializationSettings settings = InitializationSettings(
-    android: androidSettings,
-  );
+    // iOS/macOS notifications initialization
+    const DarwinInitializationSettings darwinSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
 
-  await notificationsPlugin.initialize(
-    settings,
-    onDidReceiveNotificationResponse: (response) {
-      debugPrint("🔔 Notification tapped");
-    },
-  );
+    const InitializationSettings settings = InitializationSettings(
+      android: androidSettings,
+      iOS: darwinSettings,
+      macOS: darwinSettings,
+    );
 
-  const AndroidNotificationChannel channel = AndroidNotificationChannel(
-    'high_importance_channel',
-    'High Importance Notifications',
-    importance: Importance.high,
-  );
+    await notificationsPlugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: (response) {
+        debugPrint("🔔 Notification tapped");
+      },
+    );
 
-  final androidPlugin =
-  notificationsPlugin.resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>();
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'high_importance_channel',
+      'High Importance Notifications',
+      importance: Importance.high,
+    );
 
-  if (androidPlugin != null) {
-    await androidPlugin.createNotificationChannel(channel);
+    final androidPlugin =
+    notificationsPlugin.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidPlugin != null) {
+      await androidPlugin.createNotificationChannel(channel);
+    }
+  } catch (e) {
+    print('Error initializing notifications: $e');
   }
 }
 
@@ -76,8 +89,17 @@ Future<void> showLocalNotification(String title, String body) async {
     priority: Priority.high,
   );
 
-  const NotificationDetails details =
-  NotificationDetails(android: androidDetails);
+  const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
+    presentAlert: true,
+    presentBadge: true,
+    presentSound: true,
+  );
+
+  const NotificationDetails details = NotificationDetails(
+    android: androidDetails,
+    iOS: iosDetails,
+    macOS: iosDetails,
+  );
 
   await notificationsPlugin.show(
     DateTime.now().millisecondsSinceEpoch ~/ 1000,

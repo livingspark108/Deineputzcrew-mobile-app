@@ -1,12 +1,13 @@
-import 'package:diveinpuits/home.dart';
-import 'package:diveinpuits/privacypolicy.dart';
-import 'package:diveinpuits/terms.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'home.dart';
+import 'privacypolicy.dart';
+import 'terms.dart';
 import 'forgetpasswordscreen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -21,14 +22,32 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<String> getDeviceId() async {
     final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-    return androidInfo.id ?? "unknown";
+    try {
+      if (Theme.of(context).platform == TargetPlatform.iOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        return iosInfo.identifierForVendor ?? "unknown-ios";
+      } else {
+        final androidInfo = await deviceInfo.androidInfo;
+        return androidInfo.id ?? "unknown";
+      }
+    } catch (e) {
+      return "unknown-device";
+    }
   }
 
   Future<String> getDeviceName() async {
     final deviceInfo = DeviceInfoPlugin();
-    final androidInfo = await deviceInfo.androidInfo;
-    return "${androidInfo.manufacturer} ${androidInfo.model}";
+    try {
+      if (Theme.of(context).platform == TargetPlatform.iOS) {
+        final iosInfo = await deviceInfo.iosInfo;
+        return "${iosInfo.name} ${iosInfo.model}";
+      } else {
+        final androidInfo = await deviceInfo.androidInfo;
+        return "${androidInfo.manufacturer} ${androidInfo.model}";
+      }
+    } catch (e) {
+      return "unknown-device";
+    }
   }
 
   Future<void> loginUser() async {
@@ -52,31 +71,41 @@ class _LoginScreenState extends State<LoginScreen> {
       /// 🔔 FCM token (already created in main.dart)
       final String? fcmToken = prefs.getString('fcm_token');
 
-      final Uri url =
-      Uri.parse("https://admin.deineputzcrew.de/api/login/");
+      final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/");
+
+      // Prepare request body - only include token fields if they exist
+      Map<String, dynamic> requestBody = {
+        "username": email,
+        "password": password,
+        "device_id": deviceId,
+        "device_type": Theme.of(context).platform == TargetPlatform.iOS ? "ios" : "android",
+        "device_name": await getDeviceName(),
+        "platform": "flutter",
+      };
+
+      // Only add FCM tokens if they exist and are not empty
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        requestBody["fcm_token"] = fcmToken;
+        requestBody["device_token"] = fcmToken;
+      }
 
       final response = await http
           .post(
         url,
         headers: {"Content-Type": "application/json"},
-        body: jsonEncode({
-          "username": email,
-          "password": password,
-          "device_id": deviceId,
-
-          // 🔔 PUSH NOTIFICATION FIELDS
-          "fcm_token": fcmToken ?? "",
-          "device_token": fcmToken ?? "",
-          "device_type": "android",
-          "device_name": await getDeviceName(),
-          "platform": "flutter",
-        }),
+        body: jsonEncode(requestBody),
       )
           .timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
 
-      if (response.statusCode == 200 && data['success'] == true) {
+      /// 🚨 Debug: Print API response
+      debugPrint("Login API Response:");
+      debugPrint("Status Code: ${response.statusCode}");
+      debugPrint("Response Body: ${response.body}");
+      debugPrint("Parsed Data: $data");
+
+      if (response.statusCode == 200 && (data['success'] == true || data['success'] == "true" || data['status'] == "success")) {
         final token = data['token'];
         final userid = data['data']['id'];
         final username =
@@ -95,14 +124,20 @@ class _LoginScreenState extends State<LoginScreen> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainApp()),
+          MaterialPageRoute(builder: (_) => MainApp()),
         );
       } else {
+        /// 🚨 Debug: Show why login failed
+        debugPrint("Login failed - Status: ${response.statusCode}, Success: ${data['success']}, Message: ${data['message']}");
+        
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? "Login failed")),
+          SnackBar(content: Text(data['message'] ?? "Login failed - Status: ${response.statusCode}")),
         );
       }
     } catch (e) {
+      /// 🚨 Debug: Show actual error in debug mode
+      debugPrint("Login error: $e");
+      
       /// 🌐 OFFLINE LOGIN FALLBACK
       final prefs = await SharedPreferences.getInstance();
       final savedEmail = prefs.getString('saved_email');
@@ -111,15 +146,15 @@ class _LoginScreenState extends State<LoginScreen> {
       if (savedEmail == email && savedPassword == password) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const MainApp()),
+          MaterialPageRoute(builder: (_) => MainApp()),
         );
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text("Offline login successful")),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("No internet and no saved login found")),
+          SnackBar(
+              content: Text("Login failed: ${e.toString()}")),
         );
       }
     } finally {

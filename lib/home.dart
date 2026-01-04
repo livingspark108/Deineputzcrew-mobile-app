@@ -1,34 +1,25 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
+import 'package:path/path.dart' as path;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:diveinpuits/settings.dart';
-import 'package:diveinpuits/task.dart';
-import 'package:diveinpuits/taskall.dart';
-import 'package:diveinpuits/taskdetails.dart';
+import 'package:deineputzcrew/settings.dart';
+import 'package:deineputzcrew/taskall.dart';
+import 'package:deineputzcrew/taskdetails.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:intl/intl.dart';
-import 'dart:convert';
-import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'dart:io';
-import 'package:flutter/material.dart';
-import 'package:image_picker/image_picker.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:http/http.dart' as http;
-import 'package:path/path.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'db_helper.dart';
 import 'main.dart';
 import 'task_model.dart';
-
-import 'package:flutter/material.dart';
 
 
 
@@ -103,6 +94,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static DateTime? _punchInTime;
 
   bool _isLoadingBreak = false;
+  bool _isLoading = false; // Start with false, set true when needed
+  String? _error; // Add error state
+  bool _initialized = false; // Add initialization flag
   String? punchedInTaskId;
 
   int userId = 0;
@@ -150,17 +144,31 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    loadUserData();
+    print('🏠 DashboardScreen initState called');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeApp();
+    });
 
     Timer.periodic(const Duration(seconds: 30), (_) {
       _checkAutoCheckout();
     });
+  }
 
-
-    //syncOfflineActions();
-
-
-
+  Future<void> _initializeApp() async {
+    print('🚀 Starting app initialization...');
+    try {
+      await loadUserData();
+      setState(() {
+        _initialized = true;
+      });
+      print('✅ App initialization completed successfully');
+    } catch (e) {
+      print('❌ App initialization failed: $e');
+      setState(() {
+        _initialized = true;
+        _error = 'Failed to initialize app: $e';
+      });
+    }
   }
   Future<void> _checkAutoCheckout() async {
     final prefs = await SharedPreferences.getInstance();
@@ -458,16 +466,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
   Future<void> loadUserData() async {
-    final prefs = await SharedPreferences.getInstance();
-   setState(() {
-
-     userId = prefs.getInt('userid') ?? 0;
-     token = prefs.getString('token');
-
-
-     fetchTasks();
-   });
-
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        userId = prefs.getInt('userid') ?? 0;
+        token = prefs.getString('token');
+      });
+      
+      // Call fetchTasks outside of setState
+      await fetchTasks();
+      
+      setState(() {
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+        _error = 'Failed to load data: $e';
+      });
+    }
   }
 
   List<Task> taskList = [];
@@ -699,36 +721,44 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> fetchTasks() async {
-    final connectivityResult = await Connectivity().checkConnectivity();
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token') ?? "";
+    print('📡 fetchTasks called');
+    if (!mounted) return;
+    
+    setState(() {
+      _error = null;
+    });
+    
+    try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token') ?? "";
 
-    if (connectivityResult != ConnectivityResult.none) {
-      // ✅ Online
-      final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'token $token',
-        },
-        body: jsonEncode({"id": userId}),
-      );
+      if (connectivityResult != ConnectivityResult.none) {
+        // ✅ Online
+        final response = await http.post(
+          Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'token $token',
+          },
+          body: jsonEncode({"id": userId}),
+        );
 
-      final data = jsonDecode(response.body);
+        final data = jsonDecode(response.body);
 
-      if (data['success']) {
-        final List<dynamic> taskByDate = data['task_by_date'] ?? [];
+        if (data['success']) {
+          final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
-        // 🔑 Flatten all tasks
-        final List<Task> tasks = taskByDate.expand((dayData) {
-          final String day = dayData['day'] ?? "";
-          final String date = dayData['date'] ?? "";
-          final List<dynamic> jsonTasks = dayData['tasks'] ?? [];
+          // 🔑 Flatten all tasks
+          final List<Task> tasks = taskByDate.expand((dayData) {
+            final String day = dayData['day'] ?? "";
+            final String date = dayData['date'] ?? "";
+            final List<dynamic> jsonTasks = dayData['tasks'] ?? [];
 
-          return jsonTasks
-              .where((t) => (t['status'] ?? '').toLowerCase() != 'completed')
-              .map((t) => Task.fromJson(t, day: day, date: date));
-        }).toList();
+            return jsonTasks
+                .where((t) => (t['status'] ?? '').toLowerCase() != 'completed')
+                .map((t) => Task.fromJson(t, day: day, date: date));
+          }).toList();
 
         // 🔥 SORT → LATEST FIRST (DATE + START TIME)
         tasks.sort((a, b) {
@@ -757,40 +787,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         _restoreTimerState();
         await _checkAutoPunchIn();
-      }
-    } else {
-      // ❌ Offline → load from SQLite
-      final offlineTasks = await DBHelper().getTasks();
-
-      final parsed = offlineTasks.map((t) => Task.fromJson(t)).toList();
-
-      // 🔥 SORT OFFLINE TASKS ALSO
-      parsed.sort((a, b) {
-        DateTime parseDateTime(Task t) {
-          try {
-            final d = DateTime.parse(t.date!);
-            final parts = t.startTime.split(':');
-            return DateTime(
-              d.year,
-              d.month,
-              d.day,
-              int.tryParse(parts[0]) ?? 0,
-              int.tryParse(parts[1]) ?? 0,
-            );
-          } catch (_) {
-            return DateTime(1970);
-          }
+        } else {
+          throw Exception('Failed to fetch tasks: ${data['message'] ?? 'Unknown error'}');
         }
+      } else {
+        // ❌ Offline → load from SQLite
+        final offlineTasks = await DBHelper().getTasks();
 
-        return parseDateTime(b).compareTo(parseDateTime(a));
-      });
+        final parsed = offlineTasks.map((t) => Task.fromJson(t)).toList();
 
-      setState(() {
-        allTasks = parsed;
-        taskList = List.from(allTasks);
-      });
+        // 🔥 SORT OFFLINE TASKS ALSO
+        parsed.sort((a, b) {
+          DateTime parseDateTime(Task t) {
+            try {
+              final d = DateTime.parse(t.date!);
+              final parts = t.startTime.split(':');
+              return DateTime(
+                d.year,
+                d.month,
+                d.day,
+                int.tryParse(parts[0]) ?? 0,
+                int.tryParse(parts[1]) ?? 0,
+              );
+            } catch (_) {
+              return DateTime(1970);
+            }
+          }
 
-      _restoreTimerState();
+          return parseDateTime(b).compareTo(parseDateTime(a));
+        });
+
+        setState(() {
+          allTasks = parsed;
+          taskList = List.from(allTasks);
+        });
+
+        _restoreTimerState();
+      }
+    } catch (e) {
+      print('❌ Error in fetchTasks: $e');
+      if (mounted) {
+        setState(() {
+          _error = 'Failed to load tasks: $e';
+          allTasks = [];
+          taskList = [];
+        });
+      }
+      rethrow; // Re-throw to be caught by loadUserData
     }
   }
 
@@ -856,7 +899,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           request.files.add(await http.MultipartFile.fromPath(
             "images",
             action["image_path"],
-            filename: basename(action["image_path"]),
+            filename: path.basename(action["image_path"]),
           ));
         }
 
@@ -1435,58 +1478,96 @@ print(response.body);
   }
   @override
   Widget build(BuildContext context) {
+    print('🖼️ DashboardScreen build called - _isLoading: $_isLoading, _initialized: $_initialized, _error: $_error');
+    
+    // Always return a Scaffold to prevent white screen
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: _buildMainContent(),
+      ),
+    );
+  }
+  
+  Widget _buildMainContent() {
+    // Show error state first
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline, size: 64, color: Colors.red),
+            SizedBox(height: 16),
+            Text('Error: $_error', textAlign: TextAlign.center),
+            SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: () => _initializeApp(),
+              child: Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+    
+    // Show loading state
+    if (!_initialized || _isLoading) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(height: 16),
+            Text(_initialized ? 'Loading tasks...' : 'Initializing...'),
+          ],
+        ),
+      );
+    }
+    
+    // Show main dashboard content
     final now = DateTime.now();
     final date = DateFormat('MMMM d, EEEE').format(now);
 
-    return SafeArea(
-      child: RefreshIndicator(
-        onRefresh: fetchTasks,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(), // 👈 required
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                '',
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  fontFamily: 'Poppins',
-                ),
+    return RefreshIndicator(
+      onRefresh: fetchTasks,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              '',
+              style: TextStyle(
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+                fontFamily: 'Poppins',
               ),
-              const SizedBox(height: 14),
-              _buildSearchBar(),
-              const SizedBox(height: 10),
+            ),
+            const SizedBox(height: 14),
+            _buildSearchBar(),
+            const SizedBox(height: 10),
 
-              Wrap(
-                spacing: 10,
-                children: [
-                  _priorityChip("All"),
-                  _priorityChip("Low"),
-                  _priorityChip("Medium"),
-                  _priorityChip("High"),
-                ],
-              ),
+            Wrap(
+              spacing: 10,
+              children: [
+                _priorityChip("All"),
+                _priorityChip("Low"),
+                _priorityChip("Medium"),
+                _priorityChip("High"),
+              ],
+            ),
+            const SizedBox(height: 10),
 
-              const SizedBox(height: 18),
-
-
-              buildTimerCard(context, date),
-              const SizedBox(height: 28),
-              _buildTaskHeader(context),
-              const SizedBox(height: 14),
-              _buildTaskList(),
-            ],
-          ),
+            buildTimerCard(context, date),
+            const SizedBox(height: 16),
+            _buildTaskHeader(context),
+            const SizedBox(height: 10),
+            _buildTaskList(),
+          ],
         ),
       ),
     );
-
   }
-
-
-
 
   final TextEditingController _searchController = TextEditingController();
 
@@ -1610,17 +1691,7 @@ print(response.body);
 
         },
       );
-
-
-
-
-
-
-    ;}
-
-
-
-
+  }
 }
 
 
@@ -1827,7 +1898,7 @@ class _TaskCardState extends State<TaskCard> {
       request.files.add(await http.MultipartFile.fromPath(
         'images',
         image.path,
-        filename: basename(image.path),
+        filename: path.basename(image.path),
       ));
 
       final response = await request.send();
@@ -1893,7 +1964,7 @@ class _TaskCardState extends State<TaskCard> {
       request.files.add(await http.MultipartFile.fromPath(
         'images',
         image.path,
-        filename: basename(image.path),
+        filename: path.basename(image.path),
       ));
 
       final response = await request.send();

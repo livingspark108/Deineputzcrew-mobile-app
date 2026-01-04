@@ -1,5 +1,5 @@
 import 'dart:convert';
-import 'package:diveinpuits/resetpassword.dart';
+import 'package:deineputzcrew/resetpassword.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
