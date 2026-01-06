@@ -24,6 +24,7 @@ import 'package:path/path.dart';
 import 'db_helper.dart';
 import 'home.dart';
 import 'task_model.dart';
+import 'taskall.dart';
 
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
@@ -37,7 +38,7 @@ class _MainAppState extends State<MainApp> {
 
   final List<Widget> _pages = const [
     DashboardScreen(),
-    AllTasksScreen(),
+    AllTasksScreen2(),
     SettingsScreen(),
   ];
 
@@ -1044,7 +1045,7 @@ print(response.body);
 
             Navigator.pushReplacement(
               context,
-              MaterialPageRoute(builder: (context) => AllTasksScreen()),
+              MaterialPageRoute(builder: (context) => AllTasksScreen2()),
             );
 
           },
@@ -1081,7 +1082,7 @@ print(response.body);
             title: task.taskName,
             time: task.timeRange,
             location: task.locationName,
-            duration: task.duration,
+            duration: task.totalWorkTime,
             highPriority: task.priority,
             completed: task.status,
             taskId: task.id,

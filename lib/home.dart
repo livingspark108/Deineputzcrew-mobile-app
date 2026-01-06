@@ -42,7 +42,7 @@ class _MainAppState extends State<MainApp> {
 
   final List<Widget> _pages = const [
     DashboardScreen(),
-    AllTasksScreen(),
+    AllTasksScreen2(),
     SettingsScreen()
 
   ];
@@ -1749,7 +1749,7 @@ print(response.body);
             title: task.taskName,
             time: task.timeRange,
             location: task.locationName,
-            duration: task.duration,
+            duration: task.totalWorkTime,
             highPriority: task.priority,
             completed: task.status,
             taskId: task.id,

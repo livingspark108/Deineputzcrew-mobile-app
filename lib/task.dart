@@ -2,6 +2,9 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:deineputzcrew/task_model.dart';
 
 
 
@@ -14,8 +17,8 @@ class AllTasksScreen extends StatefulWidget {
 
 class _AllTasksScreenState extends State<AllTasksScreen> {
   int selectedTabIndex = 0;
-  List<Map<String, dynamic>> tasks = [];
-  List<Map<String, dynamic>> filteredTasks = [];
+  List<Task> tasks = [];
+  List<Task> filteredTasks = [];
   final List<String> tabs = ["All", "Pending", "Completed"];
   bool isLoading = false;
 
@@ -28,38 +31,49 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
 
   Future<void> fetchTasks() async {
     setState(() => isLoading = true);
-    const url = 'https://admin.deineputzcrew.de/api/get_user_detail/';
-    final response = await http.post(
-      Uri.parse(url),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({"id": 9}),
-    );
+    final connectivityResult = await Connectivity().checkConnectivity();
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString('token') ?? "";
+    final userId = prefs.getInt('userid') ?? 0;
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      final List<dynamic> jsonTasks = data['task'];
+    if (connectivityResult != ConnectivityResult.none) {
+      final response = await http.post(
+        Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'token $token',
+        },
+        body: jsonEncode({"id": userId}),
+      );
 
-      final parsed = jsonTasks.map((task) {
-        final start = task['start_time'];
-        final end = task['end_time'];
-        return {
-          "title": task["task_name"],
-          "time": "${formatTime(start)} to ${formatTime(end)}",
-          "location": task["location_name"],
-          "duration": calculateDuration(start, end),
-          "priority": task["priority"], // Modify if you want to check actual priority
-          "status": task["status"].toString().capitalize(),
-        };
-      }).toList();
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success']) {
+          final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
-      setState(() {
-        tasks = parsed;
-        applyFilter();
-        isLoading = false;
-      });
+          final List<Task> parsed = taskByDate
+              .expand((dayData) {
+            final String day = dayData['day'] ?? "";
+            final String date = dayData['date'] ?? "";
+            final List<dynamic> jsonTasks = dayData['tasks'] ?? [];
+            return jsonTasks.map(
+                  (t) => Task.fromJson(t, day: day, date: date),
+            );
+          })
+              .toList();
+
+          setState(() {
+            tasks = parsed;
+            applyFilter();
+            isLoading = false;
+          });
+        }
+      } else {
+        setState(() => isLoading = false);
+        print("Failed to load tasks: ${response.body}");
+      }
     } else {
       setState(() => isLoading = false);
-      print("Failed to load tasks: ${response.body}");
     }
   }
 
@@ -69,7 +83,7 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
     } else {
       filteredTasks = tasks
           .where((task) =>
-      task['status'].toString().toLowerCase() ==
+      task.status.toLowerCase() ==
           tabs[selectedTabIndex].toLowerCase())
           .toList();
     }
@@ -137,9 +151,9 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
                 if (index == 0) {
                   count = tasks.length; // All
                 } else if (index == 1) {
-                  count = tasks.where((t) => t['status'] == 'Pending').length;
+                  count = tasks.where((t) => t.status.toLowerCase() == 'pending').length;
                 } else if (index == 2) {
-                  count = tasks.where((t) => t['status'] == 'Completed').length;
+                  count = tasks.where((t) => t.status.toLowerCase() == 'completed').length;
                 }
 
                 return GestureDetector(
@@ -218,12 +232,12 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
                 itemBuilder: (context, index) {
                   final task = filteredTasks[index];
                   return _TaskCard(
-                    title: task["title"],
-                    time: task["time"],
-                    location: task["location"],
-                    duration: task["duration"],
-                    highPriority: task["priority"],
-                    status: task["status"],
+                    title: task.taskName,
+                    time: task.timeRange,
+                    location: task.locationName,
+                    duration: task.totalWorkTime,
+                    highPriority: task.priority,
+                    status: task.status,
                   );
                 },
               ),

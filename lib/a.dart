@@ -19,6 +19,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
+import 'taskall.dart';
 
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
@@ -32,7 +33,7 @@ class _MainAppState extends State<MainApp> {
 
   final List<Widget> _pages = const [
     DashboardScreen(),
-    AllTasksScreen(),
+    AllTasksScreen2(),
     SettingsScreen(),
   ];
 
