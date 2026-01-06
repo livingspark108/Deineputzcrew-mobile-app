@@ -89,6 +89,10 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String selectedPriority = "all"; // all | low | medium | high
+  bool _isManualRefresh = false;
+  Timer? _autoCheckoutTimer;
+  bool _autoCheckoutLocked = false;
+
 
   static  Duration _workingDuration = Duration.zero;
   static DateTime? _punchInTime;
@@ -111,6 +115,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   static Duration _pausedDuration = Duration.zero;
   static bool _onBreak = false;
+
+  void _startAutoCheckoutTimer() {
+    _autoCheckoutTimer?.cancel();
+    _autoCheckoutTimer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _checkAutoCheckout(),
+    );
+  }
+
+  void _stopAutoCheckoutTimer() {
+    _autoCheckoutTimer?.cancel();
+    _autoCheckoutTimer = null;
+  }
+
 
   Future<void> showAutoCheckoutNotification(String taskName) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
@@ -145,32 +163,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     print('🏠 DashboardScreen initState called');
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeApp();
+    // WidgetsBinding.instance.addPostFrameCallback((_) {
+    //   _initializeApp();
+    // });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _initializeApp();
+      _startAutoCheckoutTimer();
     });
 
-    Timer.periodic(const Duration(seconds: 30), (_) {
-      _checkAutoCheckout();
-    });
+
+    // Timer.periodic(const Duration(seconds: 30), (_) {
+    //   _checkAutoCheckout();
+    // });
+    
   }
 
+  // Future<void> _initializeApp() async {
+  //   print('🚀 Starting app initialization...');
+  //   try {
+  //     await loadUserData();
+  //     setState(() {
+  //       _initialized = true;
+  //     });
+  //     print('✅ App initialization completed successfully');
+  //   } catch (e) {
+  //     print('❌ App initialization failed: $e');
+  //     setState(() {
+  //       _initialized = true;
+  //       _error = 'Failed to initialize app: $e';
+  //     });
+  //   }
+  // }
   Future<void> _initializeApp() async {
-    print('🚀 Starting app initialization...');
+    _autoCheckoutLocked = true;   // 🔒 lock during init
     try {
       await loadUserData();
-      setState(() {
-        _initialized = true;
-      });
-      print('✅ App initialization completed successfully');
-    } catch (e) {
-      print('❌ App initialization failed: $e');
-      setState(() {
-        _initialized = true;
-        _error = 'Failed to initialize app: $e';
-      });
+    } finally {
+      _autoCheckoutLocked = false; // 🔓 unlock after init
+      setState(() => _initialized = true);
     }
   }
+
   Future<void> _checkAutoCheckout() async {
+    if (_autoCheckoutLocked || _isManualRefresh) {
+      debugPrint("⛔ Auto punch-out blocked (refresh/init)");
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     final punchedTaskId = prefs.getString('punchedInTaskId');
 
@@ -213,7 +252,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // bool _isTimeExceeded(Task task) {
+  //   final now = DateTime.now();
+
+  //   List<int> hm(String s) {
+  //     final p = s.split(':').map((e) => int.tryParse(e) ?? 0).toList();
+  //     return [p[0], p[1], p.length > 2 ? p[2] : 0];
+  //   }
+
+  //   final endParts = hm(task.endTime);
+  //   final endTime = DateTime(now.year, now.month, now.day,
+  //       endParts[0], endParts[1], endParts[2]);
+
+  //   // Handle overnight shifts
+  //   if (endTime.isBefore(now)) {
+  //     return true;
+  //   }
+  //   return false;
+  // }
   bool _isTimeExceeded(Task task) {
+    if (_punchInTime == null) return false;
+
     final now = DateTime.now();
 
     List<int> hm(String s) {
@@ -222,15 +281,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final endParts = hm(task.endTime);
-    final endTime = DateTime(now.year, now.month, now.day,
-        endParts[0], endParts[1], endParts[2]);
+    DateTime endTime = DateTime(
+      _punchInTime!.year,
+      _punchInTime!.month,
+      _punchInTime!.day,
+      endParts[0],
+      endParts[1],
+      endParts[2],
+    );
 
-    // Handle overnight shifts
-    if (endTime.isBefore(now)) {
-      return true;
+    // overnight shift support
+    if (endTime.isBefore(_punchInTime!)) {
+      endTime = endTime.add(const Duration(days: 1));
     }
-    return false;
+
+    return now.isAfter(endTime);
   }
+
   Future<void> _autoPunchOut(Task task) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
@@ -313,7 +380,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final startTimeStr = prefs.getString('punchInStartTime');
     final pausedDurationMillis = prefs.getInt('pausedDuration') ?? 0;
     final onBreak = prefs.getBool('onBreak') ?? false;
-    final breakDurationMillis = prefs.getInt('breakDuration') ?? 0;
+    // final breakDurationMillis = prefs.getInt('breakDuration') ?? 0;
+    final breakStartStr = prefs.getString('breakStartTime');
+
 
     if (storedTaskId != null &&
         storedTaskId.isNotEmpty &&
@@ -330,21 +399,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         isClockedOut = false;
       });
 
-      if (_onBreak) {
-        // ✅ Restore break state
-        _breakDuration = Duration(milliseconds: breakDurationMillis);
-        _breakStartTime = DateTime.now().subtract(_breakDuration);
+      if (_onBreak && breakStartStr != null) {
+        _breakStartTime = DateTime.parse(breakStartStr);
 
         _breakTimer?.cancel();
         _breakTimer = Timer.periodic(const Duration(seconds: 1), (_) {
           setState(() {
-            _breakDuration = DateTime.now().difference(_breakStartTime!);
+            _breakDuration =
+                DateTime.now().difference(_breakStartTime!);
           });
         });
 
-        // ✅ Adjust working duration so it excludes ongoing break
+        // Adjust working duration
         _workingDuration = DateTime.now().difference(_punchInTime!) -
-            (_pausedDuration + _breakDuration);
+            _pausedDuration -
+            _breakDuration;
       } else {
         // ✅ Resume work timer
         _workingDuration =
@@ -414,6 +483,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // Start break timer fresh
     _breakDuration = Duration.zero;
     _breakStartTime = DateTime.now();
+
+    // SAVE BREAK START TIME
+    await prefs.setString(
+      'breakStartTime',
+      _breakStartTime!.toIso8601String(),
+    );
+    await prefs.setBool('onBreak', true);
 
     _breakTimer?.cancel();
     _breakTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -527,6 +603,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }*/
 
   Future<void> _checkAutoPunchIn() async {
+    if (_isManualRefresh) {
+      debugPrint("⏸ Auto punch-in skipped (manual refresh)");
+      return;
+    }
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       await Geolocator.openLocationSettings();
@@ -1528,7 +1608,20 @@ print(response.body);
     final date = DateFormat('MMMM d, EEEE').format(now);
 
     return RefreshIndicator(
-      onRefresh: fetchTasks,
+      //onRefresh: fetchTasks,
+      onRefresh: () async {
+        _autoCheckoutLocked = true;      // 🔒 HARD LOCK
+        _isManualRefresh = true;
+        _stopAutoCheckoutTimer();
+
+        await fetchTasks();
+
+        _isManualRefresh = false;
+        _autoCheckoutLocked = false;     // 🔓 UNLOCK
+        _startAutoCheckoutTimer();
+      },
+
+
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
@@ -1804,6 +1897,8 @@ class TaskCard extends StatefulWidget {
 
 class _TaskCardState extends State<TaskCard> {
   bool isSelected = false;
+  
+
 
 
   Future<Position> _getCurrentLocation() async {

@@ -39,7 +39,7 @@ import 'home.dart';
   }
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
-  String selectedStatus = "Pending";
+  String selectedStatus = "Completed";
   List<File> images = [];
   final ImagePicker _picker = ImagePicker();
 
@@ -60,7 +60,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () {},
+          onPressed: () {
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            } else {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => MainApp()),
+              );
+            }
+          },
         ),
         title: const Text("Task Details",
             style: TextStyle(
