@@ -326,7 +326,7 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
                     title: task.taskName,
                     time: task.timeRange,
                     location: task.locationName,
-                    duration: task.duration,
+                    duration: task.totalWorkTime,
                     highPriority: task.priority,
                     completed: task.status,
                     taskId: task.id,

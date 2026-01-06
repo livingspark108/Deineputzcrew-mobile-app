@@ -1336,7 +1336,8 @@ print(response.body);
         breakIn: false,
         breakOut: false,
         day: "",
-        date:""
+        date:"",
+        totalWorkTime: "0h 0m",
       ),
     );
 
