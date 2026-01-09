@@ -131,7 +131,26 @@ class DBHelper {
       'punch_actions',
       where: 'synced = ?',
       whereArgs: [0],
+      orderBy: 'timestamp ASC',
     );
+  }
+
+  Future<int> markPunchActionSynced(int id) async {
+    final dbClient = await db;
+    return await dbClient.update(
+      'punch_actions',
+      {'synced': 1},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+  }
+
+  Future<int> getPendingSyncCount() async {
+    final dbClient = await db;
+    final result = await dbClient.rawQuery(
+      'SELECT COUNT(*) as count FROM punch_actions WHERE synced = 0'
+    );
+    return Sqflite.firstIntValue(result) ?? 0;
   }
 
   Future<int> deletePunchAction(int id) async {

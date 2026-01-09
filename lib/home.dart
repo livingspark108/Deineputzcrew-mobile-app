@@ -20,6 +20,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'db_helper.dart';
 import 'main.dart';
 import 'task_model.dart';
+import 'location_service.dart';
 
 
 
@@ -128,7 +129,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   StreamSubscription<ConnectivityResult>? _connectivitySub;
 
-
+  // ✅ Connectivity & Sync Status
+  bool _isOnline = true;
+  int _pendingSyncCount = 0;
+  Timer? _syncStatusTimer;
+  
+  // Location service for background monitoring
+  final LocationService _locationService = LocationService();
 
   static  Duration _workingDuration = Duration.zero;
   static DateTime? _punchInTime;
@@ -206,13 +213,20 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await _initializeApp();
       _startAutoCheckoutTimer();
+      _startSyncStatusMonitoring();
     });
 
     _connectivitySub =
-      Connectivity().onConnectivityChanged.listen((result) {
-      if (result != ConnectivityResult.none) {
+      Connectivity().onConnectivityChanged.listen((result) async {
+      final isOnline = result != ConnectivityResult.none;
+      setState(() {
+        _isOnline = isOnline;
+      });
+      
+      if (isOnline) {
         debugPrint("🌐 Internet restored → syncing offline data");
-        syncOfflineActions();
+        await syncOfflineActions();
+        await _updatePendingSyncCount();
       }
     });
 
@@ -226,6 +240,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _connectivitySub?.cancel();
+    _syncStatusTimer?.cancel();
+    _locationService.stopMonitoring();
     super.dispose();
   }
 
@@ -249,13 +265,75 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _initializeApp() async {
     _autoCheckoutLocked = true;
     try {
+      // Check initial connectivity
+      final connectivity = await Connectivity().checkConnectivity();
+      setState(() {
+        _isOnline = connectivity != ConnectivityResult.none;
+      });
+
       await loadUserData(); // Loads tasks + restores timer state
+      
+      // ✅ Start location service with tasks
+      await _locationService.startMonitoring(
+        tasks: allTasks,
+        onAutoCheckIn: _handleAutoCheckIn,
+      );
       
       // ✅ FIXED: Sync AFTER timer state is restored
       await syncOfflineActions();
+      await _updatePendingSyncCount();
     } finally {
       _autoCheckoutLocked = false;
       setState(() => _initialized = true);
+    }
+  }
+
+  /// Monitor sync status and connectivity
+  void _startSyncStatusMonitoring() {
+    _syncStatusTimer = Timer.periodic(
+      const Duration(seconds: 10),
+      (_) => _updatePendingSyncCount(),
+    );
+  }
+
+  /// Handle auto check-in callback from location service
+  void _handleAutoCheckIn(String taskId, DateTime punchInTime) {
+    debugPrint("📞 Auto check-in callback: $taskId at $punchInTime");
+    
+    if (mounted) {
+      setState(() {
+        selectedTaskId = taskId;
+        _punchInTime = punchInTime;
+      });
+      
+      // Start the dashboard timer
+      startDashboardWorkTimer();
+      
+      // Update UI sync count
+      _updatePendingSyncCount();
+      
+      // Show notification
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('✅ Auto Check-in completed (offline)'),
+          backgroundColor: Colors.orange,
+          duration: const Duration(seconds: 3),
+        ),
+      );
+    }
+  }
+
+  /// Update pending sync count
+  Future<void> _updatePendingSyncCount() async {
+    try {
+      final count = await DBHelper().getPendingSyncCount();
+      if (mounted) {
+        setState(() {
+          _pendingSyncCount = count;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error updating sync count: $e");
     }
   }
 
@@ -382,6 +460,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
       debugPrint("📊 Total offline actions after punch-out: ${saved.length}");
       for (var action in saved) {
         debugPrint("   - ${action['type']} at ${action['timestamp']}");
+      }
+
+      // Update UI
+      await _updatePendingSyncCount();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📴 Auto Check-out saved offline. Will sync when online.'),
+            duration: Duration(seconds: 3),
+          ),
+        );
       }
       return;
     }
@@ -853,6 +943,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Write empty content (0 bytes) or minimal JPG header
       await emptyImage.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]); // minimal valid JPG
 
+      final DateTime now = DateTime.now();
+
+      // ✅ CHECK CONNECTIVITY FIRST
+      final connectivity = await Connectivity().checkConnectivity();
+      
+      // OFFLINE → Save to SQLite
+      if (connectivity == ConnectivityResult.none) {
+        debugPrint("📴 Offline - Saving auto punch-in to DB");
+        await DBHelper().insertPunchAction({
+          'task_id': task.id,
+          'type': 'punch-in',
+          'lat': _toSixDecimals(position.latitude).toString(),
+          'long': _toSixDecimals(position.longitude).toString(),
+          'image_path': emptyImage.path,
+          'timestamp': now.toIso8601String(),
+          'remark': 'Auto Punch-in',
+          'synced': 0,
+        });
+
+        // Update local state
+        await prefs.setString('punchedInTaskId', task.id);
+        selectedTaskId = task.id;
+        _punchInTime = now;
+
+        startDashboardWorkTimer();
+
+        // Update UI
+        await _updatePendingSyncCount();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('📴 Auto Check-in saved offline. Will sync when online.'),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+
+      // ONLINE → Send to API
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
@@ -863,8 +994,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       request.fields['task_id'] = task.id;
       request.fields['lat'] = _toSixDecimals(position.latitude).toString();
       request.fields['long'] = _toSixDecimals(position.longitude).toString();
-
-
 
       // Attach blank file instead of camera image
       request.files.add(await http.MultipartFile.fromPath(
@@ -881,6 +1010,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setString('punchedInTaskId', task.id);
         selectedTaskId = task.id;
+        _punchInTime = now;
 
         startDashboardWorkTimer();
 
@@ -968,6 +1098,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           taskList = List.from(allTasks);
         });
 
+        // ✅ Update location service with new tasks
+        _locationService.updateTasks(tasks);
+
         _restoreTimerState();
         await _checkAutoPunchIn();
         } else {
@@ -1007,6 +1140,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           taskList = List.from(allTasks);
         });
 
+        // ✅ Update location service with offline tasks
+        _locationService.updateTasks(parsed);
+
         _restoreTimerState();
       }
     } catch (e) {
@@ -1039,6 +1175,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           taskList = List.from(allTasks);
           _error = 'Offline mode: Showing cached tasks';
         });
+
+        // ✅ Update location service with cached tasks
+        _locationService.updateTasks(parsed);
 
         _restoreTimerState();
       } catch (offlineError) {
@@ -1230,6 +1369,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
         );
       }
+
+      // Update UI with new pending count
+      await _updatePendingSyncCount();
     } finally {
       // 🔓 ALWAYS UNLOCK
       _isSyncing = false;
@@ -1879,6 +2021,10 @@ print(response.body);
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ✅ Connectivity & Sync Status Banner
+            if (!_isOnline || _pendingSyncCount > 0) _buildStatusBanner(),
+            if (!_isOnline || _pendingSyncCount > 0) const SizedBox(height: 12),
+
             const Text(
               '',
               style: TextStyle(
@@ -1943,6 +2089,65 @@ print(response.body);
         prefixIcon: const Icon(Icons.search),
         contentPadding: const EdgeInsets.symmetric(vertical: 0),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  /// Status banner showing offline/sync status
+  Widget _buildStatusBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: !_isOnline ? Colors.orange.shade100 : Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: !_isOnline ? Colors.orange.shade300 : Colors.blue.shade200,
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            !_isOnline ? Icons.cloud_off : Icons.sync,
+            color: !_isOnline ? Colors.orange.shade700 : Colors.blue.shade700,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  !_isOnline ? '📴 Offline Mode' : '📤 Syncing Data',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    color: !_isOnline ? Colors.orange.shade900 : Colors.blue.shade900,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  !_isOnline
+                      ? 'Check-ins/outs will be saved and synced when online'
+                      : '$_pendingSyncCount action${_pendingSyncCount == 1 ? '' : 's'} pending sync',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: !_isOnline ? Colors.orange.shade700 : Colors.blue.shade700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_pendingSyncCount > 0 && _isOnline)
+            IconButton(
+              icon: Icon(Icons.refresh, color: Colors.blue.shade700),
+              onPressed: () async {
+                await syncOfflineActions();
+                await _updatePendingSyncCount();
+              },
+              tooltip: 'Sync now',
+            ),
+        ],
       ),
     );
   }
