@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 // import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'home.dart';
+import 'consent_screen.dart';
 import 'login.dart';
 
 /// 🔔 Local Notifications
@@ -194,17 +195,37 @@ class _SplashScreenState extends State<SplashScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
+    //=== concent accept
+    final consentAccepted = prefs.getBool('consent_accepted') ?? false;
+
     if (!mounted) return;
+    
+    late Widget nextScreen;
+    if (!consentAccepted) {
+      /// 🔐 FIRST TIME → Consent Mandatory
+      nextScreen = ConsentScreen();
+    } else if (token == null || token.isEmpty) {
+      /// 🔑 No login
+      nextScreen = LoginScreen();
+    } else {
+      /// 🏠 Logged in
+      nextScreen = const MainApp();
+    }
 
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(
-        builder: (_) =>
-        token == null || token.isEmpty
-            ? LoginScreen()
-            : const MainApp(),
-      ),
+      MaterialPageRoute(builder: (_) => nextScreen),
     );
+
+    // Navigator.pushReplacement(
+    //   context,
+    //   MaterialPageRoute(
+    //     builder: (_) =>
+    //     token == null || token.isEmpty
+    //         ? LoginScreen()
+    //         : const MainApp(),
+    //   ),
+    // );
   }
 
   @override

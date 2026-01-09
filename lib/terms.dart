@@ -8,10 +8,7 @@ class TermsConditionsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        );
+        Navigator.pop(context);
         return false; // prevent default back behavior
       },
       child: Scaffold(
@@ -26,10 +23,7 @@ class TermsConditionsScreen extends StatelessWidget {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
+              Navigator.pop(context);
             },
           ),
         ),

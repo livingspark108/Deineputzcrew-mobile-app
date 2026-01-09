@@ -412,6 +412,45 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  Future<void> sendConsentAuditToServer(String token) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      // ✅ Read saved consent audit
+      final String? auditJson = prefs.getString('consent_audit');
+      final bool alreadySynced =
+          prefs.getBool('consent_audit_synced') ?? false;
+
+      // ❌ Nothing to send OR already sent
+      if (auditJson == null || alreadySynced) return;
+
+      final Uri url = Uri.parse(
+        "https://admin.deineputzcrew.de/api/consent-log/",
+      );
+
+      final response = await http.post(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",
+        },
+        body: auditJson,
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        // ✅ Mark as synced to avoid duplicate inserts
+        await prefs.setBool('consent_audit_synced', true);
+        debugPrint("✅ Consent audit synced successfully");
+      } else {
+        debugPrint(
+            "⚠️ Consent audit failed: ${response.statusCode} ${response.body}");
+      }
+    } catch (e) {
+      debugPrint("⚠️ Consent audit error: $e");
+    }
+  }
+
+
   Future<void> loginUser() async {
     final String email = emailController.text.trim();
     final String password = passwordController.text;
@@ -495,6 +534,9 @@ class _LoginScreenState extends State<LoginScreen> {
         await prefs.setString('saved_email', email);
         await prefs.setString('saved_password', password);
 
+        /// 🧾 SEND CONSENT AUDIT (NON-BLOCKING)
+        //sendConsentAuditToServer(token);
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(data['message'] ?? "Login successful")),
         );
@@ -538,77 +580,6 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => isLoading = false);
     }
   }
-  // 🔒 LOGIN API (UNCHANGED)
-  // Future<void> loginUser() async {
-  //   final String email = emailController.text.trim();
-  //   final String password = passwordController.text;
-
-  //   setState(() {
-  //     _emailError = null;
-  //     _passwordError = null;
-  //   });
-
-  //   // 🔍 Inline validation
-  //   if (email.isEmpty) {
-  //     setState(() => _emailError = "Email is required");
-  //     return;
-  //   }
-
-  //   final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-  //   if (!emailRegex.hasMatch(email)) {
-  //     setState(() => _emailError = "Enter a valid email");
-  //     return;
-  //   }
-
-  //   if (password.isEmpty) {
-  //     setState(() => _passwordError = "Password is required");
-  //     return;
-  //   }
-
-  //   setState(() => isLoading = true);
-
-  //   try {
-  //     final prefs = await SharedPreferences.getInstance();
-  //     final deviceInfo = DeviceInfoPlugin();
-
-  //     final deviceId = Theme.of(context).platform == TargetPlatform.iOS
-  //         ? (await deviceInfo.iosInfo).identifierForVendor ?? "ios"
-  //         : (await deviceInfo.androidInfo).id ?? "android";
-
-  //     final requestBody = {
-  //       "username": email,
-  //       "password": password,
-  //       "device_id": deviceId,
-  //       "platform": "flutter",
-  //     };
-
-  //     final response = await http.post(
-  //       Uri.parse("https://admin.deineputzcrew.de/api/login/"),
-  //       headers: {"Content-Type": "application/json"},
-  //       body: jsonEncode(requestBody),
-  //     );
-
-  //     final data = jsonDecode(response.body);
-
-  //     if (response.statusCode == 200 && data['success'] == true) {
-  //       await prefs.setString('token', data['token']);
-  //       Navigator.pushReplacement(
-  //         context,
-  //         MaterialPageRoute(builder: (_) => MainApp()),
-  //       );
-  //     } else {
-  //       ScaffoldMessenger.of(context).showSnackBar(
-  //         SnackBar(content: Text(data['message'] ?? "Login failed")),
-  //       );
-  //     }
-  //   } catch (e) {
-  //     ScaffoldMessenger.of(context).showSnackBar(
-  //       SnackBar(content: Text("Error: $e")),
-  //     );
-  //   } finally {
-  //     setState(() => isLoading = false);
-  //   }
-  // }
 
   @override
   Widget build(BuildContext context) {
@@ -756,11 +727,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       recognizer: TapGestureRecognizer()
                         ..onTap = () {
-                          Navigator.pushReplacement(
+                          Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (_) => TermsConditionsScreen()),
+                            MaterialPageRoute(builder: (_) => const TermsConditionsScreen()),
                           );
+
                         },
                     ),
                     const TextSpan(text: ' and '),
@@ -772,10 +743,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       recognizer: TapGestureRecognizer()
                         ..onTap = () {
-                          Navigator.pushReplacement(
+                          Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (_) => PrivacyPolicyScreen()),
+                            MaterialPageRoute(builder: (_) => const PrivacyPolicyScreen()),
                           );
                         },
                     ),

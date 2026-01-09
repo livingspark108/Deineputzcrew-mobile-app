@@ -40,7 +40,7 @@ class _MainAppState extends State<MainApp> {
     _selectedIndex = widget.initialIndex; // 👈 Start on passed index
   }
 
-  final List<Widget> _pages = const [
+  final List<Widget> _pages =  [
     DashboardScreen(),
     AllTasksScreen2(),
     SettingsScreen()
@@ -79,19 +79,55 @@ class _MainAppState extends State<MainApp> {
 
 class DashboardScreen extends StatefulWidget {
 
-  const DashboardScreen({super.key});
+  //const DashboardScreen({super.key});
+  DashboardScreen({super.key});
+
+  StreamSubscription<ConnectivityResult>? _connectivitySub;
+
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 
-
 }
+
+bool isTaskTimeValid(Task task) {
+    final now = DateTime.now();
+
+    List<int> toHMS(String t) {
+      final p = t.split(':').map((e) => int.tryParse(e) ?? 0).toList();
+      return [p[0], p[1], p.length > 2 ? p[2] : 0];
+    }
+
+    final start = toHMS(task.startTime);
+    final end = toHMS(task.endTime);
+
+    DateTime startDt = DateTime(
+      now.year, now.month, now.day,
+      start[0], start[1], start[2],
+    );
+
+    DateTime endDt = DateTime(
+      now.year, now.month, now.day,
+      end[0], end[1], end[2],
+    );
+
+    // Overnight shift support
+    if (endDt.isBefore(startDt)) {
+      endDt = endDt.add(const Duration(days: 1));
+    }
+
+    return now.isAfter(startDt) && now.isBefore(endDt);
+  }
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String selectedPriority = "all"; // all | low | medium | high
   bool _isManualRefresh = false;
   Timer? _autoCheckoutTimer;
   bool _autoCheckoutLocked = false;
+  bool _isSyncing = false;
+
+  StreamSubscription<ConnectivityResult>? _connectivitySub;
+
 
 
   static  Duration _workingDuration = Duration.zero;
@@ -172,12 +208,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _startAutoCheckoutTimer();
     });
 
+    _connectivitySub =
+      Connectivity().onConnectivityChanged.listen((result) {
+      if (result != ConnectivityResult.none) {
+        debugPrint("🌐 Internet restored → syncing offline data");
+        syncOfflineActions();
+      }
+    });
+
 
     // Timer.periodic(const Duration(seconds: 30), (_) {
     //   _checkAutoCheckout();
     // });
     
   }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
+  }
+
 
   // Future<void> _initializeApp() async {
   //   print('🚀 Starting app initialization...');
@@ -196,11 +247,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   //   }
   // }
   Future<void> _initializeApp() async {
-    _autoCheckoutLocked = true;   // 🔒 lock during init
+    _autoCheckoutLocked = true;
     try {
-      await loadUserData();
+      await loadUserData(); // Loads tasks + restores timer state
+      
+      // ✅ FIXED: Sync AFTER timer state is restored
+      await syncOfflineActions();
     } finally {
-      _autoCheckoutLocked = false; // 🔓 unlock after init
+      _autoCheckoutLocked = false;
       setState(() => _initialized = true);
     }
   }
@@ -273,7 +327,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isTimeExceeded(Task task) {
     if (_punchInTime == null) return false;
 
-    final now = DateTime.now();
+    final DateTime now = DateTime.now();
 
     List<int> hm(String s) {
       final p = s.split(':').map((e) => int.tryParse(e) ?? 0).toList();
@@ -305,12 +359,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final position = await Geolocator.getCurrentPosition();
     final blankImage = await generateBlankImage();
 
-    final now = DateTime.now().toIso8601String();
+    //final now = DateTime.now().toIso8601String();
+    final DateTime now = DateTime.now();
 
     final connectivity = await Connectivity().checkConnectivity();
-
     // OFFLINE → Save to SQLite
+    if (connectivity == ConnectivityResult.none) {
+      debugPrint("📴 Offline - Saving punch-out to DB");
+      await DBHelper().insertPunchAction({
+        'task_id': task.id,
+        'type': 'punch-out',
+        'lat': position.latitude.toStringAsFixed(6),
+        'long': position.longitude.toStringAsFixed(6),
+        'image_path': blankImage.path,
+        'timestamp': now.toIso8601String(),
+        'remark': 'Auto Punch-out',
+        'synced': 0,
+      });
 
+      // ✅ ADD THIS DEBUG
+      final saved = await DBHelper().getPunchActions();
+      debugPrint("📊 Total offline actions after punch-out: ${saved.length}");
+      for (var action in saved) {
+        debugPrint("   - ${action['type']} at ${action['timestamp']}");
+      }
+      return;
+    }
 
     // ONLINE → Send to API
     var request = http.MultipartRequest(
@@ -446,18 +520,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
 // -------------------- START WORK TIMER --------------------
-   void startDashboardWorkTimer({bool isResuming = false}) async {
+  void startDashboardWorkTimer({bool isResuming = false}) async {
+    // ✅ FIXED: Prevent starting timer if already running
+    if (_timer != null && _timer!.isActive) {
+      debugPrint("⏸ Timer already running, skipping duplicate start");
+      return;
+    }
+
     final prefs = await SharedPreferences.getInstance();
 
+    if (!isResuming) {
+      _punchInTime = DateTime.now();
+      _pausedDuration = Duration.zero;
+      await prefs.setString('punchInStartTime', _punchInTime!.toIso8601String());
+      await prefs.setInt('pausedDuration', 0);
+      await prefs.setBool('onBreak', false);
+    }
 
-
-  if (!isResuming) {
-    _punchInTime = DateTime.now();
-    _pausedDuration = Duration.zero;
-    await prefs.setString('punchInStartTime', _punchInTime!.toIso8601String());
-    await prefs.setInt('pausedDuration', 0);
-    await prefs.setBool('onBreak', false);
-  }
+    debugPrint("▶️ Starting work timer");
     _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!_onBreak && _punchInTime != null) {
         setState(() {
@@ -556,6 +636,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       
       // Call fetchTasks outside of setState
       await fetchTasks();
+
+      //await syncOfflineActions();
       
       setState(() {
         _isLoading = false;
@@ -633,10 +715,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final connectivity = await Connectivity().checkConnectivity();
+    // if (connectivity == ConnectivityResult.none) {
+    //   print("📴 Offline — auto punch-in disabled");
+    //   return;
+    // }
+    //final now = DateTime.now();
     if (connectivity == ConnectivityResult.none) {
-      print("📴 Offline — auto punch-in disabled");
+      // await DBHelper().insertPunchAction({
+      //   'task_id': task.id,
+      //   'type': 'punch-out',
+      //   'lat': position.latitude.toStringAsFixed(6),
+      //   'long': position.longitude.toStringAsFixed(6),
+      //   'image_path': blankImage.path,
+      //   'timestamp': now,
+      //   'remark': 'Auto Punch-out',
+      // });
+      debugPrint("📴 Punch-out saved offline");
       return;
     }
+
 
     // CURRENT LOCATION
     Position pos;
@@ -822,7 +919,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Authorization': 'token $token',
           },
           body: jsonEncode({"id": userId}),
-        );
+        ).timeout(const Duration(seconds: 10));
 
         final data = jsonDecode(response.body);
 
@@ -860,6 +957,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           return parseDateTime(b).compareTo(parseDateTime(a));
         });
 
+        final db = DBHelper();
+        await db.clearTasks(); // clear old tasks
+
+        for (final task in tasks) {
+          await db.insertTask(task.toMap());
+        }
         setState(() {
           allTasks = tasks;
           taskList = List.from(allTasks);
@@ -874,7 +977,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // ❌ Offline → load from SQLite
         final offlineTasks = await DBHelper().getTasks();
 
-        final parsed = offlineTasks.map((t) => Task.fromJson(t)).toList();
+        //final parsed = offlineTasks.map((t) => Task.fromJson(t)).toList();
+        final parsed = offlineTasks.map((t) => Task.fromMap(t)).toList();
+
 
         // 🔥 SORT OFFLINE TASKS ALSO
         parsed.sort((a, b) {
@@ -905,15 +1010,47 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _restoreTimerState();
       }
     } catch (e) {
-      print('❌ Error in fetchTasks: $e');
-      if (mounted) {
-        setState(() {
-          _error = 'Failed to load tasks: $e';
-          allTasks = [];
-          taskList = [];
+      // ✅ FIXED: Fallback to offline on any error
+      debugPrint('❌ Online fetch failed: $e, loading offline...');
+      
+      try {
+        final offlineTasks = await DBHelper().getTasks();
+        final parsed = offlineTasks.map((t) => Task.fromMap(t)).toList();
+
+        parsed.sort((a, b) {
+          DateTime parseDateTime(Task t) {
+            try {
+              final d = DateTime.parse(t.date!);
+              final parts = t.startTime.split(':');
+              return DateTime(
+                d.year, d.month, d.day,
+                int.tryParse(parts[0]) ?? 0,
+                int.tryParse(parts[1]) ?? 0,
+              );
+            } catch (_) {
+              return DateTime(1970);
+            }
+          }
+          return parseDateTime(b).compareTo(parseDateTime(a));
         });
+
+        setState(() {
+          allTasks = parsed;
+          taskList = List.from(allTasks);
+          _error = 'Offline mode: Showing cached tasks';
+        });
+
+        _restoreTimerState();
+      } catch (offlineError) {
+        debugPrint('❌ Offline load also failed: $offlineError');
+        if (mounted) {
+          setState(() {
+            _error = 'Cannot load tasks';
+            allTasks = [];
+            taskList = [];
+          });
+        }
       }
-      rethrow; // Re-throw to be caught by loadUserData
     }
   }
 
@@ -921,82 +1058,182 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
   Future<void> syncOfflineActions() async {
+    if (_isSyncing) {
+      debugPrint("⏸ Sync already in progress, skipping...");
+      return;
+    }
+
     final connectivityResult = await Connectivity().checkConnectivity();
     if (connectivityResult == ConnectivityResult.none) {
       debugPrint("📴 No internet, skipping sync");
       return;
     }
 
-    final pending = await DBHelper().getPunchActions();
+    // ✅ FLAG
+    _isSyncing = true;
 
-    for (var action in pending) {
-      try {
-        final type = action['type']; // punch-in / punch-out / break_in / break_out
-        String endpoint = "";
+    try {
 
-        // Map DB type to API endpoint
-        switch (type) {
-          case "punch-in":
-            endpoint = "punch-in";
-            break;
-          case "punch-out":
-            endpoint = "punch-out";
-            break;
-          case "break_in":
-            endpoint = "break-in";
-            break;
-          case "break_out":
-            endpoint = "break-out";
-            break;
-          default:
-            debugPrint("⚠️ Unknown action type: $type");
-            continue;
-        }
+      final pendingData = await DBHelper().getPunchActions();
 
-        final uri = Uri.parse("https://admin.deineputzcrew.de/api/$endpoint/");
-        var request = http.MultipartRequest("POST", uri);
-
-        final prefs = await SharedPreferences.getInstance();
-        String? token = prefs.getString("token");
-        if (token != null) {
-          request.headers["Authorization"] = "token $token";
-        }
-
-        // Common fields
-        request.fields["task_id"] = action["task_id"] ?? "";
-        request.fields["lat"] = action["lat"] ?? "";
-        request.fields["long"] = action["long"] ?? "";
-        request.fields["timestamp"] = action["timestamp"] ?? "";
-
-        // Optional: remark for punch-out
-        if (action.containsKey("remark") && action["remark"] != null) {
-          request.fields["remark"] = action["remark"];
-        }
-
-        // Optional: attach image (punch only, not break)
-        if (action["image_path"] != null &&
-            action["image_path"].toString().isNotEmpty) {
-          request.files.add(await http.MultipartFile.fromPath(
-            "images",
-            action["image_path"],
-            filename: path.basename(action["image_path"]),
-          ));
-        }
-
-        // Send to API
-        final response = await request.send();
-        final resBody = await http.Response.fromStream(response);
-        debugPrint("📡 Sync response ($type): ${resBody.statusCode} ${resBody.body}");
-
-        if (response.statusCode == 200 || response.statusCode == 201) {
-          await DBHelper().deletePunchAction(action["id"]);
-          debugPrint("✅ Synced action: ${action['id']} ($type)");
-        } else {
-          debugPrint("❌ Failed sync ($type): ${resBody.body}");
-        }
-      } catch (e) {
-        debugPrint("❌ Sync error: $e");
+      // ✅ ADD THIS DEBUG BLOCK
+      debugPrint("📊 Database check BEFORE sync:");
+      debugPrint("   Total actions to sync: ${pendingData.length}");
+      for (var action in pendingData) {
+        debugPrint("   - ID: ${action['id']}, Type: ${action['type']}, Time: ${action['timestamp']}");
       }
+      // END DEBUG
+
+      if (pendingData.isEmpty) {
+        debugPrint("No offline actions to sync");
+        return;
+      }
+
+      // ✅ FIXED: Create a mutable copy before sorting
+      final pending = List<Map<String, dynamic>>.from(pendingData);
+
+      // ✅ Sort by timestamp to maintain order
+      pending.sort((a, b) {
+        final timeA = DateTime.tryParse(a['timestamp'] ?? '') ?? DateTime(1970);
+        final timeB = DateTime.tryParse(b['timestamp'] ?? '') ?? DateTime(1970);
+        return timeA.compareTo(timeB);
+      });
+
+      debugPrint("📤 Syncing ${pending.length} offline actions...");
+
+      // ✅ ADD THIS: Show progress to user
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('📤 Syncing ${pending.length} offline actions...'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+
+      int syncedCount = 0;
+
+      for (var action in pending) {
+        try {
+          final type = action['type']; // punch-in / punch-out / break_in / break_out
+          String endpoint = "";
+
+          // Map DB type to API endpoint
+          switch (type) {
+            case "punch-in":
+              endpoint = "punch-in";
+              break;
+            case "punch-out":
+              endpoint = "punch-out";
+              break;
+            case "break_in":
+              endpoint = "break-in";
+              break;
+            case "break_out":
+              endpoint = "break-out";
+              break;
+            default:
+              debugPrint("⚠️ Unknown action type: $type");
+              continue;
+          }
+
+          final uri = Uri.parse("https://admin.deineputzcrew.de/api/$endpoint/");
+          var request = http.MultipartRequest("POST", uri);
+
+          final prefs = await SharedPreferences.getInstance();
+          String? token = prefs.getString("token");
+          if (token != null) {
+            request.headers["Authorization"] = "token $token";
+          }
+
+          // Common fields
+          request.fields["task_id"] = action["task_id"] ?? "";
+          request.fields["lat"] = action["lat"] ?? "";
+          request.fields["long"] = action["long"] ?? "";
+          request.fields["timestamp"] = action["timestamp"] ?? "";
+
+          // Optional: remark for punch-out
+          if (action.containsKey("remark") && action["remark"] != null) {
+            request.fields["remark"] = action["remark"];
+          }
+
+          // ✅ FIXED: Check if image file exists before attaching
+          if (action["image_path"] != null && 
+              action["image_path"].toString().isNotEmpty) {
+            final imageFile = File(action["image_path"]);
+            
+            if (await imageFile.exists()) {
+              request.files.add(await http.MultipartFile.fromPath(
+                "images",
+                action["image_path"],
+                filename: path.basename(action["image_path"]),
+              ));
+            } else {
+              debugPrint("⚠️ Image not found: ${action["image_path"]}");
+              // Continue without image (backend should handle optional images)
+            }
+          }
+
+          // Send to API
+          final response = await request.send();
+          final resBody = await http.Response.fromStream(response);
+          debugPrint("📡 Sync response ($type): ${resBody.statusCode} ${resBody.body}");
+
+          if (response.statusCode == 200 || response.statusCode == 201) {
+            await DBHelper().deletePunchAction(action["id"]);
+            syncedCount++;
+            debugPrint("✅ Synced action ${action['id']}");
+          }
+          else if (response.statusCode == 400) {
+            try {
+              final errorBody = jsonDecode(resBody.body);
+              final errorMsg = errorBody['error']?.toString().toLowerCase() ?? '';
+              
+              // ✅ Expanded list of permanent errors that should delete the action
+              if (errorMsg.contains('already completed') ||
+                  errorMsg.contains('duplicate') ||
+                  errorMsg.contains('invalid task') ||
+                  errorMsg.contains('task not found') ||
+                  errorMsg.contains('after the task end time') ||          // ✅ NEW
+                  errorMsg.contains('before the task start time') ||       // ✅ NEW
+                  errorMsg.contains('task has ended') ||                   // ✅ NEW
+                  errorMsg.contains('already punched in') ||               // ✅ NEW
+                  errorMsg.contains('already punched out') || 
+                  errorMsg.contains('not punched in') ||                   // ✅ NEW
+                  errorMsg.contains('already on break') ||                 // ✅ NEW
+                  errorMsg.contains('not on break')) {                     // ✅ NEW
+                await DBHelper().deletePunchAction(action["id"]);
+                debugPrint("🗑 Deleted stale action: $errorMsg");
+              } else {
+                debugPrint("⏳ Temporary error, will retry: $errorMsg");
+              }
+            } catch (e) {
+              debugPrint("⏳ Cannot parse error, will retry later");
+            }
+          }
+          else {
+            debugPrint("⏳ Will retry later");
+          }
+
+        } catch (e) {
+          debugPrint("❌ Sync error: $e");
+        }
+      }
+
+      // ✅ ADD THIS: Show completion
+      if (mounted && syncedCount > 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✅ Synced $syncedCount actions successfully!'),
+            backgroundColor: Colors.green,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    } finally {
+      // 🔓 ALWAYS UNLOCK
+      _isSyncing = false;
+      debugPrint("🔓 Sync lock released");
     }
   }
 
@@ -1135,18 +1372,31 @@ print(response.body);
       final prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      if (token == null) {
+      final connectivity = await Connectivity().checkConnectivity();
+
+      // ================= OFFLINE =================
+      if (connectivity == ConnectivityResult.none) {
+        await DBHelper().insertPunchAction({
+          'task_id': taskId,
+          'type': 'break_in',
+          'lat': position.latitude.toStringAsFixed(6),
+          'long': position.longitude.toStringAsFixed(6),
+          'image_path': '',
+          'timestamp': DateTime.now().toIso8601String(),
+          'remark': 'Break In (Offline)',
+          'synced': 0,
+        });
+
+        await prefs.setBool('onBreak', true);
+
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Authentication error. Please log in again.")),
+          const SnackBar(content: Text("⏸ Break-In saved offline")),
         );
-        return false;
+
+        return true;
       }
 
-      final connectivityResult = await Connectivity().checkConnectivity();
-
-
-
-      // ✅ Online → Call API
+      // ================= ONLINE =================
       final response = await http.post(
         Uri.parse('https://admin.deineputzcrew.de/api/break-in/'),
         headers: {
@@ -1157,30 +1407,25 @@ print(response.body);
           "task_id": taskId,
           "lat": position.latitude.toStringAsFixed(6),
           "long": position.longitude.toStringAsFixed(6),
+          "timestamp": DateTime.now().toIso8601String(),
         }),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setBool('onBreak', true);
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Break-In successful.")),
-        );
         return true;
-      } else {
-        print('Break-in failed: ${response.statusCode} ${response.body}');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Break-In failed (${response.statusCode}).")),
-        );
-        return false;
       }
-    } catch (e) {
-      print("Break-in error: $e");
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(content: Text("❌ Break-In failed (${response.statusCode})")),
       );
+      return false;
+    } catch (e) {
+      debugPrint("Break-in error: $e");
       return false;
     }
   }
+
   Future<bool> callBreakOutApi(String taskId, BuildContext context) async {
     try {
       final position = await _getCurrentLocation();
@@ -1197,20 +1442,22 @@ print(response.body);
       final connectivityResult = await Connectivity().checkConnectivity();
 
       if (connectivityResult == ConnectivityResult.none) {
-        // ❌ Offline → Save locally
-       /* await DBHelper().insertPunchAction({
+        // ✅ FIXED: Now saving offline
+        await DBHelper().insertPunchAction({
           'task_id': taskId,
           'type': 'break_out',
           'lat': position.latitude.toStringAsFixed(6),
           'long': position.longitude.toStringAsFixed(6),
           'image_path': '',
           'timestamp': DateTime.now().toIso8601String(),
-        });*/
+          'remark': 'Break Out (Offline)',
+          'synced': 0,
+        });
 
         await prefs.setBool('onBreak', false);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Break-Out saved offline. Will sync later.")),
+          const SnackBar(content: Text("▶️ Break-Out saved offline. Will sync later.")),
         );
         return true;
       }
@@ -1226,6 +1473,7 @@ print(response.body);
           "task_id": taskId,
           "lat": position.latitude.toStringAsFixed(6),
           "long": position.longitude.toStringAsFixed(6),
+          "timestamp": DateTime.now().toIso8601String(),
         }),
       );
 
@@ -1616,6 +1864,8 @@ print(response.body);
         _stopAutoCheckoutTimer();
 
         await fetchTasks();
+        await syncOfflineActions();
+
 
         _isManualRefresh = false;
         _autoCheckoutLocked = false;     // 🔓 UNLOCK
@@ -2019,12 +2269,11 @@ class _TaskCardState extends State<TaskCard> {
     }
   }*/
 
-
   Future<void> _handlePunchIn(BuildContext context) async {
     try {
       widget.onPunchStart();
 
-      // Show loading
+      // Show loader
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -2034,7 +2283,6 @@ class _TaskCardState extends State<TaskCard> {
       // Take photo
       final picker = ImagePicker();
       final XFile? image = await picker.pickImage(source: ImageSource.camera);
-
       if (image == null) {
         Navigator.pop(context);
         return;
@@ -2043,111 +2291,112 @@ class _TaskCardState extends State<TaskCard> {
       // Get location
       final position = await _getCurrentLocation();
 
-      // API request
+      // Check internet FIRST
+      final connectivity = await Connectivity().checkConnectivity();
+
+
+      // 🔒 BLOCK INVALID OFFLINE PUNCH
+      if (!isTaskTimeValid(widget.taskList.firstWhere(
+            (t) => t.id == widget.taskId,
+      ))) {
+        Navigator.pop(context);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              '⛔ Task time is already over. Punch-in not allowed.',
+            ),
+          ),
+        );
+        return;
+      }
+
+
+      // ==========================
+      // 🔴 OFFLINE MODE
+      // ==========================
+      if (connectivity == ConnectivityResult.none) {
+        await DBHelper().insertPunchAction({
+          'task_id': widget.taskId,
+          'type': 'punch-in',
+          'lat': position.latitude.toStringAsFixed(6),
+          'long': position.longitude.toStringAsFixed(6),
+          'image_path': image.path,
+          'timestamp': DateTime.now().toIso8601String(),
+          'remark': 'Offline Punch-In',
+          'synced': 0,
+        });
+
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('punchedInTaskId', widget.taskId);
+
+        Navigator.pop(context); // close loader
+
+        // UI updates
+        widget.onPunchIn();
+        widget.onTaskSelected(widget.taskId);
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('📴 Punch-in saved offline. Will sync automatically.'),
+          ),
+        );
+
+        return; // ⛔ STOP HERE (NO API CALL)
+      }
+
+      // ==========================
+      // 🟢 ONLINE MODE
+      // ==========================
       var request = http.MultipartRequest(
         'POST',
         Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
       );
 
       final prefs = await SharedPreferences.getInstance();
-      String? token = prefs.getString('token');
+      final token = prefs.getString('token');
 
       request.headers['Authorization'] = 'token $token';
       request.fields['task_id'] = widget.taskId;
-      request.fields['lat'] = position.latitude.toStringAsFixed(4);
-      request.fields['long'] = position.longitude.toStringAsFixed(4);
+      request.fields['lat'] = position.latitude.toStringAsFixed(6);
+      request.fields['long'] = position.longitude.toStringAsFixed(6);
 
       request.files.add(await http.MultipartFile.fromPath(
         'images',
         image.path,
-        filename: path.basename(image.path),
       ));
 
       final response = await request.send();
-      final responseBody = await http.Response.fromStream(response);
+      final body = await http.Response.fromStream(response);
 
-      Navigator.pop(context); // Close loading
+      Navigator.pop(context); // close loader
 
-      final Map<String, dynamic> responseData = await Future.sync(() {
-        if (responseBody.body.isNotEmpty) {
-          try {
-            return jsonDecode(responseBody.body);
-          } catch (e) {
-            return {'error': 'Invalid response from server'};
-          }
-        }
-        return {'error': 'Empty response from server'};
-      });
-
-      if (responseData.containsKey('error')) {
-        showDialog(
-          context: context,
-          builder: (_) => AlertDialog(
-            title: const Text('Error'),
-            content: Text(responseData['error'].toString()),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
-          ),
-        );
-      }
-      else {
-        debugPrint("Punch-in response: $responseData");
-
-        setState(() {
-          isSelected = true;
-        });
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Punch-in successful')),
-        );
-
-        widget.onPunchIn();
-        setState(() {
-          widget.punchedInTaskId = widget.taskId;
-          widget.onTaskSelected(widget.taskId);
-        });
-        final timestamp = responseData['timestamp'] ?? '';
-        final punchType = responseData['punch_type'] ?? '';
-        final userId = responseData['user']?.toString() ?? '';
-        final prefs = await SharedPreferences.getInstance();
+      if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setString('punchedInTaskId', widget.taskId);
 
-        setState(() {
-          isSelected = true;
-          widget.punchedInTaskId = widget.taskId;
-          widget.onTaskSelected(widget.taskId);
-        });
+        debugPrint("✅ Punch-in API success, calling onPunchIn()");
+        widget.onPunchIn();
 
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Punch-in successful')),
-          );
+        debugPrint("📌 Selecting task: ${widget.taskId}");
+        widget.onTaskSelected(widget.taskId);
 
-          // ✅ navigate *after* setState, outside it
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (_) => const MainApp(initialIndex: 0), // always Dashboard
-            ),
-                (route) => false,
-          );
-        }
-
-
-        debugPrint("Timestamp: $timestamp, Punch Type: $punchType, User: $userId");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Punch-in successful')),
+        );
+      } else {
+        throw Exception(body.body);
       }
     } catch (e) {
       Navigator.pop(context);
       debugPrint('Punch-in failed: $e');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
     }
   }
+
+  
   Future<void> _openMap(double latitude, double longitude) async {
     final Uri url = Uri.parse(
       "https://www.google.com/maps/search/?api=1&query=$latitude,$longitude",
@@ -2482,7 +2731,7 @@ int? userId;
           'Authorization': 'token $token',
         },
         body: jsonEncode({"id": userId}),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
 
@@ -2497,8 +2746,15 @@ int? userId;
           return jsonTasks.map(
                 (t) => Task.fromJson(t, day: day, date: date),
           );
-        })
-            .toList();
+        }).toList();
+
+        //=== add data offline sql
+        final db = DBHelper();
+        await db.clearTasks(); // optional but recommended
+
+        for (final task in parsed) {
+          await db.insertTask(task.toMap());
+        }
 
         // 🔥 SORT: Latest date + latest start time FIRST
         parsed.sort((a, b) {
@@ -2543,7 +2799,18 @@ int? userId;
 
     } else {
       // ❌ Offline → load from SQLite
-      setState(() => isLoading = false);
+      //setState(() => isLoading = false);
+      final offlineTasks = await DBHelper().getTasks();
+
+      final parsed = offlineTasks
+          .map((t) => Task.fromMap(t))
+          .toList();
+
+      setState(() {
+        tasks = parsed;
+        applyFilter();
+        isLoading = false;
+      });
     }
   }
 
@@ -2749,7 +3016,7 @@ int? userId;
                     title: task.taskName,
                     time: task.timeRange,
                     location: task.locationName,
-                    duration: task.duration,
+                    duration: task.totalWorkTime,
                     highPriority: task.priority,
                     completed: task.status,
                     taskId: task.id,

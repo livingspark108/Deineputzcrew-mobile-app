@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:deineputzcrew/a.dart';
 import 'package:deineputzcrew/complete.dart';
 import 'package:flutter/material.dart';
@@ -498,6 +499,116 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
 */
 
+// Future<void> _handlePunchOut(
+//     BuildContext context,
+//     String taskId,
+//     List<File> images,
+//     TextEditingController controller,
+//     ) async {
+//   try {
+//     if (images.isEmpty) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         const SnackBar(content: Text('Please select at least one image')),
+//       );
+//       return;
+//     }
+
+//     final prefs = await SharedPreferences.getInstance();
+//     final token = prefs.getString('token');
+//     if (token == null) {
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         const SnackBar(content: Text('Authentication error. Please log in again.')),
+//       );
+//       return;
+//     }
+
+//     // Step 1: Get location
+//     final position = await Geolocator.getCurrentPosition();
+
+//     // Step 2: Try sending API request
+//     final uri = Uri.parse('https://admin.deineputzcrew.de/api/punch-out/');
+//     var request = http.MultipartRequest('POST', uri);
+
+//     request.headers['Authorization'] = 'token $token';
+//     request.fields.addAll({
+//       'task_id': taskId,
+//       'lat': position.latitude.toStringAsFixed(6),
+//       'long': position.longitude.toStringAsFixed(6),
+//       'remark': controller.text.trim(),
+//     });
+
+//     for (final image in images) {
+//       request.files.add(await http.MultipartFile.fromPath(
+//         'images',
+//         image.path,
+//         filename: basename(image.path),
+//       ));
+//     }
+
+//     try {
+//       final streamedResponse = await request.send();
+//       final response = await http.Response.fromStream(streamedResponse);
+
+//       debugPrint("Punch-out raw response: ${response.statusCode} ${response.body}");
+
+//       if (response.statusCode == 200 || response.statusCode == 201) {
+//         // ✅ Success → clear prefs
+//         await prefs.remove('punchedInTaskId');
+//         await prefs.remove('punchInStartTime');
+//         await prefs.remove('onBreak');
+
+//         ScaffoldMessenger.of(context).showSnackBar(
+//           const SnackBar(content: Text('Punch-out successful')),
+//         );
+
+//         Navigator.pushAndRemoveUntil(
+//           context,
+//           MaterialPageRoute(builder: (_) => MainApp()),
+//               (route) => false,
+//         );
+//         return;
+//       } else {
+//         throw Exception("Server error: ${response.statusCode}");
+//       }
+//     } catch (networkError) {
+//       // 🌐 Offline or request failed → save locally
+//       debugPrint("Network failed, saving Punch-Out offline: $networkError");
+
+//       final db = DBHelper();
+//     /*  await db.insertPunchAction({
+//         'task_id': taskId,
+//         'type': 'punch_out',
+//         'lat': position.latitude.toStringAsFixed(6),
+//         'long': position.longitude.toStringAsFixed(6),
+//         'remark': controller.text.trim(),
+//         'image_path': images.first.path, // store first image path (extend if needed)
+//         'timestamp': DateTime.now().toIso8601String(),
+//         'synced': 0,
+//       });*/
+
+//       // Clear prefs locally as if punched out
+//       await prefs.remove('punchedInTaskId');
+//       await prefs.remove('punchInStartTime');
+//       await prefs.remove('onBreak');
+
+//       ScaffoldMessenger.of(context).showSnackBar(
+//         const SnackBar(content: Text('Punch-out saved offline. Will sync when online.')),
+//       );
+
+//       Navigator.pushAndRemoveUntil(
+//         context,
+//         MaterialPageRoute(builder: (_) => MainApp()),
+//             (route) => false,
+//       );
+//     }
+//   } catch (e) {
+//     debugPrint('Punch-out exception: $e');
+//     ScaffoldMessenger.of(context).showSnackBar(
+//       SnackBar(content: Text('Error: $e')),
+//     );
+//   }
+// }
+
 Future<void> _handlePunchOut(
     BuildContext context,
     String taskId,
@@ -524,7 +635,60 @@ Future<void> _handlePunchOut(
     // Step 1: Get location
     final position = await Geolocator.getCurrentPosition();
 
-    // Step 2: Try sending API request
+    // ✅ Step 2: Check connectivity FIRST
+    final connectivity = await Connectivity().checkConnectivity();
+
+    // ==================== OFFLINE MODE ====================
+    if (connectivity == ConnectivityResult.none) {
+      debugPrint("📴 Offline - Saving punch-out to DB");
+      
+      final db = DBHelper();
+      
+      // ✅ Save each image as a separate action (or just first image)
+      // If you want to sync multiple images, you'll need to handle that
+      await db.insertPunchAction({
+        'task_id': taskId,
+        'type': 'punch-out',  // ✅ Fixed: was 'punch_out', should be 'punch-out'
+        'lat': position.latitude.toStringAsFixed(6),
+        'long': position.longitude.toStringAsFixed(6),
+        'remark': controller.text.trim(),
+        'image_path': images.first.path, // First image
+        'timestamp': DateTime.now().toIso8601String(),
+        'synced': 0,
+      });
+
+      // ✅ DEBUG: Check what was saved
+      final allActions = await DBHelper().getPunchActions();
+      debugPrint("📊 Total offline actions after punch-out: ${allActions.length}");
+      for (var action in allActions) {
+        debugPrint("   - ${action['type']} at ${action['timestamp']}");
+      }
+
+      // Clear prefs
+      await prefs.remove('punchedInTaskId');
+      await prefs.remove('punchInStartTime');
+      await prefs.remove('onBreak');
+      await prefs.remove('pausedDuration');
+      await prefs.remove('breakDuration');
+      await prefs.remove('breakStartTime');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('📴 Punch-out saved offline. Will sync when online.'),
+          duration: Duration(seconds: 3),
+        ),
+      );
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => MainApp()),
+            (route) => false,
+      );
+      
+      return; // ⛔ STOP HERE
+    }
+
+    // ==================== ONLINE MODE ====================
     final uri = Uri.parse('https://admin.deineputzcrew.de/api/punch-out/');
     var request = http.MultipartRequest('POST', uri);
 
@@ -534,8 +698,10 @@ Future<void> _handlePunchOut(
       'lat': position.latitude.toStringAsFixed(6),
       'long': position.longitude.toStringAsFixed(6),
       'remark': controller.text.trim(),
+      'timestamp': DateTime.now().toIso8601String(), // ✅ Added timestamp
     });
 
+    // Attach all images
     for (final image in images) {
       request.files.add(await http.MultipartFile.fromPath(
         'images',
@@ -544,54 +710,22 @@ Future<void> _handlePunchOut(
       ));
     }
 
-    try {
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
 
-      debugPrint("Punch-out raw response: ${response.statusCode} ${response.body}");
+    debugPrint("📡 Punch-out online response: ${response.statusCode} ${response.body}");
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // ✅ Success → clear prefs
-        await prefs.remove('punchedInTaskId');
-        await prefs.remove('punchInStartTime');
-        await prefs.remove('onBreak');
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Punch-out successful')),
-        );
-
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => MainApp()),
-              (route) => false,
-        );
-        return;
-      } else {
-        throw Exception("Server error: ${response.statusCode}");
-      }
-    } catch (networkError) {
-      // 🌐 Offline or request failed → save locally
-      debugPrint("Network failed, saving Punch-Out offline: $networkError");
-
-      final db = DBHelper();
-    /*  await db.insertPunchAction({
-        'task_id': taskId,
-        'type': 'punch_out',
-        'lat': position.latitude.toStringAsFixed(6),
-        'long': position.longitude.toStringAsFixed(6),
-        'remark': controller.text.trim(),
-        'image_path': images.first.path, // store first image path (extend if needed)
-        'timestamp': DateTime.now().toIso8601String(),
-        'synced': 0,
-      });*/
-
-      // Clear prefs locally as if punched out
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      // ✅ Success → clear prefs
       await prefs.remove('punchedInTaskId');
       await prefs.remove('punchInStartTime');
       await prefs.remove('onBreak');
+      await prefs.remove('pausedDuration');
+      await prefs.remove('breakDuration');
+      await prefs.remove('breakStartTime');
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Punch-out saved offline. Will sync when online.')),
+        const SnackBar(content: Text('✅ Punch-out successful')),
       );
 
       Navigator.pushAndRemoveUntil(
@@ -599,9 +733,12 @@ Future<void> _handlePunchOut(
         MaterialPageRoute(builder: (_) => MainApp()),
             (route) => false,
       );
+    } else {
+      throw Exception("Server error: ${response.statusCode}");
     }
+    
   } catch (e) {
-    debugPrint('Punch-out exception: $e');
+    debugPrint('❌ Punch-out exception: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: $e')),
     );

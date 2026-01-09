@@ -16,10 +16,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
     
     return WillPopScope(
       onWillPop: () async {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => LoginScreen()),
-        );
+        Navigator.pop(context);
         return false;
       },
       child: Scaffold(
@@ -34,10 +31,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (context) => LoginScreen()),
-              );
+              Navigator.pop(context);
             },
           ),
         ),
