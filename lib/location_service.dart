@@ -373,6 +373,7 @@ class LocationService {
         // Save to local database
         final mode = timeOnlyMode ? "(Time-based, No GPS)" : "(Location-based)";
         debugPrint("📴 Saving auto check-in offline for task: ${task.taskName} $mode");
+        debugPrint("📅 Exact arrival timestamp: ${now.toIso8601String()}");
         await DBHelper().insertPunchAction({
           'task_id': task.id,
           'type': 'punch-in',

@@ -1290,6 +1290,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           request.fields["lat"] = action["lat"] ?? "";
           request.fields["long"] = action["long"] ?? "";
           request.fields["timestamp"] = action["timestamp"] ?? "";
+          
+          // ✅ DEBUG: Log the exact timestamp being sent
+          debugPrint("📡 Sending timestamp to API: ${action["timestamp"]} (Original location time)");
 
           // Optional: remark for punch-out
           if (action.containsKey("remark") && action["remark"] != null) {
