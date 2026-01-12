@@ -96,7 +96,14 @@ bool isTaskTimeValid(Task task) {
 
     List<int> toHMS(String t) {
       final p = t.split(':').map((e) => int.tryParse(e) ?? 0).toList();
-      return [p[0], p[1], p.length > 2 ? p[2] : 0];
+      // ✅ SAFE ACCESS - handle missing parts
+      return [
+        p.isNotEmpty ? p[0] : 0,           // hours
+        p.length > 1 ? p[1] : 0,           // minutes
+        p.length > 2 ? p[2] : 0,           // seconds
+      ];
+
+      //return [p[0], p[1], p.length > 2 ? p[2] : 0];
     }
 
     final start = toHMS(task.startTime);
@@ -227,6 +234,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         debugPrint("🌐 Internet restored → syncing offline data");
         await syncOfflineActions();
         await _updatePendingSyncCount();
+        // 🔄 Reload dashboard after successful sync
+        if (mounted) {
+          await fetchTasks(); // reloads tasks & applies auto-hide logic
+        }
+
       }
     });
 
@@ -938,7 +950,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       // Create a temporary empty image file
       final Directory tempDir = await getTemporaryDirectory();
-      final File emptyImage = File("${tempDir.path}/auto_punch_blank.jpg");
+      //final File emptyImage = File("assets/images/auto_check_in.jpeg");
+      final File emptyImage = File("${tempDir.path}/auto_check_in.jpeg");
 
       // Write empty content (0 bytes) or minimal JPG header
       await emptyImage.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]); // minimal valid JPG
@@ -2358,7 +2371,17 @@ class _TaskCardState extends State<TaskCard> {
   bool isSelected = false;
   
 
-
+  // Add this method to _TaskCardState class
+  Future<bool> _hasOfflinePunchOut(String taskId) async {
+    final actions = await DBHelper().db.then((db) => 
+      db.query(
+        'punch_actions',
+        where: 'task_id = ? AND type = ?',
+        whereArgs: [taskId, 'punch-out'],
+      )
+    );
+    return actions.isNotEmpty;
+  } 
 
   Future<Position> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -2479,6 +2502,19 @@ class _TaskCardState extends State<TaskCard> {
 
   Future<void> _handlePunchIn(BuildContext context) async {
     try {
+      // ✅ CHECK IF ALREADY PUNCHED OUT OFFLINE
+      final hasPunchOut = await _hasOfflinePunchOut(widget.taskId);
+      if (hasPunchOut) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⛔ You already punched out from this task (offline). Cannot punch in again.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+
       widget.onPunchStart();
 
       // Show loader
@@ -2512,7 +2548,7 @@ class _TaskCardState extends State<TaskCard> {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
-              '⛔ Task time is already over. Punch-in not allowed.',
+              "⛔ Punch-in/out isn't available for this task right now.",
             ),
           ),
         );
@@ -2632,6 +2668,18 @@ class _TaskCardState extends State<TaskCard> {
 
         final bool isCompleted = widget.completed.toLowerCase() == "completed";
         final bool isCurrentPunchedIn = widget.taskId == storedPunchedInTaskId;
+
+        // ✅ CHECK IF ALREADY PUNCHED OUT OFFLINE
+        final hasPunchOut = await _hasOfflinePunchOut(widget.taskId);
+        if (hasPunchOut && !isCurrentPunchedIn) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('⛔ This task already has an offline punch-out. Cannot punch in again.'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
 
         // ✅ If task is completed
         if (isCompleted) {

@@ -129,17 +129,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             // Cleared all offline actions
-            ElevatedButton(
-              onPressed: () async {
-                final db = await DBHelper().db;
-                await db.delete('punch_actions');
+            // ElevatedButton(
+            //   onPressed: () async {
+            //     final db = await DBHelper().db;
+            //     await db.delete('punch_actions');
                 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('🧹 Cleared all offline actions')),
-                );
-              },
-              child: const Text('Clear Offline Data (Testing Only)'),
-            ),
+            //     ScaffoldMessenger.of(context).showSnackBar(
+            //       const SnackBar(content: Text('🧹 Cleared all offline actions')),
+            //     );
+            //   },
+            //   child: const Text('Clear Offline Data (Testing Only)'),
+            // ),
 
             const SizedBox(height: 12),
 

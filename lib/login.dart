@@ -362,6 +362,27 @@ class _LoginScreenState extends State<LoginScreen> {
   String? _emailError;
   String? _passwordError;
 
+  void showError({
+    String? emailError,
+    String? passwordError,
+    String? snackMessage,
+  }) {
+    setState(() {
+      _emailError = emailError;
+      _passwordError = passwordError;
+    });
+
+    if (snackMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(snackMessage),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+
   @override
   void initState() {
     super.initState();
@@ -545,12 +566,44 @@ class _LoginScreenState extends State<LoginScreen> {
           context,
           MaterialPageRoute(builder: (_) => MainApp()),
         );
-      } else {
-        /// 🚨 Debug: Show why login failed
-        debugPrint("Login failed - Status: ${response.statusCode}, Success: ${data['success']}, Message: ${data['message']}");
-        
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? "Login failed - Status: ${response.statusCode}")),
+      } else if (response.statusCode == 401 || response.statusCode == 400) {
+
+        final String backendMessage =
+            (data['message'] ?? "").toString().toLowerCase();
+
+        // 🔍 EMAIL NOT FOUND
+        if (backendMessage.contains("email")) {
+          showError(
+            emailError: "We couldn't find an account with this email.",
+            snackMessage: "Please check your email and try again.",
+          );
+        }
+
+        // 🔐 PASSWORD INCORRECT
+        else if (backendMessage.contains("password")) {
+          showError(
+            passwordError: "The password you entered is incorrect.",
+            snackMessage: "Please check your password and try again.",
+          );
+        }
+
+        // ❌ BOTH INVALID (GENERIC – APPLE RECOMMENDED)
+        else {
+          showError(
+            passwordError: "The email or password you entered is incorrect.",
+            snackMessage: "Unable to sign in. Please try again.",
+          );
+        }
+      } 
+      else if (response.statusCode == 403) {
+        showError(
+          snackMessage: "This account is not currently available.",
+        );
+      } 
+      else {
+        showError(
+          snackMessage:
+              "Unable to sign in at the moment. Please try again later.",
         );
       }
     } catch (e) {
@@ -568,7 +621,7 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => MainApp()),
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Offline login successful")),
+          const SnackBar(content: Text("Offline Login Successful")),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
