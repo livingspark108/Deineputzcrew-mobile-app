@@ -29,16 +29,24 @@ class NotificationService {
       }
       
       // Initialize Firebase if not already done
-      if (Firebase.apps.isEmpty) {
-        print('🔥 Initializing Firebase for the first time...');
-        
-        // Use firebase_options for cross-platform compatibility
-        await Firebase.initializeApp(
-          options: DefaultFirebaseOptions.currentPlatform,
-        );
-        print('✅ Firebase Core initialized');
-      } else {
-        print('✅ Firebase already initialized');
+      try {
+        if (Firebase.apps.isEmpty) {
+          print('🔥 Initializing Firebase for the first time...');
+          await Firebase.initializeApp(
+            options: DefaultFirebaseOptions.currentPlatform,
+          );
+          print('✅ Firebase Core initialized');
+        } else {
+          print('✅ Firebase already initialized');
+        }
+      } catch (e) {
+        // Handle potential initialization errors
+        if (e.toString().contains('duplicate-app')) {
+          print('⚠️ Firebase app already exists - proceeding with existing instance');
+        } else {
+          print('❌ Firebase initialization error: $e');
+          rethrow;
+        }
       }
       
       _firebaseMessaging = FirebaseMessaging.instance;
@@ -290,19 +298,10 @@ class NotificationService {
 
   static Future<String?> getToken() async {
     try {
-      // If not initialized, try to initialize
+      // Check if service is initialized
       if (!_isInitialized || _firebaseMessaging == null) {
-        print('🔄 Firebase not ready, initializing...');
-        await initialize();
-        
-        // If still not initialized after attempt, return null
-        if (!_isInitialized || _firebaseMessaging == null) {
-          print('❌ Firebase initialization failed, returning null token');
-          return null;
-        }
-        
-        // Wait a moment for Firebase to be fully ready after initialization
-        await Future.delayed(Duration(milliseconds: 500));
+        print('⚠️ NotificationService not initialized - call initialize() first');
+        return null;
       }
       
       // For iOS, ensure APNS token is available
@@ -382,8 +381,8 @@ class NotificationService {
   static Future<String?> refreshToken() async {
     try {
       if (_firebaseMessaging == null) {
-        print('FirebaseMessaging not initialized, initializing now...');
-        await initialize();
+        print('⚠️ FirebaseMessaging not initialized - call initialize() first');
+        return null;
       }
       
       await _firebaseMessaging?.deleteToken();
@@ -408,7 +407,12 @@ class NotificationService {
 // Top-level function for background message handling
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  await Firebase.initializeApp();
+  // Initialize Firebase with proper options for background messages
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   print('Handling a background message: ${message.messageId}');
   
   // You can show a local notification here if needed

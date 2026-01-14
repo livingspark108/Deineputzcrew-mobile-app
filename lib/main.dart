@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'home.dart';
 import 'consent_screen.dart';
 import 'login.dart';
+import 'notification_service.dart';
 
 /// 🔔 Local Notifications
 final FlutterLocalNotificationsPlugin notificationsPlugin =
@@ -23,15 +24,16 @@ FlutterLocalNotificationsPlugin();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// 🔥 Firebase MUST be awaited
-  // await Firebase.initializeApp();
-
-  /// 🔔 Background messages
-  // FirebaseMessaging.onBackgroundMessage(
-  //     firebaseMessagingBackgroundHandler);
-
-  /// 🔔 Local notifications
+  /// � Local notifications (legacy support)
   await _initLocalNotifications();
+
+  /// 🔔 Initialize NotificationService (Firebase + modern notifications)
+  try {
+    await NotificationService.initialize();
+    print('✅ NotificationService initialized in main()');
+  } catch (e) {
+    print('⚠️ NotificationService initialization failed: $e');
+  }
 
   runApp(const MyApp());
 }
