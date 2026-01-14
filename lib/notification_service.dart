@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
@@ -43,23 +44,53 @@ class NotificationService {
       _firebaseMessaging = FirebaseMessaging.instance;
       print('✅ FirebaseMessaging instance created');
 
-      // Request permissions for iOS
+      // Request permissions for both iOS and Android
+      print('📱 Requesting notification permissions...');
+      
+      // For Android 13+ (API 33+), request notification permission first
+      if (Platform.isAndroid) {
+        print('🤖 Android detected, checking notification permission...');
+        PermissionStatus status = await Permission.notification.status;
+        print('📋 Current notification permission status: $status');
+        
+        if (status.isDenied || status.isPermanentlyDenied) {
+          print('🔔 Requesting notification permission for Android...');
+          PermissionStatus newStatus = await Permission.notification.request();
+          print('📋 New notification permission status: $newStatus');
+          
+          if (newStatus.isPermanentlyDenied) {
+            print('⚠️ Notification permission permanently denied');
+            print('💡 User needs to enable notifications manually in Settings');
+          } else if (newStatus.isDenied) {
+            print('⚠️ Notification permission denied');
+          } else if (newStatus.isGranted) {
+            print('✅ Android notification permission granted');
+          }
+        } else {
+          print('✅ Android notification permission already granted');
+        }
+      }
+      
+      // Debug: Check app configuration
+      print('🔍 App Configuration:');
+      print('   Debug Mode: ${kDebugMode}');
+      print('   Profile Mode: ${kProfileMode}');
+      print('   Release Mode: ${kReleaseMode}');
+      print('   Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
       if (Platform.isIOS) {
-        print('📱 Requesting iOS notification permissions...');
-        
-        // Debug: Check app configuration
-        print('🔍 App Configuration:');
-        print('   Debug Mode: ${kDebugMode}');
-        print('   Profile Mode: ${kProfileMode}');
-        print('   Release Mode: ${kReleaseMode}');
         print('   Bundle ID: com.diveinpuits.diveinpuits');
-        
-        final settings = await _firebaseMessaging!.requestPermission(
-          alert: true,
-          badge: true,
-          sound: true,
-          provisional: false,
-        );
+      } else {
+        print('   Package: com.diveinpuits');
+      }
+      
+      final settings = await _firebaseMessaging!.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        provisional: false,
+      );
+      
+      if (Platform.isIOS) {
         print('✅ iOS notification permissions: ${settings.authorizationStatus}');
         
         // Check if we have the right APNs configuration
@@ -70,6 +101,9 @@ class NotificationService {
         } else {
           print('📊 Running in PROFILE mode');
         }
+      } else {
+        print('✅ Android notification permissions: ${settings.authorizationStatus}');
+        print('📱 Android SDK: ${Platform.version}');
       }
 
       // Initialize local notifications
