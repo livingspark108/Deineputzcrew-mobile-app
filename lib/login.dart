@@ -346,6 +346,7 @@ import 'home.dart';
 import 'privacypolicy.dart';
 import 'terms.dart';
 import 'forgetpasswordscreen.dart';
+import 'notification_service.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -502,15 +503,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
     try {
       /// 🔑 Device info
-      final deviceId = await getDeviceId();
+      String deviceId = await getDeviceId();
       final prefs = await SharedPreferences.getInstance();
 
-      /// 🔔 FCM token (already created in main.dart)
-      final String? fcmToken = prefs.getString('fcm_token');
+      /// 🔔 Get FCM token from NotificationService
+      String? fcmToken = await NotificationService.getToken();
+      debugPrint("🔥 FCM Token during login: $fcmToken");
+      
+      // Use FCM token as device_id for both iOS and Android if available
+      if (fcmToken != null && fcmToken.isNotEmpty) {
+        deviceId = fcmToken;
+        debugPrint("📱 Using FCM token as device_id: $deviceId");
+      } else {
+        debugPrint("⚠️ FCM token not available, using device UDID: $deviceId");
+      }
 
       final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/");
 
-      // Prepare request body - only include token fields if they exist
+      // Prepare request body
       Map<String, dynamic> requestBody = {
         "username": email,
         "password": password,
@@ -520,7 +530,7 @@ class _LoginScreenState extends State<LoginScreen> {
         "platform": "flutter",
       };
 
-      // Only add FCM tokens if they exist and are not empty
+      // Always add FCM tokens if they exist and are not empty
       if (fcmToken != null && fcmToken.isNotEmpty) {
         requestBody["fcm_token"] = fcmToken;
         requestBody["device_token"] = fcmToken;

@@ -29,7 +29,7 @@ require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelpe
 flutter_ios_podfile_setup
 
 target 'Runner' do
-  use_frameworks!
+  # use_frameworks! # Disabled to use static linking
   use_modular_headers!
 
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
@@ -39,11 +39,10 @@ post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
     
-    # Disable modular headers for Firebase to fix compilation issue
-    if target.name.include?('Firebase')
-      target.build_configurations.each do |config|
-        config.build_settings['DEFINES_MODULE'] = 'NO'
-      end
+    # Set minimum iOS deployment target for all pods
+    target.build_configurations.each do |config|
+      config.build_settings.delete 'IPHONEOS_DEPLOYMENT_TARGET'
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
     end
   end
 end
