@@ -41,12 +41,19 @@ class _MainAppState extends State<MainApp> {
     _selectedIndex = widget.initialIndex; // 👈 Start on passed index
   }
 
-  final List<Widget> _pages =  [
-    DashboardScreen(),
-    AllTasksScreen2(),
-    SettingsScreen()
-
-  ];
+  // Create pages dynamically to ensure fresh state on navigation
+  Widget _getPage(int index) {
+    switch (index) {
+      case 0:
+        return DashboardScreen();
+      case 1:
+        return AllTasksScreen2();
+      case 2:
+        return SettingsScreen();
+      default:
+        return DashboardScreen();
+    }
+  }
 
   void _onTabTapped(int index) {
     setState(() {
@@ -57,7 +64,7 @@ class _MainAppState extends State<MainApp> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: _pages[_selectedIndex],
+      body: _getPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onTabTapped,
