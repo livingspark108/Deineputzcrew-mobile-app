@@ -157,7 +157,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoadingBreak = false;
   bool _isLoading = false; // Start with false, set true when needed
   String? _error; // Add error state
-  bool _initialized = false; // Add initialization flag
+  //bool _initialized = false; // Add initialization flag
   String? punchedInTaskId;
 
   int userId = 0;
@@ -224,8 +224,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     //   _initializeApp();
     // });
 
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _initializeApp();
+    // WidgetsBinding.instance.addPostFrameCallback((_) async {
+    //   await _initializeApp();
+    //   _startAutoCheckoutTimer();
+    //   _startSyncStatusMonitoring();
+    // });
+    _initializeApp().then((_) {
       _startAutoCheckoutTimer();
       _startSyncStatusMonitoring();
     });
@@ -282,6 +286,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
   //   }
   // }
   Future<void> _initializeApp() async {
+    if (!mounted) return;
+  
+    setState(() {
+      _isLoading = true;
+      //_initialized = false;
+      _error = null;
+    });
+
     _autoCheckoutLocked = true;
     try {
       // Check initial connectivity
@@ -301,9 +313,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // ✅ FIXED: Sync AFTER timer state is restored
       await syncOfflineActions();
       await _updatePendingSyncCount();
+
+      setState(() {
+        //_initialized = true;
+        _isLoading = false;
+      });
+      
+      print('✅ App initialization completed successfully');
+    } catch (e) {
+      print('❌ App initialization failed: $e');
+      setState(() {
+        //_initialized = true;
+        _isLoading = false;
+        _error = 'Failed to initialize: $e';
+      });
     } finally {
       _autoCheckoutLocked = false;
-      setState(() => _initialized = true);
     }
   }
 
@@ -731,10 +756,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
 
   Future<void> loadUserData() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+    print('📊 loadUserData called');
+    // setState(() {
+    //   _isLoading = true;
+    //   _error = null;
+    // });
     
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -748,9 +774,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       //await syncOfflineActions();
       
-      setState(() {
-        _isLoading = false;
-      });
+      // setState(() {
+      //   _isLoading = false;
+      // });
     } catch (e) {
       setState(() {
         _isLoading = false;
@@ -1972,7 +1998,7 @@ print(response.body);
   }
   @override
   Widget build(BuildContext context) {
-    print('🖼️ DashboardScreen build called - _isLoading: $_isLoading, _initialized: $_initialized, _error: $_error');
+    print('🖼️ DashboardScreen build called - _isLoading: $_isLoading, _initialized:  _error: $_error');
     
     // Always return a Scaffold to prevent white screen
     return Scaffold(
@@ -2003,19 +2029,32 @@ print(response.body);
       );
     }
     
-    // Show loading state
-    if (!_initialized || _isLoading) {
-      return Center(
+    // // Show loading state
+    // if (!_initialized || _isLoading) {
+    //   return Center(
+    //     child: Column(
+    //       mainAxisAlignment: MainAxisAlignment.center,
+    //       children: [
+    //         CircularProgressIndicator(),
+    //         SizedBox(height: 16),
+    //         Text(_initialized ? 'Loading tasks...' : 'Initializing...'),
+    //       ],
+    //     ),
+    //   );
+    // }
+    if (_isLoading) {
+      return const Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(),
             SizedBox(height: 16),
-            Text(_initialized ? 'Loading tasks...' : 'Initializing...'),
+            Text('Loading dashboard...'),
           ],
         ),
       );
     }
+
     
     // Show main dashboard content
     final now = DateTime.now();
