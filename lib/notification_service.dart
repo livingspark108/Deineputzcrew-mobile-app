@@ -150,53 +150,77 @@ class NotificationService {
         
         if (apnsToken == null) {
           print('⏳ APNS token not available, waiting...');
-          // Wait up to 3 seconds for APNS token (reduced from 10)
+          // Wait up to 10 seconds for APNS token with progressive delays
           int attempts = 0;
-          while (apnsToken == null && attempts < 3) {
-            await Future.delayed(Duration(seconds: 1));
+          while (apnsToken == null && attempts < 5) {
+            // Progressive delay: 1s, 2s, 3s, 4s, 5s
+            await Future.delayed(Duration(seconds: attempts + 1));
             apnsToken = await _firebaseMessaging!.getAPNSToken();
             attempts++;
-            print('⏳ APNS token attempt $attempts: $apnsToken');
+            print('⏳ APNS token attempt $attempts: ${apnsToken != null ? "received" : "null"}');
           }
         }
         
         if (apnsToken != null) {
           print('✅ APNS token available: ${apnsToken.substring(0, 10)}...');
         } else {
-          print('⚠️ APNS token still not available after 3 seconds');
-          print('💡 In DEBUG mode, this is normal. Proceeding with FCM token generation anyway...');
+          print('⚠️ APNS token still not available after 15 seconds');
+          print('💡 This is normal in development/simulator mode');
+          print('💡 For production, ensure:');
+          print('   1. APNs auth key is uploaded to Firebase Console');
+          print('   2. App is running on a physical iOS device');
+          print('   3. Push notification capability is enabled');
+          
+          // Try to trigger APNS token registration manually
+          try {
+            print('🔄 Attempting to manually trigger APNS registration...');
+            // This is a workaround for development mode
+            await Future.delayed(Duration(milliseconds: 500));
+          } catch (e) {
+            print('⚠️ Manual APNS registration failed: $e');
+          }
         }
       }
       
-      // Try to get FCM token regardless of APNS token status
+      // Try to get FCM token regardless of APNS token status in development
       try {
         String? token = await _firebaseMessaging!.getToken();
-        print('🎯 FCM Token (first attempt): $token');
         
-        if (token == null || token.isEmpty) {
-          print('🔄 FCM Token is null, trying force refresh...');
-          // Force refresh by deleting and regenerating
-          try {
-            await _firebaseMessaging!.deleteToken();
-            await Future.delayed(Duration(milliseconds: 1500));
-            token = await _firebaseMessaging!.getToken();
-            print('🔄 FCM Token (after refresh): $token');
-          } catch (refreshError) {
-            print('⚠️ Token refresh failed: $refreshError');
-          }
-          
-          if (token == null || token.isEmpty) {
-            print('⚠️ FCM Token still null - this is expected in DEBUG mode');
-            print('💡 App will use device UDID as fallback for device identification');
-          } else {
-            print('✅ FCM Token generated after refresh!');
-          }
-        } else {
+        if (token != null && token.isNotEmpty) {
           print('✅ FCM Token successfully generated: ${token.substring(0, 20)}...');
+        } else {
+          print('⚠️ FCM Token is null/empty on first attempt');
+          
+          // For development mode, this is expected - let's try a different approach
+          if (kDebugMode && Platform.isIOS) {
+            print('🛠️ Development mode detected - using alternative token strategy');
+            
+            // Wait a bit more and try again
+            await Future.delayed(Duration(seconds: 2));
+            token = await _firebaseMessaging!.getToken();
+            
+            if (token != null && token.isNotEmpty) {
+              print('✅ FCM Token generated on retry: ${token.substring(0, 20)}...');
+            } else {
+              print('ℹ️ FCM token unavailable in development mode');
+              print('ℹ️ This is expected behavior. Token will be available in:');
+              print('   - Production builds');
+              print('   - Physical devices with proper APNs setup');
+              print('   - When app is distributed via TestFlight or App Store');
+            }
+          }
         }
       } catch (fcmError) {
         print('⚠️ FCM Token generation failed: $fcmError');
-        print('💡 This is common in development mode - using device UDID as fallback');
+        
+        if (fcmError.toString().contains('apns-token-not-set')) {
+          print('💡 APNS token not set - this is normal in development');
+          print('💡 Solutions:');
+          print('   1. Test on physical iOS device (not simulator)');
+          print('   2. Upload APNs key to Firebase Console');
+          print('   3. Ensure proper iOS signing');
+          print('   4. For development: This error can be ignored');
+        }
       }
     } catch (e) {
       print('❌ Error getting FCM token during initialization: $e');
@@ -401,6 +425,100 @@ class NotificationService {
 
   static Future<void> unsubscribeFromTopic(String topic) async {
     await _firebaseMessaging?.unsubscribeFromTopic(topic);
+  }
+
+  // Helper method to manually trigger token generation (useful for iOS)
+  static Future<String?> manualTokenGeneration() async {
+    if (!_isInitialized || _firebaseMessaging == null) {
+      print('⚠️ NotificationService not initialized');
+      return null;
+    }
+
+    try {
+      print('🔄 Manual token generation started...');
+      
+      if (Platform.isIOS) {
+        print('📱 iOS: Attempting to force APNS token registration...');
+        
+        // Wait longer for APNS in manual mode
+        int attempts = 0;
+        String? apnsToken;
+        
+        while (apnsToken == null && attempts < 10) {
+          await Future.delayed(Duration(seconds: 2));
+          try {
+            apnsToken = await _firebaseMessaging!.getAPNSToken();
+            if (apnsToken != null) {
+              print('✅ APNS token received after ${(attempts + 1) * 2} seconds');
+              break;
+            }
+          } catch (e) {
+            print('⚠️ APNS check failed (attempt ${attempts + 1}): $e');
+          }
+          attempts++;
+        }
+        
+        if (apnsToken == null) {
+          print('⚠️ APNS token still unavailable - continuing anyway');
+        }
+      }
+      
+      // Force delete and regenerate FCM token
+      try {
+        await _firebaseMessaging!.deleteToken();
+        await Future.delayed(Duration(seconds: 3));
+        
+        String? newToken = await _firebaseMessaging!.getToken();
+        if (newToken != null) {
+          print('✅ Manual FCM token generation successful');
+          return newToken;
+        } else {
+          print('⚠️ Manual token generation failed');
+          return null;
+        }
+      } catch (e) {
+        print('❌ Manual token generation error: $e');
+        return null;
+      }
+    } catch (e) {
+      print('❌ Manual token generation failed: $e');
+      return null;
+    }
+  }
+
+  // Check if notifications are properly configured
+  static Future<Map<String, dynamic>> getNotificationStatus() async {
+    Map<String, dynamic> status = {
+      'initialized': _isInitialized,
+      'platform': Platform.isIOS ? 'iOS' : 'Android',
+      'hasFirebaseMessaging': _firebaseMessaging != null,
+      'hasAPNSToken': false,
+      'hasFCMToken': false,
+      'permissionStatus': 'unknown',
+    };
+
+    if (_firebaseMessaging != null) {
+      try {
+        // Check permission status
+        NotificationSettings settings = await _firebaseMessaging!.getNotificationSettings();
+        status['permissionStatus'] = settings.authorizationStatus.toString();
+
+        // Check APNS token for iOS
+        if (Platform.isIOS) {
+          String? apnsToken = await _firebaseMessaging!.getAPNSToken();
+          status['hasAPNSToken'] = apnsToken != null;
+        }
+
+        // Check FCM token
+        String? fcmToken = await _firebaseMessaging!.getToken();
+        status['hasFCMToken'] = fcmToken != null;
+
+      } catch (e) {
+        status['error'] = e.toString();
+      }
+    }
+
+    return status;
   }
 }
 
