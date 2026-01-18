@@ -55,8 +55,8 @@ import FirebaseMessaging
   override func userNotificationCenter(_ center: UNUserNotificationCenter,
                                       willPresent notification: UNNotification,
                                       withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
-    // Display notification when app is in foreground
-    completionHandler([[.alert, .sound, .badge]])
+    // 🔥 CRITICAL: Allow sound even when app is in foreground
+    completionHandler([.alert, .sound, .badge])
   }
 
   override func userNotificationCenter(_ center: UNUserNotificationCenter,
