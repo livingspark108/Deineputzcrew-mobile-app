@@ -2,6 +2,11 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:audioplayers/audioplayers.dart';
+import 'package:vibration/vibration.dart';
+import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
@@ -11,6 +16,11 @@ class NotificationService {
       FlutterLocalNotificationsPlugin();
   static FirebaseMessaging? _firebaseMessaging;
   static bool _isInitialized = false;
+  
+  // Audio player for continuous notification sound
+  static AudioPlayer? _audioPlayer;
+  static bool _isPlayingContinuousSound = false;
+  static String? _currentAutoCheckInTaskId;
 
   static Future<void> initialize() async {
     if (_isInitialized) {
@@ -120,12 +130,41 @@ class NotificationService {
 
       // Handle background messages
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+      print('✅ Background message handler registered');
 
       // Handle foreground messages
-      FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        print('\\n�🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨');
+        print('🔥🔥🔥 FOREGROUND MESSAGE LISTENER TRIGGERED 🔥🔥🔥');
+        print('⚡ This proves Firebase messaging is working!');
+        print('📨 Message ID: ${message.messageId}');
+        print('📨 From: ${message.from}');
+        print('🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨🚨\\n');
+        _handleForegroundMessage(message);
+      });
+      print('✅ Foreground message listener registered');
 
       // Handle notification taps when app is terminated
-      FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        print('\\n📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱');
+        print('📱📱📱 MESSAGE OPENED APP LISTENER TRIGGERED 📱📱📱');
+        print('📨 Message ID: ${message.messageId}');
+        print('📨 From: ${message.from}');
+        print('📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱📱\\n');
+        _handleMessageOpenedApp(message);
+      });
+      print('✅ Message opened app listener registered');
+
+      // Test Firebase messaging connection
+      print('\\n🧪 Testing Firebase Messaging connection...');
+      try {
+        await _firebaseMessaging!.setAutoInitEnabled(true);
+        print('✅ Firebase auto-init enabled');
+        print('🔥 Firebase Messaging is ready to receive messages!');
+      } catch (e) {
+        print('❌ Firebase Messaging test failed: $e');
+        // Don't let this block the initialization
+      }
 
       // Get FCM token with retry
       await _getAndLogToken();
@@ -139,6 +178,32 @@ class NotificationService {
       // Don't throw error, just log it
       _isInitialized = false;
     }
+  }
+
+  /// Test method to verify console logging is working
+  static void testConsoleLogging() {
+    print('\\n🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪');
+    print('🧪 CONSOLE TEST - If you see this, console logging works!');
+    print('🧪 Current time: ${DateTime.now()}');
+    print('🧪 Firebase initialized: $_isInitialized');
+    print('🧪 FCM instance available: ${_firebaseMessaging != null}');
+    print('🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪🧪\\n');
+  }
+
+  /// Manually trigger FCM logging test
+  static void debugFCMConnection() async {
+    print('\\n🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍');
+    print('🔍 FCM DEBUG TEST');
+    print('🔍 Is FCM initialized: ${_firebaseMessaging != null}');
+    if (_firebaseMessaging != null) {
+      try {
+        String? token = await _firebaseMessaging!.getToken();
+        print('🔍 FCM Token (first 50 chars): ${token?.substring(0, 50)}...');
+      } catch (e) {
+        print('🔍 Error getting FCM token: $e');
+      }
+    }
+    print('🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍🔍\\n');
   }
 
   static Future<void> _getAndLogToken() async {
@@ -252,6 +317,7 @@ class NotificationService {
   }
 
   static Future<void> _createNotificationChannel() async {
+    // High importance channel for general notifications
     const channel = AndroidNotificationChannel(
       'high_importance_channel',
       'High Importance Notifications',
@@ -259,26 +325,132 @@ class NotificationService {
       importance: Importance.high,
     );
 
-    await _localNotifications
+    // Auto check-in channel with sound enabled
+    const autoCheckinChannel = AndroidNotificationChannel(
+      'auto_checkin_channel',
+      'Auto Check-in Notifications',
+      description: 'Critical notifications for automatic task check-ins with sound.',
+      importance: Importance.max,
+      enableVibration: true,
+      playSound: true,
+    );
+
+    final androidPlugin = _localNotifications
         .resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(channel);
+            AndroidFlutterLocalNotificationsPlugin>();
+    
+    await androidPlugin?.createNotificationChannel(channel);
+    await androidPlugin?.createNotificationChannel(autoCheckinChannel);
+    
+    print('✅ Notification channels created with sound enabled');
   }
 
   static Future<void> _handleForegroundMessage(RemoteMessage message) async {
-    print('Received foreground message: ${message.messageId}');
+    print('\n🔥 ======= FIREBASE FOREGROUND MESSAGE RECEIVED =======');
+    print('📨 Message ID: ${message.messageId}');
+    print('📨 From: ${message.from}');
+    print('📨 Sent Time: ${message.sentTime}');
+    print('📨 TTL: ${message.ttl}');
+    
+    // Log notification content
+    if (message.notification != null) {
+      print('🔔 Notification:');
+      print('   📝 Title: ${message.notification!.title}');
+      print('   📝 Body: ${message.notification!.body}');
+      print('    Android: ${message.notification!.android?.toString()}');
+      print('   🍎 Apple: ${message.notification!.apple?.toString()}');
+    } else {
+      print('❌ No notification payload found!');
+    }
+    
+    // Log data payload with DETAILED analysis
+    if (message.data.isNotEmpty) {
+      print('📦 Data payload:');
+      message.data.forEach((key, value) {
+        print('   $key: $value (type: ${value.runtimeType})');
+      });
+      
+      // CRITICAL: Check for auto check-in trigger
+      print('\\n🔍 ======= AUTO CHECK-IN ANALYSIS =======');
+      final hasType = message.data.containsKey('type');
+      final typeValue = message.data['type'];
+      print('✅ Contains "type" key: $hasType');
+      print('✅ Type value: "$typeValue"');
+      print('✅ Is auto_checkin_trigger: ${typeValue == "auto_checkin_trigger"}');
+      
+      if (typeValue == 'auto_checkin_trigger') {
+        print('🎯 AUTO CHECK-IN TRIGGER DETECTED!');
+        print('📋 Required fields check:');
+        print('   task_id: ${message.data['task_id']} ✅');
+        print('   task_name: ${message.data['task_name']} ✅');
+        print('   start_time: ${message.data['start_time']} ✅');
+        print('   location: ${message.data['location']} ✅');
+        print('🔊 About to trigger continuous sound and notification...');
+      } else {
+        print('❌ NOT an auto check-in trigger');
+        print('❌ Expected: "auto_checkin_trigger"');
+        print('❌ Received: "$typeValue"');
+      }
+      print('🔍 ===================================\\n');
+    } else {
+      print('❌ No data payload found!');
+      print('❌ AUTO CHECK-IN REQUIRES DATA PAYLOAD!');
+    }
+    
+    print('🔥 ================================================\n');
+    
+    // Check if this is an auto check-in trigger
+    if (message.data.containsKey('type') && message.data['type'] == 'auto_checkin_trigger') {
+      print('🎯 AUTO CHECK-IN detected in foreground - handling specially...');
+      await _handleAutoCheckInTrigger(message.data);
+      return;
+    }
     
     // Show local notification when app is in foreground
     await _showLocalNotification(
       title: message.notification?.title ?? 'New Message',
       body: message.notification?.body ?? 'You have a new notification',
       payload: message.data.toString(),
+      withSound: true, // Enable sound for all notifications
     );
   }
 
   static Future<void> _handleMessageOpenedApp(RemoteMessage message) async {
-    print('Message opened app: ${message.messageId}');
-    // Handle navigation or other actions when notification is tapped
+    print('\n📱📱📱 MESSAGE OPENED APP HANDLER 📱📱📱');
+    print('📨 Message ID: ${message.messageId}');
+    print('📨 From: ${message.from}');
+    
+    // Log notification content
+    if (message.notification != null) {
+      print('🔔 Notification: ${message.notification!.title} - ${message.notification!.body}');
+    }
+    
+    // Log data payload
+    if (message.data.isNotEmpty) {
+      print('📦 Data Payload:');
+      message.data.forEach((key, value) {
+        print('   $key: $value');
+      });
+      
+      // Check if this is an auto check-in trigger
+      if (message.data['type'] == 'auto_checkin_trigger') {
+        print('🎯 AUTO CHECK-IN TRIGGER - User tapped notification!');
+        print('🔊 Starting swiggy sound from notification tap...');
+        
+        // Trigger auto check-in with swiggy sound
+        await showAutoCheckInNotification(
+          taskId: message.data['task_id'] ?? 'tapped-${DateTime.now().millisecondsSinceEpoch}',
+          taskName: message.data['task_name'] ?? 'Auto Check-in Task',
+          startTime: message.data['start_time'] ?? 'Now',
+          location: message.data['location'] ?? 'Unknown Location',
+        );
+        
+        print('✅ Auto check-in triggered from notification tap!');
+      }
+    } else {
+      print('❌ No data payload in opened app message');
+    }
+    print('📱📱📱 MESSAGE OPENED APP COMPLETE 📱📱📱\n');
   }
 
   static void _onNotificationTap(NotificationResponse response) {
@@ -290,34 +462,58 @@ class NotificationService {
     required String title,
     required String body,
     String? payload,
+    bool withSound = true,
   }) async {
-    const androidDetails = AndroidNotificationDetails(
+    print('\n🔔 ======= SHOWING LOCAL NOTIFICATION =======');
+    print('📝 Title: $title');
+    print('📝 Body: $body');
+    print('🔊 With Sound: $withSound');
+    print('📋 Payload: $payload');
+    
+    final androidDetails = AndroidNotificationDetails(
       'high_importance_channel',
       'High Importance Notifications',
       channelDescription: 'This channel is used for important notifications.',
-      importance: Importance.high,
+      importance: Importance.max,
       priority: Priority.high,
+      enableVibration: true,
+      playSound: withSound,
+      sound: withSound ? const RawResourceAndroidNotificationSound('notification') : null,
       icon: '@mipmap/launcher_icon',
+      category: AndroidNotificationCategory.message,
     );
 
-    const iosDetails = DarwinNotificationDetails(
+    final iosDetails = DarwinNotificationDetails(
       presentAlert: true,
       presentBadge: true,
-      presentSound: true,
+      presentSound: withSound,
+      sound: withSound ? 'default' : null,
+      interruptionLevel: withSound ? InterruptionLevel.active : InterruptionLevel.passive,
     );
 
-    const details = NotificationDetails(
+    final details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );
 
-    await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      details,
-      payload: payload,
-    );
+    try {
+      final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      print('🚀 Showing notification with ID: $notificationId');
+      
+      await _localNotifications.show(
+        notificationId,
+        title,
+        body,
+        details,
+        payload: payload,
+      );
+      
+      print('✅ Local notification displayed successfully');
+    } catch (e) {
+      print('❌ Failed to show local notification: $e');
+    }
+    
+    print('🔔 =========================================\n');
   }
 
   static Future<String?> getToken() async {
@@ -520,6 +716,543 @@ class NotificationService {
 
     return status;
   }
+
+  /// Show auto check-in notification with continuous sound
+  static Future<void> showAutoCheckInNotification({
+    required String taskId,
+    required String taskName,
+    required String startTime,
+    String? location,
+  }) async {
+    try {
+      print('🔔 Showing auto check-in notification for: $taskName');
+      
+      // Store current task ID to track which notification is active
+      _currentAutoCheckInTaskId = taskId;
+      
+      // Start continuous sound
+      await _startContinuousSound();
+      
+      // Show local notification
+      const androidDetails = AndroidNotificationDetails(
+        'auto_checkin_channel',
+        'Auto Check-in Notifications',
+        channelDescription: 'Critical notifications for automatic task check-ins',
+        importance: Importance.max,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true, // Enable system sound + manual sound
+        sound: RawResourceAndroidNotificationSound('notification'),
+        ongoing: true, // Makes notification persistent
+        autoCancel: false,
+        fullScreenIntent: true,
+        category: AndroidNotificationCategory.alarm,
+      );
+      
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true, // Enable system sound + manual sound
+        sound: 'default',
+        interruptionLevel: InterruptionLevel.critical,
+        categoryIdentifier: 'AUTO_CHECKIN',
+      );
+      
+      const notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      
+      final body = location != null 
+          ? '🎯 Time to check in at $location\nTask starts at $startTime'
+          : '🎯 Time to check in for your task\nTask starts at $startTime';
+      
+      await _localNotifications.show(
+        taskId.hashCode,
+        '🚨 Auto Check-in Required',
+        body,
+        notificationDetails,
+        payload: json.encode({
+          'type': 'auto_checkin',
+          'task_id': taskId,
+          'task_name': taskName,
+          'start_time': startTime,
+        }),
+      );
+      
+      // Start vibration pattern
+      _startVibrationPattern();
+      
+      print('✅ Auto check-in notification shown with continuous sound');
+      
+    } catch (e) {
+      print('❌ Error showing auto check-in notification: $e');
+    }
+  }
+  
+  /// Start continuous sound playback
+  static Future<void> _startContinuousSound() async {
+    if (_isPlayingContinuousSound) {
+      await stopContinuousSound(); // Stop any existing sound
+    }
+    
+    try {
+      print('\\n🔊 ======= STARTING CONTINUOUS SOUND =======');
+      print('🔊 Initializing audio player for continuous sound...');
+      _audioPlayer ??= AudioPlayer();
+      _isPlayingContinuousSound = true;
+      
+      print('🔊 Starting continuous notification sound');
+      
+      // Configure audio for background and foreground playback
+      await _audioPlayer!.setReleaseMode(ReleaseMode.loop);
+      await _audioPlayer!.setVolume(1.0);
+      print('✅ Audio player configured: loop=true, volume=1.0');
+      
+      // Set audio context for both platforms
+      if (Platform.isAndroid) {
+        print('🤖 Configuring Android audio context...');
+        await _audioPlayer!.setAudioContext(AudioContext(
+          android: AudioContextAndroid(
+            isSpeakerphoneOn: false,
+            stayAwake: true,
+            contentType: AndroidContentType.sonification,
+            usageType: AndroidUsageType.alarm,
+            audioFocus: AndroidAudioFocus.gain,
+          ),
+        ));
+        print('✅ Android audio context set');
+      } else if (Platform.isIOS) {
+        print('📱 Configuring iOS audio context...');
+        await _audioPlayer!.setAudioContext(AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playAndRecord, // Changed to playAndRecord for better compatibility
+            options: {
+              AVAudioSessionOptions.defaultToSpeaker, // This works with playAndRecord
+              AVAudioSessionOptions.duckOthers,
+            },
+          ),
+        ));
+        print('✅ iOS audio context set');
+      }
+      
+      print('🎵 Loading audio file: assets/music/swiggy_new_order.caf');
+      
+      // Check if file exists and is accessible
+      try {
+        await _audioPlayer!.play(AssetSource('music/swiggy_new_order.caf'));
+        print('✅ Audio file started playing');
+      } catch (audioError) {
+        print('❌ Audio file play failed: $audioError');
+        print('🔄 Trying alternative approach...');
+        
+        // Try with a simpler audio context
+        await _audioPlayer!.setAudioContext(AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: {
+              AVAudioSessionOptions.duckOthers,
+            },
+          ),
+        ));
+        
+        await _audioPlayer!.play(AssetSource('music/swiggy_new_order.caf'));
+        print('✅ Audio file started with fallback context');
+      }
+      
+      print('✅ Continuous notification sound started successfully');
+      
+      // Add a listener to check if audio actually started
+      _audioPlayer!.onPlayerStateChanged.listen((PlayerState state) {
+        print('🎵 Audio player state changed: $state');
+        if (state == PlayerState.playing) {
+          print('🎵 Continuous sound is actively playing!');
+        } else if (state == PlayerState.stopped) {
+          print('🛑 Continuous sound stopped');
+        } else if (state == PlayerState.paused) {
+          print('⏸️ Continuous sound paused');
+        } else if (state == PlayerState.completed) {
+          print('🔄 Audio completed, should be looping...');
+        }
+      });
+      
+      print('🔊 ====================================\\n');
+        
+    } catch (e) {
+      print('❌ Error starting continuous sound: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+      _isPlayingContinuousSound = false;
+      
+      // Try alternative audio approach on iOS
+      if (Platform.isIOS) {
+        print('🔄 Attempting iOS fallback audio method...');
+        // Could add fallback logic here if needed
+      }
+    }
+  }
+  
+  /// Stop continuous sound
+  static Future<void> stopContinuousSound() async {
+    if (!_isPlayingContinuousSound) {
+      print('ℹ️ Continuous sound is not currently playing');
+      return;
+    }
+    
+    try {
+      print('🔇 Stopping continuous notification sound for task: $_currentAutoCheckInTaskId');
+      
+      // Stop audio player
+      if (_audioPlayer != null) {
+        await _audioPlayer!.stop();
+        await _audioPlayer!.dispose();
+        _audioPlayer = null;
+        print('✅ Audio player stopped and disposed');
+      }
+      
+      // Reset state
+      _isPlayingContinuousSound = false;
+      
+      // Stop iOS vibration timer
+      _vibrationTimer?.cancel();
+      _vibrationTimer = null;
+      print('✅ iOS vibration timer cancelled');
+      
+      // Cancel the notification using the stored task ID
+      if (_currentAutoCheckInTaskId != null) {
+        await _localNotifications.cancel(_currentAutoCheckInTaskId!.hashCode);
+        print('✅ Notification cancelled for task: $_currentAutoCheckInTaskId');
+      }
+      
+      // Clear the task ID after stopping
+      _currentAutoCheckInTaskId = null;
+      
+      // Stop vibration
+      try {
+        if (await Vibration.hasVibrator() ?? false) {
+          Vibration.cancel();
+          print('✅ Vibration stopped');
+        }
+      } catch (vibError) {
+        print('⚠️ Error stopping vibration: $vibError');
+      }
+      
+      print('✅ Continuous sound stopped successfully');
+      
+    } catch (e) {
+      print('❌ Error stopping continuous sound: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+      
+      // Force reset state even if there was an error
+      _isPlayingContinuousSound = false;
+      _currentAutoCheckInTaskId = null;
+      _vibrationTimer?.cancel();
+      _vibrationTimer = null;
+      
+      if (_audioPlayer != null) {
+        try {
+          await _audioPlayer!.dispose();
+          _audioPlayer = null;
+        } catch (disposeError) {
+          print('⚠️ Error disposing audio player: $disposeError');
+        }
+      }
+    }
+  }
+  
+  /// Start vibration pattern
+  static Future<void> _startVibrationPattern() async {
+    try {
+      print('📳 Starting vibration pattern...');
+      
+      if (await Vibration.hasVibrator() ?? false) {
+        if (Platform.isIOS) {
+          print('📱 Using iOS vibration pattern...');
+          // For iOS, use simple repeated vibrations
+          _startIOSVibrationLoop();
+        } else {
+          print('🤖 Using Android vibration pattern...');
+          // Android pattern: [wait, vibrate, wait, vibrate, ...]
+          // Pattern repeats every 3 seconds: 500ms vibrate, 2500ms wait
+          const pattern = [0, 500, 2500, 500, 2500, 500, 2500];
+          Vibration.vibrate(pattern: pattern, repeat: 1); // repeat from index 1
+        }
+        
+        print('✅ Vibration pattern started successfully');
+      } else {
+        print('❌ No vibrator available on this device');
+      }
+    } catch (e) {
+      print('⚠️ Error starting vibration: $e');
+      print('⚠️ Stack trace: ${StackTrace.current}');
+    }
+  }
+  
+  /// iOS-specific vibration loop
+  static Timer? _vibrationTimer;
+  
+  static void _startIOSVibrationLoop() {
+    _vibrationTimer?.cancel();
+    _vibrationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (!_isPlayingContinuousSound) {
+        timer.cancel();
+        return;
+      }
+      
+      try {
+        Vibration.vibrate(duration: 500);
+        print('📳 iOS vibration triggered');
+      } catch (e) {
+        print('⚠️ iOS vibration error: $e');
+      }
+    });
+  }
+  
+  /// Check if auto check-in sound is currently playing
+  static bool get isPlayingAutoCheckInSound => _isPlayingContinuousSound;
+  
+  /// Get current auto check-in task ID
+  static String? get currentAutoCheckInTaskId => _currentAutoCheckInTaskId;
+  
+  /// Test method to manually trigger auto check-in notification (for debugging)
+  static Future<void> testAutoCheckInNotification() async {
+    print('🧪 Testing auto check-in notification manually...');
+    
+    try {
+      await showAutoCheckInNotification(
+        taskId: 'test-task-123',
+        taskName: 'Test Auto Check-in',
+        startTime: '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
+        location: 'Test Location',
+      );
+      print('✅ Test auto check-in notification triggered successfully');
+    } catch (e) {
+      print('❌ Test auto check-in notification failed: $e');
+    }
+  }
+  
+  /// Test audio file directly (for debugging)
+  static Future<void> testAudioFileDirectly() async {
+    print('🎵 Testing audio file directly...');
+    
+    try {
+      final testPlayer = AudioPlayer();
+      
+      print('🎵 Setting up audio player...');
+      await testPlayer.setReleaseMode(ReleaseMode.stop);
+      await testPlayer.setVolume(1.0);
+      
+      if (Platform.isIOS) {
+        print('📱 Setting iOS audio context...');
+        await testPlayer.setAudioContext(AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: {
+              AVAudioSessionOptions.duckOthers,
+            },
+          ),
+        ));
+      }
+      
+      print('🎵 Loading audio file: assets/music/swiggy_new_order.caf');
+      await testPlayer.play(AssetSource('music/swiggy_new_order.caf'));
+      
+      print('✅ Audio file test started successfully');
+      
+      // Listen to player state
+      testPlayer.onPlayerStateChanged.listen((PlayerState state) {
+        print('🎵 Test audio player state: $state');
+      });
+      
+      // Stop after 5 seconds
+      Timer(const Duration(seconds: 5), () async {
+        await testPlayer.stop();
+        await testPlayer.dispose();
+        print('🛑 Test audio stopped');
+      });
+      
+    } catch (e) {
+      print('❌ Audio file test failed: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+    }
+  }
+
+  /// Test notification with sound for FCM debugging
+  static Future<void> testNotificationWithSound() async {
+    try {
+      print('🧪 Testing notification with sound...');
+      print('📱 Platform: ${Platform.isIOS ? 'iOS' : 'Android'}');
+      print('🔍 Checking notification permissions...');
+      
+      // Check notification permissions first
+      if (Platform.isIOS) {
+        final settings = await _firebaseMessaging?.getNotificationSettings();
+        print('🔒 iOS Notification Permission: ${settings?.authorizationStatus}');
+        print('🔒 iOS Alert Permission: ${settings?.alert}');
+        print('🔒 iOS Sound Permission: ${settings?.sound}');
+        print('🔒 iOS Badge Permission: ${settings?.badge}');
+      }
+      
+      // For iOS, use simpler notification settings that work better
+      final androidDetails = AndroidNotificationDetails(
+        'auto_checkin_channel',
+        'Auto Check-in Notifications',
+        channelDescription: 'Test notification with sound',
+        importance: Importance.max,
+        priority: Priority.high,
+        enableVibration: true,
+        playSound: true,
+        category: AndroidNotificationCategory.alarm,
+        enableLights: true,
+        ledColor: const Color(0xFFFF6B35),
+      );
+      
+      // For iOS, use the most basic sound configuration that works
+      const iosDetails = DarwinNotificationDetails(
+        presentAlert: true,
+        presentBadge: true,
+        presentSound: true,
+        // Use default system sound - this should always work
+        sound: 'default',
+        interruptionLevel: InterruptionLevel.active, // Changed from critical
+      );
+      
+      final notificationDetails = NotificationDetails(
+        android: androidDetails,
+        iOS: iosDetails,
+      );
+      
+      final notificationId = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      print('🔔 Sending notification with ID: $notificationId');
+      print('🔊 iOS Sound: default (system sound)');
+      print('📳 Vibration enabled: true');
+      print('⚡ Priority: max');
+      print('🔔 Interruption Level: active');
+      
+      await _localNotifications.show(
+        notificationId,
+        '🔔 Sound Test #$notificationId',
+        'Testing system default notification sound',
+        notificationDetails,
+      );
+      
+      print('✅ Test notification sent with system default sound!');
+      print('📋 Troubleshooting:');
+      print('   1. Check iPhone Settings → Sounds & Haptics → Ringer and Alerts volume');
+      print('   2. Make sure Silent switch (side of phone) is OFF');
+      print('   3. Check Settings → Notifications → [Your App] → Sounds = ON');
+      print('   4. Try putting app in background and testing again');
+      
+    } catch (e) {
+      print('❌ Test notification failed: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+    }
+  }
+
+  /// Test FCM connection and token validity
+  static Future<void> testFirebaseConnection() async {
+    print('\\n🔥 ======= FIREBASE CONNECTION TEST =======');
+    
+    try {
+      if (!_isInitialized || _firebaseMessaging == null) {
+        print('❌ Firebase not initialized!');
+        return;
+      }
+      
+      // Get current token
+      final token = await _firebaseMessaging!.getToken();
+      print('🔑 Current Token: ${token?.substring(0, 20)}...');
+      
+      // Check permissions
+      final settings = await _firebaseMessaging!.getNotificationSettings();
+      print('🔒 Permission Status: ${settings.authorizationStatus}');
+      print('🔒 Alert: ${settings.alert}');
+      print('🔒 Sound: ${settings.sound}');
+      
+      // Test if we can send a self-notification (would need server)
+      print('📡 Firebase Messaging object exists: ${_firebaseMessaging != null}');
+      print('📡 Firebase app name: ${_firebaseMessaging!.app.name}');
+      
+      print('✅ Firebase connection test completed');
+      print('🔥 =====================================\\n');
+      
+    } catch (e) {
+      print('❌ Firebase connection test failed: $e');
+      print('🔥 =====================================\\n');
+    }
+  }
+
+  /// Test direct audio playback to verify device sound works
+  static Future<void> testDirectAudio() async {
+    print('\\n🎵 ======= DIRECT AUDIO TEST =======');
+    
+    try {
+      final testPlayer = AudioPlayer();
+      
+      print('🎵 Testing direct audio playback...');
+      print('🔊 Setting audio context...');
+      
+      if (Platform.isIOS) {
+        await testPlayer.setAudioContext(AudioContext(
+          iOS: AudioContextIOS(
+            category: AVAudioSessionCategory.playback,
+            options: {
+              AVAudioSessionOptions.duckOthers,
+            },
+          ),
+        ));
+        print('✅ iOS audio context set');
+      }
+      
+      // Try to play a system sound first
+      print('🔔 Testing system beep...');
+      // This will play a simple beep sound
+      
+      print('🎵 Testing asset audio file...');
+      await testPlayer.play(AssetSource('music/swiggy_new_order.caf'));
+      
+      print('✅ Audio test started - listen for sound!');
+      print('⏱️ Audio will play for 3 seconds...');
+      
+      // Wait 3 seconds then stop
+      await Future.delayed(const Duration(seconds: 3));
+      await testPlayer.stop();
+      await testPlayer.dispose();
+      
+      print('🛑 Audio test completed');
+      print('🎵 ================================\\n');
+      
+    } catch (e) {
+      print('❌ Direct audio test failed: $e');
+      print('❌ This might indicate audio system issues');
+      print('🎵 ================================\\n');
+    }
+  }
+  
+  /// Test vibration directly (for debugging)
+  static Future<void> testVibrationDirectly() async {
+    print('📳 Testing vibration directly...');
+    
+    try {
+      if (await Vibration.hasVibrator() ?? false) {
+        print('📳 Device has vibrator, testing...');
+        
+        if (Platform.isIOS) {
+          print('📱 Testing iOS vibration...');
+          await Vibration.vibrate(duration: 1000);
+        } else {
+          print('🤖 Testing Android vibration pattern...');
+          await Vibration.vibrate(pattern: [0, 500, 500, 500, 500]);
+        }
+        
+        print('✅ Vibration test completed');
+      } else {
+        print('❌ No vibrator available on this device');
+      }
+    } catch (e) {
+      print('❌ Vibration test failed: $e');
+      print('❌ Stack trace: ${StackTrace.current}');
+    }
+  }
 }
 
 // Top-level function for background message handling
@@ -531,8 +1264,94 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
-  print('Handling a background message: ${message.messageId}');
   
-  // You can show a local notification here if needed
-  // Note: This runs in an isolate, so UI operations are limited
+  print('\\n🔥 ======= FIREBASE BACKGROUND MESSAGE RECEIVED =======');
+  print('📨 Message ID: ${message.messageId}');
+  print('📨 From: ${message.from}');
+  print('📨 Sent Time: ${message.sentTime}');
+  print('📨 TTL: ${message.ttl}');
+  print('📨 Message Type: ${message.messageType}');
+  
+  // Log notification content
+  if (message.notification != null) {
+    print('🔔 Notification Content:');
+    print('   📝 Title: ${message.notification!.title}');
+    print('   📝 Body: ${message.notification!.body}');
+    print('   🤖 Android: ${message.notification!.android?.toString()}');
+    print('   🍎 Apple: ${message.notification!.apple?.toString()}');
+  } else {
+    print('❌ No notification payload found in background message!');
+  }
+  
+  // Log data payload  
+  if (message.data.isNotEmpty) {
+    print('📦 Data Payload:');
+    message.data.forEach((key, value) {
+      print('   $key: $value');
+    });
+  } else {
+    print('❌ No data payload found in background message!');
+  }
+  
+  print('🔥 ===================================================\\n');
+  
+  // Handle different message types
+  if (message.data.containsKey('type')) {
+    final messageType = message.data['type'];
+    print('📨 Processing message type: $messageType');
+    
+    switch (messageType) {
+      case 'auto_checkin_trigger':
+        print('🎯 Auto check-in trigger detected in background');
+        await _handleAutoCheckInTrigger(message.data);
+        break;
+      case 'task_update':
+        print('📝 Task update received in background');
+        break;
+      case 'reminder':
+        print('⏰ Reminder received in background');
+        break;
+      default:
+        print('📋 General message received in background');
+    }
+  } else {
+    print('❌ No message type specified in data payload!');
+  }
+}
+
+/// Handle auto check-in trigger from push notification
+Future<void> _handleAutoCheckInTrigger(Map<String, dynamic> data) async {
+  try {
+    final taskId = data['task_id'];
+    final taskName = data['task_name'] ?? 'Unknown Task';
+    final startTime = data['start_time'] ?? 'Now';
+    final location = data['location'];
+    
+    print('🚨 AUTO CHECK-IN TRIGGER RECEIVED!');
+    print('📋 Task ID: $taskId');
+    print('📋 Task Name: $taskName');
+    print('📋 Start Time: $startTime');
+    print('📋 Location: $location');
+    print('📋 Full data: $data');
+    
+    // Initialize audio player if needed
+    if (NotificationService._audioPlayer == null) {
+      print('🎵 Initializing audio player for background handler...');
+      NotificationService._audioPlayer = AudioPlayer();
+    }
+    
+    // Show continuous notification with sound
+    await NotificationService.showAutoCheckInNotification(
+      taskId: taskId,
+      taskName: taskName,
+      startTime: startTime,
+      location: location,
+    );
+    
+    print('✅ Auto check-in notification processing completed');
+    
+  } catch (e) {
+    print('❌ Error handling auto check-in trigger: $e');
+    print('❌ Stack trace: ${StackTrace.current}');
+  }
 }

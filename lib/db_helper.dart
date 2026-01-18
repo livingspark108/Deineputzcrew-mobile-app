@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
+import 'task_model.dart';
 
 class DBHelper {
   static final DBHelper _instance = DBHelper._internal();
@@ -167,5 +168,104 @@ class DBHelper {
     final dbClient = await db;
     await dbClient.close();
     _db = null;
+  }
+}
+
+// New DatabaseHelper class for background tasks
+class DatabaseHelper {
+  static final DatabaseHelper _instance = DatabaseHelper._internal();
+  factory DatabaseHelper() => _instance;
+  DatabaseHelper._internal();
+
+  static Database? _database;
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDB();
+    return _database!;
+  }
+
+  Future<Database> _initDB() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, 'app_tasks.db');
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: (Database db, int version) async {
+        await db.execute('''
+          CREATE TABLE tasks(
+            id TEXT PRIMARY KEY,
+            task_name TEXT,
+            start_time TEXT,
+            end_time TEXT,
+            location_name TEXT,
+            priority TEXT,
+            status TEXT,
+            lat TEXT,
+            longg TEXT,
+            punch_in INTEGER,
+            punch_out INTEGER,
+            break_in INTEGER,
+            break_out INTEGER,
+            day TEXT,
+            date TEXT,
+            auto_checkin INTEGER,
+            total_work_time TEXT
+          )
+        ''');
+      },
+    );
+  }
+
+  Future<List<Task>> getAllTasks() async {
+    final db = await database;
+    final List<Map<String, dynamic>> maps = await db.query('tasks');
+
+    return List.generate(maps.length, (i) {
+      return Task.fromJson(maps[i]);
+    });
+  }
+
+  Future<void> insertTask(Task task) async {
+    final db = await database;
+    await db.insert(
+      'tasks',
+      {
+        'id': task.id,
+        'task_name': task.taskName,
+        'start_time': task.startTime,
+        'end_time': task.endTime,
+        'location_name': task.locationName,
+        'priority': task.priority,
+        'status': task.status,
+        'lat': task.lat,
+        'longg': task.longg,
+        'punch_in': task.punchIn ? 1 : 0,
+        'punch_out': task.punchOut ? 1 : 0,
+        'break_in': task.breakIn ? 1 : 0,
+        'break_out': task.breakOut ? 1 : 0,
+        'day': task.day,
+        'date': task.date,
+        'auto_checkin': task.autoCheckin ? 1 : 0,
+        'total_work_time': task.totalWorkTime,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<void> updateTaskPunchIn(String taskId, bool punchIn) async {
+    final db = await database;
+    await db.update(
+      'tasks',
+      {'punch_in': punchIn ? 1 : 0},
+      where: 'id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
+  Future<void> clearAllTasks() async {
+    final db = await database;
+    await db.delete('tasks');
   }
 }

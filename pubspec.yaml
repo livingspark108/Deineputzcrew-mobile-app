@@ -52,11 +52,15 @@ dependencies:
 
   flutter_local_notifications: ^17.0.0
   permission_handler: ^11.0.1
-
+  workmanager: ^0.5.2
 
   collection: ^1.9.0
   connectivity_plus: ^5.0.2
   url_launcher: ^6.2.1
+  
+  # Audio and vibration for notifications
+  audioplayers: ^6.0.0
+  vibration: ^1.8.4
 
 
 
@@ -110,6 +114,7 @@ flutter:
   assets:
     - assets/images/
     - assets/images/pic.png
+    - assets/music/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

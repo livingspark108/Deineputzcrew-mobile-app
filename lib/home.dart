@@ -21,6 +21,8 @@ import 'db_helper.dart';
 import 'main.dart';
 import 'task_model.dart';
 import 'location_service.dart';
+import 'background_task_manager.dart';
+import 'notification_service.dart';
 
 
 
@@ -39,6 +41,47 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex; // 👈 Start on passed index
+    
+    // Handle auto check-in notification when app is opened
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleAutoCheckInNotificationOnAppOpen();
+    });
+  }
+  
+  /// Handle auto check-in notification when app opens
+  void _handleAutoCheckInNotificationOnAppOpen() async {
+    // Check if auto check-in sound is playing
+    if (NotificationService.isPlayingAutoCheckInSound) {
+      final taskId = NotificationService.currentAutoCheckInTaskId;
+      
+      // Show dialog to acknowledge the auto check-in notification
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.alarm, color: Colors.orange, size: 28),
+              SizedBox(width: 10),
+              Text('🚨 Auto Check-in Required'),
+            ],
+          ),
+          content: Text(
+            'You have an auto check-in notification.\n\nTask ID: ${taskId ?? "Unknown"}\n\nPlease check in to your task.',
+            style: const TextStyle(fontSize: 16),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                NotificationService.stopContinuousSound();
+                Navigator.of(context).pop();
+              },
+              child: const Text('Acknowledge', style: TextStyle(fontSize: 16)),
+            ),
+          ],
+        ),
+      );
+    }
   }
 
   // Create pages dynamically to ensure fresh state on navigation
@@ -313,6 +356,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // ✅ FIXED: Sync AFTER timer state is restored
       await syncOfflineActions();
       await _updatePendingSyncCount();
+      
+      // 📱 Sync offline check-ins from BackgroundTaskManager
+      await _syncBackgroundCheckIns();
 
       setState(() {
         //_initialized = true;
@@ -448,15 +494,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // }
   bool _isTimeExceeded(Task task) {
     if (_punchInTime == null) return false;
+    
+    // Safety check: ensure endTime is not empty
+    if (task.endTime.isEmpty || task.endTime.trim().isEmpty) {
+      print('⚠️ Task ${task.id} has empty endTime - cannot check if time exceeded');
+      return false;
+    }
 
     final DateTime now = DateTime.now();
 
     List<int> hm(String s) {
       final p = s.split(':').map((e) => int.tryParse(e) ?? 0).toList();
+      // Safety check: ensure we have at least hour and minute
+      if (p.length < 2) {
+        print('⚠️ Invalid time format: "$s" - expected HH:MM format');
+        return [0, 0, 0]; // Return default values
+      }
       return [p[0], p[1], p.length > 2 ? p[2] : 0];
     }
 
     final endParts = hm(task.endTime);
+    
+    // Additional safety check after parsing
+    if (endParts.length < 2) {
+      print('⚠️ Failed to parse endTime "${task.endTime}" for task ${task.id}');
+      return false;
+    }
+    
     DateTime endTime = DateTime(
       _punchInTime!.year,
       _punchInTime!.month,
@@ -1186,6 +1250,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           taskList = List.from(allTasks);
         });
 
+        // 📱 Update BackgroundTaskManager with new tasks
+        try {
+          await BackgroundTaskManager.refreshTasks();
+          print('✅ BackgroundTaskManager refreshed with new tasks');
+        } catch (e) {
+          print('⚠️ Failed to update BackgroundTaskManager: $e');
+        }
+
         // ✅ Update location service with offline tasks
         _locationService.updateTasks(parsed);
 
@@ -1221,6 +1293,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
           taskList = List.from(allTasks);
           _error = 'Offline mode: Showing cached tasks';
         });
+
+        // 📱 Update BackgroundTaskManager with cached tasks
+        try {
+          await BackgroundTaskManager.refreshTasks();
+          print('✅ BackgroundTaskManager refreshed with cached tasks');
+        } catch (e) {
+          print('⚠️ Failed to update BackgroundTaskManager with cached tasks: $e');
+        }
 
         // ✅ Update location service with cached tasks
         _locationService.updateTasks(parsed);
@@ -1428,6 +1508,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  /// Sync offline check-ins from BackgroundTaskManager
+  Future<void> _syncBackgroundCheckIns() async {
+    try {
+      print('🔄 Syncing background check-ins...');
+      await BackgroundTaskManager.syncOfflineCheckIns();
+      print('✅ Background check-ins synced successfully');
+    } catch (e) {
+      print('⚠️ Failed to sync background check-ins: $e');
+    }
+  }
 
 
   Future<Position> _getCurrentLocation() async {

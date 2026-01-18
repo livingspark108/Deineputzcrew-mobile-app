@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
@@ -6,6 +7,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:http/http.dart' as http;
 import 'db_helper.dart';
 import 'task_model.dart';
 
@@ -396,8 +398,50 @@ class LocationService {
 
         debugPrint("✅ Auto check-in saved offline for ${task.taskName} $mode");
       } else {
-        // TODO: Implement online API call here if needed
-        debugPrint("🌐 Online auto check-in for ${task.taskName}");
+        // Online API call
+        final mode = timeOnlyMode ? "(Time-based)" : "(Location-based)";
+        debugPrint("🌐 Online auto check-in for ${task.taskName} $mode");
+        
+        final success = await _sendAutoCheckInToAPI(
+          task.id,
+          _toSixDecimals(position.latitude).toString(),
+          _toSixDecimals(position.longitude).toString(),
+        );
+        
+        if (success) {
+          debugPrint("✅ Online auto check-in successful for ${task.taskName}");
+          
+          // Update local state
+          await prefs.setString('punchedInTaskId', task.id);
+          await prefs.setString('punchInTime', now.toIso8601String());
+          
+          // Trigger callback to start timer in main app
+          if (_onAutoCheckInCallback != null) {
+            _onAutoCheckInCallback!(task.id, now);
+          }
+        } else {
+          debugPrint("⚠️ Online auto check-in failed, saving offline for ${task.taskName}");
+          // Fall back to offline storage
+          await DBHelper().insertPunchAction({
+            'task_id': task.id,
+            'type': 'punch-in',
+            'lat': _toSixDecimals(position.latitude).toString(),
+            'long': _toSixDecimals(position.longitude).toString(),
+            'image_path': emptyImage.path,
+            'timestamp': now.toIso8601String(),
+            'remark': timeOnlyMode ? 'Auto Check-in (Time-based, Fallback)' : 'Auto Check-in (Fallback)',
+            'synced': 0,
+          });
+
+          // Update local state anyway
+          await prefs.setString('punchedInTaskId', task.id);
+          await prefs.setString('punchInTime', now.toIso8601String());
+          
+          // Trigger callback to start timer in main app
+          if (_onAutoCheckInCallback != null) {
+            _onAutoCheckInCallback!(task.id, now);
+          }
+        }
       }
 
     } catch (e) {
@@ -541,6 +585,57 @@ class LocationService {
   /// Get pending sync count
   Future<int> getPendingSyncCount() async {
     return await DBHelper().getPendingSyncCount();
+  }
+
+  /// Send auto check-in to API
+  Future<bool> _sendAutoCheckInToAPI(String taskId, String lat, String lng) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        debugPrint("⚠️ No auth token found");
+        return false;
+      }
+
+      const url = 'https://admin.deineputzcrew.de/api/punch-in/';
+      
+      var request = http.MultipartRequest('POST', Uri.parse(url));
+      request.headers['Authorization'] = 'token $token';
+      
+      request.fields['task_id'] = taskId;
+      request.fields['lat'] = lat;
+      request.fields['long'] = lng;
+      request.fields['auto_checkin'] = 'true';
+      request.fields['timestamp'] = DateTime.now().toIso8601String();
+      
+      debugPrint("📤 Sending auto check-in API request for task: $taskId");
+      debugPrint("📍 Coordinates: $lat, $lng");
+      
+      final response = await request.send();
+      final responseBody = await response.stream.bytesToString();
+      
+      debugPrint("📱 API Response: ${response.statusCode}");
+      debugPrint("📄 Response body: $responseBody");
+      
+      if (response.statusCode == 200) {
+        try {
+          final data = json.decode(responseBody);
+          final success = data['success'] == true;
+          debugPrint(success ? "✅ API check-in successful" : "❌ API check-in failed: ${data['message']}");
+          return success;
+        } catch (e) {
+          debugPrint("⚠️ Could not parse API response: $e");
+          return false;
+        }
+      } else {
+        debugPrint("❌ API request failed with status: ${response.statusCode}");
+        return false;
+      }
+    } catch (e) {
+      debugPrint("⚠️ Error sending auto check-in to API: $e");
+      return false;
+    }
   }
 
   bool get isMonitoring => _isMonitoring;

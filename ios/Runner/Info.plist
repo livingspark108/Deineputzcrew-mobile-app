@@ -89,6 +89,8 @@
 	<array>
 		<string>remote-notification</string>
 		<string>location</string>
+		<string>background-processing</string>
+		<string>background-fetch</string>
 	</array>
 	<key>UIDeviceFamily</key>
 	<array>

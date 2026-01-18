@@ -10,6 +10,7 @@ import 'home.dart';
 import 'consent_screen.dart';
 import 'login.dart';
 import 'notification_service.dart';
+import 'background_task_manager.dart';
 
 /// 🔔 Local Notifications
 final FlutterLocalNotificationsPlugin notificationsPlugin =
@@ -24,7 +25,7 @@ FlutterLocalNotificationsPlugin();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  /// � Local notifications (legacy support)
+  /// 🔔 Local notifications (legacy support)
   await _initLocalNotifications();
 
   /// 🔔 Initialize NotificationService (Firebase + modern notifications)
@@ -33,6 +34,14 @@ Future<void> main() async {
     print('✅ NotificationService initialized in main()');
   } catch (e) {
     print('⚠️ NotificationService initialization failed: $e');
+  }
+
+  /// 📱 Initialize Background Task Manager
+  try {
+    await BackgroundTaskManager.initialize();
+    print('✅ BackgroundTaskManager initialized in main()');
+  } catch (e) {
+    print('⚠️ BackgroundTaskManager initialization failed: $e');
   }
 
   runApp(const MyApp());

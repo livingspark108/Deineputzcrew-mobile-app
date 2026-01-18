@@ -112,6 +112,33 @@ class _NotificationDebugScreenState extends State<NotificationDebugScreen> {
     );
   }
 
+  Future<void> _testAutoCheckInNotification() async {
+    setState(() {
+      _isLoading = true;
+      _statusText = 'Testing auto check-in notification...';
+    });
+
+    try {
+      await NotificationService.testAutoCheckInNotification();
+      setState(() {
+        _statusText = 'Auto check-in notification test triggered! Check if sound is playing.';
+        _isLoading = false;
+      });
+    } catch (e) {
+      setState(() {
+        _statusText = 'Auto check-in test failed: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _stopAutoCheckInSound() async {
+    await NotificationService.stopContinuousSound();
+    setState(() {
+      _statusText = 'Auto check-in sound stopped';
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -213,6 +240,50 @@ class _NotificationDebugScreenState extends State<NotificationDebugScreen> {
                   label: const Text('Help Guide'),
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            // Auto Check-in Test Section
+            Card(
+              color: Colors.deepPurple.shade50,
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      '🚨 Auto Check-in Notification Test',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: _isLoading ? null : _testAutoCheckInNotification,
+                          icon: const Icon(Icons.alarm, color: Colors.orange),
+                          label: const Text('Test Auto Check-in'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.orange.shade100,
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: _stopAutoCheckInSound,
+                          icon: const Icon(Icons.stop, color: Colors.red),
+                          label: const Text('Stop Sound'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.red.shade100,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Use this to test if the auto check-in notification with continuous music works correctly.',
+                      style: TextStyle(fontSize: 12, color: Colors.grey),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 20),
             const Card(
