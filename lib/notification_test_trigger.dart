@@ -291,23 +291,6 @@ class _NotificationTestTriggerState extends State<NotificationTestTrigger> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () async {
-                      await NotificationService.testVibrationDirectly();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('📳 Testing vibration - check console')),
-                      );
-                    },
-                    icon: const Icon(Icons.vibration),
-                    label: const Text('Test Vibration'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purple,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 30),

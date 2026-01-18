@@ -15,7 +15,7 @@
       "android": {
         "priority": "high",
         "notification": {
-            "sound": "default",
+            "sound": "swiggy_new_order",
             "channel_id": "auto_checkin_channel",
             "click_action": "FLUTTER_NOTIFICATION_CLICK",
             "tag": "auto_checkin",

@@ -3,7 +3,6 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:vibration/vibration.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -331,8 +330,9 @@ class NotificationService {
       'Auto Check-in Notifications',
       description: 'Critical notifications for automatic task check-ins with sound.',
       importance: Importance.max,
-      enableVibration: true,
+      enableVibration: false,
       playSound: true,
+      sound: RawResourceAndroidNotificationSound('swiggy_new_order'),
     );
 
     final androidPlugin = _localNotifications
@@ -435,17 +435,12 @@ class NotificationService {
       // Check if this is an auto check-in trigger
       if (message.data['type'] == 'auto_checkin_trigger') {
         print('🎯 AUTO CHECK-IN TRIGGER - User tapped notification!');
-        print('🔊 Starting swiggy sound from notification tap...');
+        print('� Stopping continuous sound from notification tap...');
         
-        // Trigger auto check-in with swiggy sound
-        await showAutoCheckInNotification(
-          taskId: message.data['task_id'] ?? 'tapped-${DateTime.now().millisecondsSinceEpoch}',
-          taskName: message.data['task_name'] ?? 'Auto Check-in Task',
-          startTime: message.data['start_time'] ?? 'Now',
-          location: message.data['location'] ?? 'Unknown Location',
-        );
+        // Stop continuous sound when user taps notification
+        await stopContinuousSound();
         
-        print('✅ Auto check-in triggered from notification tap!');
+        print('✅ Continuous sound stopped from notification tap!');
       }
     } else {
       print('❌ No data payload in opened app message');
@@ -476,9 +471,9 @@ class NotificationService {
       channelDescription: 'This channel is used for important notifications.',
       importance: Importance.max,
       priority: Priority.high,
-      enableVibration: true,
+      enableVibration: false,
       playSound: withSound,
-      sound: withSound ? const RawResourceAndroidNotificationSound('notification') : null,
+      sound: withSound ? const RawResourceAndroidNotificationSound('swiggy_new_order') : null,
       icon: '@mipmap/launcher_icon',
       category: AndroidNotificationCategory.message,
     );
@@ -742,7 +737,7 @@ class NotificationService {
         priority: Priority.high,
         enableVibration: true,
         playSound: true, // Enable system sound + manual sound
-        sound: RawResourceAndroidNotificationSound('notification'),
+        sound: RawResourceAndroidNotificationSound('swiggy_new_order'),
         ongoing: true, // Makes notification persistent
         autoCancel: false,
         fullScreenIntent: true,
@@ -779,10 +774,7 @@ class NotificationService {
           'start_time': startTime,
         }),
       );
-      
-      // Start vibration pattern
-      _startVibrationPattern();
-      
+
       print('✅ Auto check-in notification shown with continuous sound');
       
     } catch (e) {
@@ -912,11 +904,6 @@ class NotificationService {
       // Reset state
       _isPlayingContinuousSound = false;
       
-      // Stop iOS vibration timer
-      _vibrationTimer?.cancel();
-      _vibrationTimer = null;
-      print('✅ iOS vibration timer cancelled');
-      
       // Cancel the notification using the stored task ID
       if (_currentAutoCheckInTaskId != null) {
         await _localNotifications.cancel(_currentAutoCheckInTaskId!.hashCode);
@@ -925,16 +912,6 @@ class NotificationService {
       
       // Clear the task ID after stopping
       _currentAutoCheckInTaskId = null;
-      
-      // Stop vibration
-      try {
-        if (await Vibration.hasVibrator() ?? false) {
-          Vibration.cancel();
-          print('✅ Vibration stopped');
-        }
-      } catch (vibError) {
-        print('⚠️ Error stopping vibration: $vibError');
-      }
       
       print('✅ Continuous sound stopped successfully');
       
@@ -945,8 +922,6 @@ class NotificationService {
       // Force reset state even if there was an error
       _isPlayingContinuousSound = false;
       _currentAutoCheckInTaskId = null;
-      _vibrationTimer?.cancel();
-      _vibrationTimer = null;
       
       if (_audioPlayer != null) {
         try {
@@ -957,54 +932,6 @@ class NotificationService {
         }
       }
     }
-  }
-  
-  /// Start vibration pattern
-  static Future<void> _startVibrationPattern() async {
-    try {
-      print('📳 Starting vibration pattern...');
-      
-      if (await Vibration.hasVibrator() ?? false) {
-        if (Platform.isIOS) {
-          print('📱 Using iOS vibration pattern...');
-          // For iOS, use simple repeated vibrations
-          _startIOSVibrationLoop();
-        } else {
-          print('🤖 Using Android vibration pattern...');
-          // Android pattern: [wait, vibrate, wait, vibrate, ...]
-          // Pattern repeats every 3 seconds: 500ms vibrate, 2500ms wait
-          const pattern = [0, 500, 2500, 500, 2500, 500, 2500];
-          Vibration.vibrate(pattern: pattern, repeat: 1); // repeat from index 1
-        }
-        
-        print('✅ Vibration pattern started successfully');
-      } else {
-        print('❌ No vibrator available on this device');
-      }
-    } catch (e) {
-      print('⚠️ Error starting vibration: $e');
-      print('⚠️ Stack trace: ${StackTrace.current}');
-    }
-  }
-  
-  /// iOS-specific vibration loop
-  static Timer? _vibrationTimer;
-  
-  static void _startIOSVibrationLoop() {
-    _vibrationTimer?.cancel();
-    _vibrationTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (!_isPlayingContinuousSound) {
-        timer.cancel();
-        return;
-      }
-      
-      try {
-        Vibration.vibrate(duration: 500);
-        print('📳 iOS vibration triggered');
-      } catch (e) {
-        print('⚠️ iOS vibration error: $e');
-      }
-    });
   }
   
   /// Check if auto check-in sound is currently playing
@@ -1228,28 +1155,39 @@ class NotificationService {
     }
   }
   
-  /// Test vibration directly (for debugging)
-  static Future<void> testVibrationDirectly() async {
-    print('📳 Testing vibration directly...');
-    
+  /// Handle auto check-in trigger from push notification
+  static Future<void> _handleAutoCheckInTrigger(Map<String, dynamic> data) async {
     try {
-      if (await Vibration.hasVibrator() ?? false) {
-        print('📳 Device has vibrator, testing...');
-        
-        if (Platform.isIOS) {
-          print('📱 Testing iOS vibration...');
-          await Vibration.vibrate(duration: 1000);
-        } else {
-          print('🤖 Testing Android vibration pattern...');
-          await Vibration.vibrate(pattern: [0, 500, 500, 500, 500]);
-        }
-        
-        print('✅ Vibration test completed');
-      } else {
-        print('❌ No vibrator available on this device');
+      final taskId = data['task_id'];
+      final taskName = data['task_name'] ?? 'Unknown Task';
+      final startTime = data['start_time'] ?? 'Now';
+      final location = data['location'];
+      
+      print('🚨 AUTO CHECK-IN TRIGGER RECEIVED!');
+      print('📋 Task ID: $taskId');
+      print('📋 Task Name: $taskName');
+      print('📋 Start Time: $startTime');
+      print('📋 Location: $location');
+      print('📋 Full data: $data');
+      
+      // Initialize audio player if needed
+      if (_audioPlayer == null) {
+        print('🎵 Initializing audio player for background handler...');
+        _audioPlayer = AudioPlayer();
       }
+      
+      // Show continuous notification with sound that persists until tapped
+      await showAutoCheckInNotification(
+        taskId: taskId,
+        taskName: taskName,
+        startTime: startTime,
+        location: location,
+      );
+      
+      print('✅ Auto check-in notification started - continuous sound will loop until notification is tapped');
+      
     } catch (e) {
-      print('❌ Vibration test failed: $e');
+      print('❌ Error handling auto check-in trigger: $e');
       print('❌ Stack trace: ${StackTrace.current}');
     }
   }
@@ -1303,7 +1241,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     switch (messageType) {
       case 'auto_checkin_trigger':
         print('🎯 Auto check-in trigger detected in background');
-        await _handleAutoCheckInTrigger(message.data);
+        await NotificationService._handleAutoCheckInTrigger(message.data);
         break;
       case 'task_update':
         print('📝 Task update received in background');
@@ -1316,42 +1254,5 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
     }
   } else {
     print('❌ No message type specified in data payload!');
-  }
-}
-
-/// Handle auto check-in trigger from push notification
-Future<void> _handleAutoCheckInTrigger(Map<String, dynamic> data) async {
-  try {
-    final taskId = data['task_id'];
-    final taskName = data['task_name'] ?? 'Unknown Task';
-    final startTime = data['start_time'] ?? 'Now';
-    final location = data['location'];
-    
-    print('🚨 AUTO CHECK-IN TRIGGER RECEIVED!');
-    print('📋 Task ID: $taskId');
-    print('📋 Task Name: $taskName');
-    print('📋 Start Time: $startTime');
-    print('📋 Location: $location');
-    print('📋 Full data: $data');
-    
-    // Initialize audio player if needed
-    if (NotificationService._audioPlayer == null) {
-      print('🎵 Initializing audio player for background handler...');
-      NotificationService._audioPlayer = AudioPlayer();
-    }
-    
-    // Show continuous notification with sound
-    await NotificationService.showAutoCheckInNotification(
-      taskId: taskId,
-      taskName: taskName,
-      startTime: startTime,
-      location: location,
-    );
-    
-    print('✅ Auto check-in notification processing completed');
-    
-  } catch (e) {
-    print('❌ Error handling auto check-in trigger: $e');
-    print('❌ Stack trace: ${StackTrace.current}');
   }
 }
