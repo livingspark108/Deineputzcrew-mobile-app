@@ -42,39 +42,43 @@ class _MainAppState extends State<MainApp> {
     super.initState();
     _selectedIndex = widget.initialIndex; // 👈 Start on passed index
     
-    // Handle auto check-in notification when app is opened
+    // Handle any notification when app is opened
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleAutoCheckInNotificationOnAppOpen();
     });
   }
   
-  /// Handle auto check-in notification when app opens
+  /// Handle any notification when app opens
   void _handleAutoCheckInNotificationOnAppOpen() async {
-    // Check if auto check-in sound is playing
+    // Check if any notification sound is playing
     if (NotificationService.isPlayingAutoCheckInSound) {
       final taskId = NotificationService.currentAutoCheckInTaskId;
       
-      // Show dialog to acknowledge the auto check-in notification
+      // Show dialog to acknowledge any notification
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
           title: const Row(
             children: [
-              Icon(Icons.alarm, color: Colors.orange, size: 28),
+              Icon(Icons.notifications_active, color: Colors.orange, size: 28),
               SizedBox(width: 10),
-              Text('🚨 Auto Check-in Required'),
+              Text('🔔 Notification Alert'),
             ],
           ),
           content: Text(
-            'You have an auto check-in notification.\n\nTask ID: ${taskId ?? "Unknown"}\n\nPlease check in to your task.',
+            'You have an active notification.\n\n${taskId != null ? "Task ID: $taskId\n\n" : ""}Please acknowledge to continue.',
             style: const TextStyle(fontSize: 16),
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                NotificationService.stopContinuousSound();
+              onPressed: () async {
+                // Stop continuous sound
+                await NotificationService.stopContinuousSound();
                 Navigator.of(context).pop();
+                
+                // Check if user is logged in and reload home page
+                await _reloadHomePageIfLoggedIn();
               },
               child: const Text('Acknowledge', style: TextStyle(fontSize: 16)),
             ),
@@ -83,20 +87,71 @@ class _MainAppState extends State<MainApp> {
       );
     }
   }
+  
+  /// Check if user is logged in and reload home page data
+  Future<void> _reloadHomePageIfLoggedIn() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final userId = prefs.getInt('userid');
+      
+      // Check if user is logged in (has valid token and userId)
+      if (token != null && token.isNotEmpty && userId != null && userId > 0) {
+        print('🔄 User is logged in, reloading home page...');
+        
+        // Show loading indicator briefly
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('🔄 Refreshing data...'),
+              duration: Duration(seconds: 1),
+            ),
+          );
+        }
+        
+        // Reload dashboard data if callback is available
+        if (_reloadDashboard != null) {
+          _reloadDashboard!();
+          print('✅ Dashboard reload triggered');
+        } else {
+          // Fallback: Force rebuild of current page
+          setState(() {});
+          print('⚠️ Dashboard callback not available, forcing rebuild');
+        }
+        
+        print('✅ Home page refreshed successfully');
+      } else {
+        print('❌ User not logged in, skipping home page reload');
+      }
+    } catch (e) {
+      print('❌ Error reloading home page: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⚠️ Failed to refresh: $e'),
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
+    }
+  }
 
   // Create pages dynamically to ensure fresh state on navigation
   Widget _getPage(int index) {
     switch (index) {
       case 0:
-        return DashboardScreen();
+        return DashboardScreen(onReloadCallback: _reloadDashboard);
       case 1:
         return AllTasksScreen2();
       case 2:
         return SettingsScreen();
       default:
-        return DashboardScreen();
+        return DashboardScreen(onReloadCallback: _reloadDashboard);
     }
   }
+  
+  // Global dashboard reload callback
+  VoidCallback? _reloadDashboard;
 
   void _onTabTapped(int index) {
     setState(() {
@@ -129,9 +184,10 @@ class _MainAppState extends State<MainApp> {
 
 
 class DashboardScreen extends StatefulWidget {
+  final VoidCallback? onReloadCallback;
 
   //const DashboardScreen({super.key});
-  DashboardScreen({super.key});
+  DashboardScreen({super.key, this.onReloadCallback});
 
   StreamSubscription<ConnectivityResult>? _connectivitySub;
 
@@ -263,15 +319,33 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     print('🏠 DashboardScreen initState called');
-    // WidgetsBinding.instance.addPostFrameCallback((_) {
-    //   _initializeApp();
-    // });
+    
+    // Set up reload callback for parent widget
+    if (widget.onReloadCallback != null) {
+      // Pass our reload method to the parent
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.findAncestorStateOfType<_MainAppState>() != null) {
+          context.findAncestorStateOfType<_MainAppState>()!._reloadDashboard = () async {
+            print('🔄 Dashboard notification reload triggered (like swipe down)');
+            
+            // Use same logic as RefreshIndicator swipe-down
+            _autoCheckoutLocked = true;      // 🔒 HARD LOCK
+            _isManualRefresh = true;
+            _stopAutoCheckoutTimer();
 
-    // WidgetsBinding.instance.addPostFrameCallback((_) async {
-    //   await _initializeApp();
-    //   _startAutoCheckoutTimer();
-    //   _startSyncStatusMonitoring();
-    // });
+            await fetchTasks();
+            await syncOfflineActions();
+
+            _isManualRefresh = false;
+            _autoCheckoutLocked = false;     // 🔓 UNLOCK
+            _startAutoCheckoutTimer();
+            
+            print('✅ Dashboard notification reload completed');
+          };
+        }
+      });
+    }
+    
     _initializeApp().then((_) {
       _startAutoCheckoutTimer();
       _startSyncStatusMonitoring();
@@ -1913,50 +1987,54 @@ print(response.body);
           ),
           const SizedBox(height: 16),
 
-          // Timer Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              _TimerDigit(
-                value: currentDuration.inHours.toString().padLeft(2, '0'),
-                label: 'Hrs',
-                color: Colors.blue,
-              ),
-              const SizedBox(width: 6),
-              _TimerDigit(
-                value: (currentDuration.inMinutes % 60).toString().padLeft(2, '0'),
-                label: 'Mins',
-                color: Colors.purple,
-              ),
-              const SizedBox(width: 6),
-              _TimerDigit(
-                value: (currentDuration.inSeconds % 60).toString().padLeft(2, '0'),
-                label: 'Secs',
-                color: Colors.pink,
-              ),
+          // Timer Row - Only show when task is selected and timer running
+          if (selectedTaskId.isNotEmpty && (currentDuration.inSeconds > 0 || _timer != null))
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _TimerDigit(
+                  value: currentDuration.inHours.toString().padLeft(2, '0'),
+                  label: 'Hrs',
+                  color: Colors.blue,
+                ),
+                const SizedBox(width: 6),
+                _TimerDigit(
+                  value: (currentDuration.inMinutes % 60).toString().padLeft(2, '0'),
+                  label: 'Mins',
+                  color: Colors.purple,
+                ),
+                const SizedBox(width: 6),
+                _TimerDigit(
+                  value: (currentDuration.inSeconds % 60).toString().padLeft(2, '0'),
+                  label: 'Secs',
+                  color: Colors.pink,
+                ),
             ],
           ),
           const SizedBox(height: 16),
 
-          // Task info
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            title: Text(
-              selectedTask.taskName,
-              style: const TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
+          // Task info - Only show when task is selected
+          if (selectedTaskId.isNotEmpty)
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(
+                selectedTask.taskName,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: 'Poppins',
+                ),
               ),
+              subtitle: selectedTaskId.isNotEmpty 
+                  ? Text(
+                      selectedTask.locationName.isNotEmpty
+                          ? selectedTask.locationName
+                          : '',
+                      style: const TextStyle(fontFamily: 'Poppins'),
+                    )
+                  : null, // Hide subtitle when no task selected
+              trailing: const Icon(Icons.arrow_forward_ios, size: 16),
             ),
-            subtitle: Text(
-              selectedTask.locationName.isNotEmpty
-                  ? selectedTask.locationName
-                  : 'No Task Selected',
-              style: const TextStyle(fontFamily: 'Poppins'),
-            ),
-            trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-          ),
           const SizedBox(height: 12),
 
           // Clock In / Clock Out Buttons
@@ -1964,124 +2042,125 @@ print(response.body);
 
 
 
-          // Break + Clock Out Row
-          Row(
-            children: [
-              // Break button
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () async {
-                    if (selectedTaskId == null || selectedTaskId!.isEmpty) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Please select a task before starting a break.'),
-                        ),
-                      );
-                      return;
-                    }
-
-                    setState(() => _isLoadingBreak = true);
-                    final prefs = await SharedPreferences.getInstance();
-
-                    if (_onBreak) {
-                      // ✅ Break OUT
-                      bool success = await callBreakOutApi(selectedTaskId!, context);
-                      if (success) {
-                        resumeDashboardWorkTimer();
+          // Break + Clock Out Row - Only show when task is selected
+          if (selectedTaskId.isNotEmpty) 
+            Row(
+              children: [
+                // Break button
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: () async {
+                      if (selectedTaskId == null || selectedTaskId!.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Please select a task before starting a break.'),
+                          ),
+                        );
+                        return;
                       }
-                    } else {
-                      // ✅ Break IN
-                      bool success = await callBreakInApi(selectedTaskId!, context);
-                      if (success) {
-                        pauseDashboardWorkTimer();
-                        await prefs.setBool('onBreak', true);
-                      }
-                    }
 
-                    setState(() => _isLoadingBreak = false);
-                  },
-                  icon: _isLoadingBreak
-                      ? const SizedBox(
-                    height: 18,
-                    width: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                      : Icon(
-                    Icons.free_breakfast,
-                    color: _onBreak ? Colors.green : Colors.orange,
-                  ),
-                  label: Text(
-                    _onBreak ? 'End Break' : 'Go for Break',
-                    style: TextStyle(
-                      fontFamily: 'Poppins',
+                      setState(() => _isLoadingBreak = true);
+                      final prefs = await SharedPreferences.getInstance();
+
+                      if (_onBreak) {
+                        // ✅ Break OUT
+                        bool success = await callBreakOutApi(selectedTaskId!, context);
+                        if (success) {
+                          resumeDashboardWorkTimer();
+                        }
+                      } else {
+                        // ✅ Break IN
+                        bool success = await callBreakInApi(selectedTaskId!, context);
+                        if (success) {
+                          pauseDashboardWorkTimer();
+                          await prefs.setBool('onBreak', true);
+                        }
+                      }
+
+                      setState(() => _isLoadingBreak = false);
+                    },
+                    icon: _isLoadingBreak
+                        ? const SizedBox(
+                      height: 18,
+                      width: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                        : Icon(
+                      Icons.free_breakfast,
                       color: _onBreak ? Colors.green : Colors.orange,
                     ),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: _onBreak ? Colors.green : Colors.orange),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    label: Text(
+                      _onBreak ? 'End Break' : 'Go for Break',
+                      style: TextStyle(
+                        fontFamily: 'Poppins',
+                        color: _onBreak ? Colors.green : Colors.orange,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: _onBreak ? Colors.green : Colors.orange),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
-              ),
 
 
-              const SizedBox(width: 12),
+                const SizedBox(width: 12),
 
-              // Clock Out button
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () async {
-                    Task? punchedInTask;
-                    try {
-                      punchedInTask =
-                          allTasks.firstWhere((task) => task.id == selectedTaskId);
-                    } catch (e) {
-                      punchedInTask = null;
-                    }
-
-                    if (punchedInTask != null) {
-                      final totalDuration = _workingDuration; // Already contains accumulated work time
-
-                      final bool? punchedOut = await Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => TaskDetailsScreen(
-                            title: punchedInTask!.taskName,
-                            time: punchedInTask.timeRange,
-                            location: punchedInTask.locationName,
-                            duration: formatDuration(totalDuration), // pass total work duration
-                            highPriority: punchedInTask.priority,
-                            completed: punchedInTask.status,
-                            taskId: punchedInTask.id,
-                          ),
-                        ),
-                      );
-
-                      if (punchedOut == true) {
-                        stopTimer(); // stops both work and break timers
+                // Clock Out button
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () async {
+                      Task? punchedInTask;
+                      try {
+                        punchedInTask =
+                            allTasks.firstWhere((task) => task.id == selectedTaskId);
+                      } catch (e) {
+                        punchedInTask = null;
                       }
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("No punched-in task found.")),
-                      );
-                    }
 
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text(
-                    'Clock Out',
-                    style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
+                      if (punchedInTask != null) {
+                        final totalDuration = _workingDuration; // Already contains accumulated work time
+
+                        final bool? punchedOut = await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => TaskDetailsScreen(
+                              title: punchedInTask!.taskName,
+                              time: punchedInTask.timeRange,
+                              location: punchedInTask.locationName,
+                              duration: formatDuration(totalDuration), // pass total work duration
+                              highPriority: punchedInTask.priority,
+                              completed: punchedInTask.status,
+                              taskId: punchedInTask.id,
+                            ),
+                          ),
+                        );
+
+                        if (punchedOut == true) {
+                          stopTimer(); // stops both work and break timers
+                        }
+                      } else {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text("No punched-in task found.")),
+                        );
+                      }
+
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
+                    child: const Text(
+                      'Clock Out',
+                      style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
+                    ),
                   ),
                 ),
-              ),
-            ],
-          ),
+              ],
+            ),
         ],
       ),
     );
@@ -2309,7 +2388,7 @@ print(response.body);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text('Recent Tasks',
+        const Text('Today\'s Tasks',
             style: TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
@@ -3209,6 +3288,14 @@ int? userId;
 
   void applyFilter() {
     List<Task> temp = tasks;
+
+    // 🔹 TODAY ONLY FILTER - Show only today's tasks
+    final today = DateTime.now();
+    final todayStr = "${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    temp = temp.where((t) => t.date == todayStr).toList();
+
+    // 🔹 EXCLUDE COMPLETED TASKS - Ensure no completed status shows
+    temp = temp.where((t) => (t.status ?? '').toLowerCase() != 'completed').toList();
 
     // 🔹 STATUS FILTER
     if (selectedTabIndex != 0) {
