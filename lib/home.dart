@@ -1957,7 +1957,7 @@ print(response.body);
 
 
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(12), // Reduced from 18 to 12
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
@@ -1985,7 +1985,7 @@ print(response.body);
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 6), // Reduced from 16 to 10
 
           // Timer Row - Only show when task is selected and timer running
           if (selectedTaskId.isNotEmpty && (currentDuration.inSeconds > 0 || _timer != null))
