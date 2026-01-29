@@ -120,6 +120,28 @@ class DBHelper {
     await dbClient.delete('tasks');
   }
 
+  Future<List<Map<String, dynamic>>> getOldPendingTasks() async {
+    final dbClient = await db;
+    final now = DateTime.now();
+    final oneDayAgo = now.subtract(const Duration(days: 1));
+    final cutoffDate = oneDayAgo.toIso8601String().substring(0, 10); // yyyy-MM-dd format
+    
+    return await dbClient.query(
+      'tasks',
+      where: 'date < ? AND status != ?',
+      whereArgs: [cutoffDate, 'completed'],
+    );
+  }
+
+  Future<int> deleteOldTask(String taskId) async {
+    final dbClient = await db;
+    return await dbClient.delete(
+      'tasks',
+      where: 'id = ?',
+      whereArgs: [taskId],
+    );
+  }
+
   // ================= PUNCH ACTIONS =================
   Future<int> insertPunchAction(Map<String, dynamic> action) async {
     final dbClient = await db;
@@ -160,6 +182,15 @@ class DBHelper {
       'punch_actions',
       where: 'id = ?',
       whereArgs: [id],
+    );
+  }
+
+  Future<void> clearPendingPunchActions() async {
+    final dbClient = await db;
+    await dbClient.delete(
+      'punch_actions',
+      where: 'synced = ?',
+      whereArgs: [0],
     );
   }
 

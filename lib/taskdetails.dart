@@ -631,6 +631,29 @@ Future<void> _handlePunchOut(
       );
       return;
     }
+    
+    // ✅ VALIDATION: Check if user is actually punched in to this task
+    final punchedInTaskId = prefs.getString('punchedInTaskId');
+    if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('⛔ Cannot punch out - You are not punched in to any task'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+    
+    // ✅ VALIDATION: Ensure punched-in task matches the current task
+    if (punchedInTaskId != taskId) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('⛔ Cannot punch out - You are punched in to a different task'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
 
     // Step 1: Get location
     final position = await Geolocator.getCurrentPosition();
@@ -649,8 +672,8 @@ Future<void> _handlePunchOut(
       await db.insertPunchAction({
         'task_id': taskId,
         'type': 'punch-out',  // ✅ Fixed: was 'punch_out', should be 'punch-out'
-        'lat': position.latitude.toStringAsFixed(6),
-        'long': position.longitude.toStringAsFixed(6),
+        'lat': position.latitude.toStringAsFixed(4),
+        'long': position.longitude.toStringAsFixed(4),
         'remark': controller.text.trim(),
         'image_path': images.first.path, // First image
         'timestamp': DateTime.now().toIso8601String(),
@@ -695,8 +718,8 @@ Future<void> _handlePunchOut(
     request.headers['Authorization'] = 'token $token';
     request.fields.addAll({
       'task_id': taskId,
-      'lat': position.latitude.toStringAsFixed(6),
-      'long': position.longitude.toStringAsFixed(6),
+      'lat': position.latitude.toStringAsFixed(4),
+      'long': position.longitude.toStringAsFixed(4),
       'remark': controller.text.trim(),
       'timestamp': DateTime.now().toIso8601String(), // ✅ Added timestamp
     });

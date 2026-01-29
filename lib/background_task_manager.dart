@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -121,33 +122,43 @@ class BackgroundTaskManager {
   static Future<void> _loadTasks() async {
     try {
       // Load from local database first
-      _activeTasks = await DatabaseHelper().getAllTasks();
-      print('📋 Loaded ${_activeTasks.length} tasks from database');
+      try {
+        _activeTasks = await DatabaseHelper().getAllTasks();
+        print('📋 Loaded ${_activeTasks.length} tasks from local DB');
+      } catch (e) {
+        print('⚠️ Failed to load from local DB: $e');
+        _activeTasks = [];
+      }
       
       // If no tasks in database, try to get them from the main app's cache
       if (_activeTasks.isEmpty) {
         await _loadTasksFromMainApp();
       }
       
-      // Try to refresh from API
-      await _refreshTasksFromAPI();
+      // Try to refresh from API (non-critical)
+      try {
+        await _refreshTasksFromAPI();
+      } catch (e) {
+        print('⚠️ Failed to refresh from API (non-critical): $e');
+      }
       
       // Debug: Print task details
-      print('📊 Task details:');
-      for (final task in _activeTasks) {
-        print('   - ${task.taskName}: startTime=${task.startTime}, autoCheckin=${task.autoCheckin}, punchIn=${task.punchIn}');
-      }
-      
-      // Check which tasks are eligible for auto check-in
-      final eligibleTasks = _activeTasks.where((task) => 
-        !task.punchIn && task.autoCheckin).toList();
-      print('🎯 ${eligibleTasks.length} tasks eligible for auto check-in');
-      
-      if (eligibleTasks.isEmpty) {
+      if (_activeTasks.isNotEmpty) {
+        print('📊 Task details:');
+        for (final task in _activeTasks) {
+          print('   - ${task.taskName}: startTime=${task.startTime}, autoCheckin=${task.autoCheckin}, punchIn=${task.punchIn}');
+        }
+        
+        // Check which tasks are eligible for auto check-in
+        final eligibleTasks = _activeTasks.where((task) => 
+          !task.punchIn && task.autoCheckin).toList();
+        print('🎯 ${eligibleTasks.length} tasks eligible for auto check-in');
+      } else {
         print('ℹ️ No valid tasks for auto check-in');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('⚠️ Error loading tasks: $e');
+      print('🐞 Stack trace: $stackTrace');
     }
   }
   
@@ -162,12 +173,18 @@ class BackgroundTaskManager {
       
       for (final taskMap in taskMaps) {
         try {
+          // ✅ Add validation before converting
+          if (taskMap['id'] == null) {
+            print('⚠️ Skipping task with null id');
+            continue;
+          }
           final task = Task.fromMap(taskMap);
           final dbHelper = DatabaseHelper();
           await dbHelper.insertTask(task);
           _activeTasks.add(task);
         } catch (e) {
           print('⚠️ Error converting task: $e');
+          print('   Task data: $taskMap');
         }
       }
     } catch (e) {
@@ -270,6 +287,15 @@ class BackgroundTaskManager {
   static Future<bool> _shouldAutoCheckIn(Task task, DateTime now) async {
     try {
       print('🔍 Checking auto check-in eligibility for: ${task.taskName}');
+      
+      // Check SharedPreferences for actual punch status
+      final prefs = await SharedPreferences.getInstance();
+      final punchedInTaskId = prefs.getString('punchedInTaskId');
+      
+      if (punchedInTaskId != null && punchedInTaskId.isNotEmpty) {
+        print('❌ User already punched in to task: $punchedInTaskId');
+        return false;
+      }
       
       // Skip if already checked in
       if (task.punchIn) {
@@ -441,9 +467,20 @@ class BackgroundTaskManager {
         }
       }
       
-      // Use task location if no current position
-      final lat = position?.latitude?.toString() ?? task.lat;
-      final lng = position?.longitude?.toString() ?? task.longg;
+      // Use task location if no current position and format to 4 decimals
+      String lat;
+      String lng;
+      
+      if (position != null) {
+        lat = position.latitude.toStringAsFixed(4);
+        lng = position.longitude.toStringAsFixed(4);
+      } else {
+        // Parse and format stored coordinates
+        final taskLat = double.tryParse(task.lat) ?? 0.0;
+        final taskLng = double.tryParse(task.longg) ?? 0.0;
+        lat = taskLat.toStringAsFixed(4);
+        lng = taskLng.toStringAsFixed(4);
+      }
       
       print('📍 Using coordinates: $lat, $lng');
       
@@ -487,6 +524,12 @@ class BackgroundTaskManager {
       // Use the same API endpoint as main app
       const url = 'https://admin.deineputzcrew.de/api/punch-in/';
       
+      // Load default auto check-in image from assets
+      final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
+      final Directory tempDir = await getTemporaryDirectory();
+      final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
+      await imageFile.writeAsBytes(imageData.buffer.asUint8List());
+      
       var request = http.MultipartRequest('POST', Uri.parse(url));
       request.headers['Authorization'] = 'token $token';
       
@@ -497,6 +540,13 @@ class BackgroundTaskManager {
       request.fields['auto_checkin'] = 'true';
       request.fields['timestamp'] = DateTime.now().toIso8601String();
       
+      // Attach image file
+      request.files.add(await http.MultipartFile.fromPath(
+        'images',
+        imageFile.path,
+        filename: 'auto_check_in.jpeg',
+      ));
+      
       print('📦 Request fields: ${request.fields}');
       
       final response = await request.send();
@@ -505,16 +555,15 @@ class BackgroundTaskManager {
       print('📱 API Response: ${response.statusCode}');
       print('📱 Response body: $responseBody');
       
-      if (response.statusCode == 200) {
-        try {
-          final data = json.decode(responseBody);
-          final success = data['success'] == true;
-          print(success ? '✅ API check-in successful' : '❌ API check-in failed: ${data['message']}');
-          return success;
-        } catch (e) {
-          print('⚠️ Could not parse API response: $e');
-          return response.statusCode == 200;
-        }
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('✅ API check-in successful');
+        
+        // Update SharedPreferences to mark user as punched in
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('punchedInTaskId', taskId);
+        await prefs.setString('punchInTime', DateTime.now().toIso8601String());
+        
+        return true;
       } else {
         print('❌ API request failed with status: ${response.statusCode}');
         return false;
@@ -577,6 +626,10 @@ class BackgroundTaskManager {
       offlineCheckins.add(json.encode(checkInData));
       await prefs.setStringList('offline_checkins', offlineCheckins);
       
+      // Update SharedPreferences to mark user as punched in
+      await prefs.setString('punchedInTaskId', taskId);
+      await prefs.setString('punchInTime', DateTime.now().toIso8601String());
+      
       print('📦 Stored offline check-in for task: $taskId');
     } catch (e) {
       print('⚠️ Error storing offline check-in: $e');
@@ -625,10 +678,15 @@ class BackgroundTaskManager {
       
       for (final checkInStr in offlineCheckins) {
         final checkInData = json.decode(checkInStr) as Map<String, dynamic>;
+        
+        // Format coordinates to 4 decimals before sending
+        final lat = double.tryParse(checkInData['lat'] ?? '0.0')?.toStringAsFixed(4) ?? '0.0';
+        final lng = double.tryParse(checkInData['long'] ?? '0.0')?.toStringAsFixed(4) ?? '0.0';
+        
         final success = await _sendCheckInToAPI(
           checkInData['task_id'] ?? '',
-          checkInData['lat'] ?? '0.0',
-          checkInData['long'] ?? '0.0',
+          lat,
+          lng,
         );
         
         if (!success) {
@@ -644,6 +702,87 @@ class BackgroundTaskManager {
       
     } catch (e) {
       print('⚠️ Error syncing offline check-ins: $e');
+    }
+  }
+
+  /// Clean up old pending tasks (1+ days old)
+  static Future<void> cleanupOldTasks() async {
+    try {
+      print('🧹 Checking for old pending tasks to cleanup...');
+      
+      final dbHelper = DBHelper();
+      final oldTasks = await dbHelper.getOldPendingTasks();
+      
+      if (oldTasks.isEmpty) {
+        print('ℹ️ No old pending tasks found');
+        return;
+      }
+      
+      print('🗑️ Found ${oldTasks.length} old pending tasks to cleanup');
+      
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      
+      if (token == null) {
+        print('⚠️ No auth token for cleanup - skipping');
+        return;
+      }
+      
+      for (final taskData in oldTasks) {
+        final taskId = taskData['id'] ?? '';
+        final taskName = taskData['task_name'] ?? 'Unknown';
+        final taskDate = taskData['date'] ?? '';
+        
+        print('🗑️ Cleaning up old task: $taskName (Date: $taskDate)');
+        
+        // Call API to mark task as expired/completed
+        final success = await _callTaskCleanupAPI(taskId, token);
+        
+        if (success) {
+          // Remove from local database
+          await dbHelper.deleteOldTask(taskId);
+          print('✅ Cleaned up task: $taskName');
+        } else {
+          print('⚠️ Failed to cleanup task: $taskName - keeping in DB');
+        }
+      }
+      
+      print('✅ Old task cleanup completed');
+      
+    } catch (e) {
+      print('⚠️ Error during old task cleanup: $e');
+    }
+  }
+
+  /// Call API to mark old task as expired/completed
+  static Future<bool> _callTaskCleanupAPI(String taskId, String token) async {
+    try {
+      // You can customize this API endpoint and payload as needed
+      const url = 'https://admin.deineputzcrew.de/api/task-cleanup/';
+      
+      final response = await http.post(
+        Uri.parse(url),
+        headers: {
+          'Authorization': 'token $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'task_id': taskId,
+          'reason': 'Auto cleanup - task expired (1+ days old)',
+          'timestamp': DateTime.now().toIso8601String(),
+        }),
+      );
+      
+      print('📱 Cleanup API Response: ${response.statusCode}');
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        print('📱 Cleanup API Body: ${response.body}');
+      }
+      
+      return response.statusCode == 200 || response.statusCode == 201;
+      
+    } catch (e) {
+      print('⚠️ Error calling cleanup API for task $taskId: $e');
+      return false;
     }
   }
 

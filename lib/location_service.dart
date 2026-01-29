@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -301,6 +302,21 @@ class LocationService {
         continue;
       }
 
+      // ✅ LOCATION CHECK FIRST
+      double distance = Geolocator.distanceBetween(
+        _toSixDecimals(position.latitude),
+        _toSixDecimals(position.longitude),
+        double.tryParse(task.lat) ?? 0.0,
+        double.tryParse(task.longg) ?? 0.0,
+      );
+
+      debugPrint("📏 Distance to task ${task.taskName}: ${distance.toStringAsFixed(1)}m");
+
+      if (distance > 500) {
+        debugPrint("⛔ Not on location - Distance: ${distance.toStringAsFixed(1)}m (>500m)");
+        continue; // Skip this task if not on location
+      }
+
       // Parse time
       final start = _toHMS(task.startTime);
       final end = _toHMS(task.endTime);
@@ -313,32 +329,24 @@ class LocationService {
         endDt = endDt.add(const Duration(days: 1));
       }
 
-      // Check if we're in the time window
-      if (now.isBefore(startDt) || now.isAfter(endDt)) {
-        debugPrint("⛔ Task ${task.taskName} not in time window. Current: $now, Window: $startDt - $endDt");
+      // ✅ FLEXIBLE TIME CHECK - Allow check-in if:
+      // 1. After start time (even if late) and before end time
+      if (now.isAfter(endDt)) {
+        debugPrint("⛔ Task ${task.taskName} already ended at ${task.endTime}");
+        continue;
+      }
+      
+      if (now.isBefore(startDt)) {
+        debugPrint("⛔ Too early - Task starts at ${task.startTime}");
         continue;
       }
 
-      // Check location distance
-      double distance = Geolocator.distanceBetween(
-        _toSixDecimals(position.latitude),
-        _toSixDecimals(position.longitude),
-        double.tryParse(task.lat) ?? 0.0,
-        double.tryParse(task.longg) ?? 0.0,
-      );
-
-      debugPrint("📏 Distance to task ${task.taskName}: ${distance.toStringAsFixed(1)}m");
-
-      // Within 500m for check-in
-      if (distance <= 500) {
-        matchedTasks.add({
-          "task": task,
-          "distance": distance,
-          "startDt": startDt,
-        });
-      } else {
-        debugPrint("⛔ Task ${task.taskName} too far (${distance.toStringAsFixed(1)}m > 500m)");
-      }
+      // Within 500m and in valid time window
+      matchedTasks.add({
+        "task": task,
+        "distance": distance,
+        "startDt": startDt,
+      });
     }
 
     if (matchedTasks.isEmpty) {
@@ -364,10 +372,11 @@ class LocationService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      // Create blank image for auto check-in
+      // Use default auto check-in image from assets
+      final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
       final Directory tempDir = await getTemporaryDirectory();
-      final File emptyImage = File("${tempDir.path}/auto_punch_blank.jpg");
-      await emptyImage.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]); // minimal valid JPG
+      final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
+      await imageFile.writeAsBytes(imageData.buffer.asUint8List());
 
       final DateTime now = DateTime.now();
 
@@ -381,7 +390,7 @@ class LocationService {
           'type': 'punch-in',
           'lat': _toSixDecimals(position.latitude).toString(),
           'long': _toSixDecimals(position.longitude).toString(),
-          'image_path': emptyImage.path,
+          'image_path': imageFile.path,
           'timestamp': now.toIso8601String(),
           'remark': timeOnlyMode ? 'Auto Check-in (Time-based, Offline)' : 'Auto Check-in (Offline)',
           'synced': 0,
@@ -427,7 +436,7 @@ class LocationService {
             'type': 'punch-in',
             'lat': _toSixDecimals(position.latitude).toString(),
             'long': _toSixDecimals(position.longitude).toString(),
-            'image_path': emptyImage.path,
+            'image_path': imageFile.path,
             'timestamp': now.toIso8601String(),
             'remark': timeOnlyMode ? 'Auto Check-in (Time-based, Fallback)' : 'Auto Check-in (Fallback)',
             'synced': 0,
@@ -533,11 +542,25 @@ class LocationService {
   Future<void> _performAutoCheckOut(Task task, Position position, String reason, bool isOffline) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      
+      // ✅ VALIDATION: Check if user is actually punched in
+      final punchedInTaskId = prefs.getString('punchedInTaskId');
+      if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
+        debugPrint("⛔ Auto checkout cancelled - No active punch-in found");
+        return;
+      }
+      
+      // ✅ VALIDATION: Ensure punched-in task matches the current task
+      if (punchedInTaskId != task.id) {
+        debugPrint("⛔ Auto checkout cancelled - Task mismatch. Punched in: $punchedInTaskId, Current: ${task.id}");
+        return;
+      }
 
-      // Create blank image for auto check-out
+      // Use default auto check-in image from assets
+      final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
       final Directory tempDir = await getTemporaryDirectory();
-      final File emptyImage = File("${tempDir.path}/auto_checkout_blank.jpg");
-      await emptyImage.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]);
+      final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
+      await imageFile.writeAsBytes(imageData.buffer.asUint8List());
 
       final DateTime now = DateTime.now();
 
@@ -547,9 +570,9 @@ class LocationService {
         await DBHelper().insertPunchAction({
           'task_id': task.id,
           'type': 'punch-out',
-          'lat': position.latitude.toStringAsFixed(6),
-          'long': position.longitude.toStringAsFixed(6),
-          'image_path': emptyImage.path,
+          'lat': position.latitude.toStringAsFixed(4),
+          'long': position.longitude.toStringAsFixed(4),
+          'image_path': imageFile.path,
           'timestamp': now.toIso8601String(),
           'remark': 'Auto Check-out (Offline) - $reason',
           'synced': 0,
@@ -600,6 +623,12 @@ class LocationService {
 
       const url = 'https://admin.deineputzcrew.de/api/punch-in/';
       
+      // Load default auto check-in image
+      final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
+      final Directory tempDir = await getTemporaryDirectory();
+      final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
+      await imageFile.writeAsBytes(imageData.buffer.asUint8List());
+      
       var request = http.MultipartRequest('POST', Uri.parse(url));
       request.headers['Authorization'] = 'token $token';
       
@@ -608,6 +637,13 @@ class LocationService {
       request.fields['long'] = lng;
       request.fields['auto_checkin'] = 'true';
       request.fields['timestamp'] = DateTime.now().toIso8601String();
+      
+      // Attach image file
+      request.files.add(await http.MultipartFile.fromPath(
+        'images',
+        imageFile.path,
+        filename: 'auto_check_in.jpeg',
+      ));
       
       debugPrint("📤 Sending auto check-in API request for task: $taskId");
       debugPrint("📍 Coordinates: $lat, $lng");
@@ -618,16 +654,9 @@ class LocationService {
       debugPrint("📱 API Response: ${response.statusCode}");
       debugPrint("📄 Response body: $responseBody");
       
-      if (response.statusCode == 200) {
-        try {
-          final data = json.decode(responseBody);
-          final success = data['success'] == true;
-          debugPrint(success ? "✅ API check-in successful" : "❌ API check-in failed: ${data['message']}");
-          return success;
-        } catch (e) {
-          debugPrint("⚠️ Could not parse API response: $e");
-          return false;
-        }
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        debugPrint("✅ API check-in successful");
+        return true;
       } else {
         debugPrint("❌ API request failed with status: ${response.statusCode}");
         return false;

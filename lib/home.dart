@@ -8,6 +8,7 @@ import 'package:deineputzcrew/settings.dart';
 import 'package:deineputzcrew/taskall.dart';
 import 'package:deineputzcrew/taskdetails.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -412,41 +413,92 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     _autoCheckoutLocked = true;
+    
+    // ✅ Add timeout to prevent infinite loading
+    try {
+      await Future.any([
+        _performInitialization(),
+        Future.delayed(const Duration(seconds: 15), () {
+          throw TimeoutException('Initialization timeout');
+        }),
+      ]);
+    } on TimeoutException {
+      print('⚠️ Initialization timed out - completing anyway');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = null; // Don't show error for timeout
+        });
+      }
+    } catch (e, stackTrace) {
+      print('❌ App initialization failed: $e');
+      print('🐞 Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Failed to initialize: $e';
+        });
+      }
+    } finally {
+      _autoCheckoutLocked = false;
+    }
+  }
+  
+  Future<void> _performInitialization() async {
     try {
       // Check initial connectivity
       final connectivity = await Connectivity().checkConnectivity();
-      setState(() {
-        _isOnline = connectivity != ConnectivityResult.none;
-      });
+      if (mounted) {
+        setState(() {
+          _isOnline = connectivity != ConnectivityResult.none;
+        });
+      }
 
       await loadUserData(); // Loads tasks + restores timer state
       
       // ✅ Start location service with tasks
-      await _locationService.startMonitoring(
-        tasks: allTasks,
-        onAutoCheckIn: _handleAutoCheckIn,
-      );
+      try {
+        await _locationService.startMonitoring(
+          tasks: allTasks,
+          onAutoCheckIn: _handleAutoCheckIn,
+        );
+      } catch (e) {
+        print('⚠️ Location service error (non-critical): $e');
+      }
       
       // ✅ FIXED: Sync AFTER timer state is restored
-      await syncOfflineActions();
-      await _updatePendingSyncCount();
+      try {
+        await syncOfflineActions();
+        await _updatePendingSyncCount();
+      } catch (e) {
+        print('⚠️ Sync error (non-critical): $e');
+      }
       
       // 📱 Sync offline check-ins from BackgroundTaskManager
-      await _syncBackgroundCheckIns();
+      try {
+        await _syncBackgroundCheckIns();
+      } catch (e) {
+        print('⚠️ Background sync error (non-critical): $e');
+      }
 
-      setState(() {
-        //_initialized = true;
-        _isLoading = false;
-      });
+      if (mounted) {
+        setState(() {
+          //_initialized = true;
+          _isLoading = false;
+        });
+      }
       
       print('✅ App initialization completed successfully');
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('❌ App initialization failed: $e');
-      setState(() {
-        //_initialized = true;
-        _isLoading = false;
-        _error = 'Failed to initialize: $e';
-      });
+      print('🐞 Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          //_initialized = true;
+          _isLoading = false;
+          _error = 'Failed to initialize: $e';
+        });
+      }
     } finally {
       _autoCheckoutLocked = false;
     }
@@ -615,6 +667,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _autoPunchOut(Task task) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
+    
+    // ✅ VALIDATION: Check if user is actually punched in
+    final punchedInTaskId = prefs.getString('punchedInTaskId');
+    if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
+      debugPrint("⛔ Auto punch-out cancelled - No active punch-in found");
+      return;
+    }
+    
+    // ✅ VALIDATION: Ensure punched-in task matches the current task
+    if (punchedInTaskId != task.id) {
+      debugPrint("⛔ Auto punch-out cancelled - Task mismatch. Punched in: $punchedInTaskId, Current: ${task.id}");
+      return;
+    }
 
     final position = await Geolocator.getCurrentPosition();
     final blankImage = await generateBlankImage();
@@ -626,11 +691,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // OFFLINE → Save to SQLite
     if (connectivity == ConnectivityResult.none) {
       debugPrint("📴 Offline - Saving punch-out to DB");
+      // ✅ Limit to 4 decimal places to ensure max 9 total digits (e.g., "28.4930" = 6 digits)
       await DBHelper().insertPunchAction({
         'task_id': task.id,
         'type': 'punch-out',
-        'lat': position.latitude.toStringAsFixed(6),
-        'long': position.longitude.toStringAsFixed(6),
+        'lat': position.latitude.toStringAsFixed(4),
+        'long': position.longitude.toStringAsFixed(4),
         'image_path': blankImage.path,
         'timestamp': now.toIso8601String(),
         'remark': 'Auto Punch-out',
@@ -666,8 +732,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     request.headers["Authorization"] = "token $token";
     request.fields["task_id"] = task.id;
-    request.fields["lat"] = position.latitude.toStringAsFixed(6);
-    request.fields["long"] = position.longitude.toStringAsFixed(6);
+    request.fields["lat"] = position.latitude.toStringAsFixed(4);
+    request.fields["long"] = position.longitude.toStringAsFixed(4);
     request.fields["remark"] = "Auto Punch-out";
 
     request.files.add(await http.MultipartFile.fromPath(
@@ -895,31 +961,32 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> loadUserData() async {
     print('📊 loadUserData called');
-    // setState(() {
-    //   _isLoading = true;
-    //   _error = null;
-    // });
     
     try {
       final prefs = await SharedPreferences.getInstance();
-      setState(() {
-        userId = prefs.getInt('userid') ?? 0;
-        token = prefs.getString('token');
-      });
+      if (mounted) {
+        setState(() {
+          userId = prefs.getInt('userid') ?? 0;
+          token = prefs.getString('token');
+        });
+      }
+      
+      print('👤 User ID: $userId, Token: ${token != null ? "present" : "missing"}');
       
       // Call fetchTasks outside of setState
       await fetchTasks();
-
-      //await syncOfflineActions();
       
-      // setState(() {
-      //   _isLoading = false;
-      // });
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-        _error = 'Failed to load data: $e';
-      });
+      print('✅ loadUserData completed successfully');
+    } catch (e, stackTrace) {
+      print('❌ loadUserData failed: $e');
+      print('🐞 Stack trace: $stackTrace');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _error = 'Failed to load data: $e';
+        });
+      }
+      rethrow; // Rethrow so _initializeApp can handle it
     }
   }
 
@@ -1048,6 +1115,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         continue;
       }
 
+      // ✅ LOCATION CHECK FIRST
+      double distance = Geolocator.distanceBetween(
+        pos.latitude,
+        pos.longitude,
+        double.tryParse(t.lat) ?? 0.0,
+        double.tryParse(t.longg) ?? 0.0,
+      );
+
+      if (distance > 500) {
+        print("⛔ Not on location - Distance: ${distance.toStringAsFixed(2)}m (>500m)");
+        continue; // Skip this task if not on location
+      } else {
+        print("✅ Location verified - Distance: ${distance.toStringAsFixed(2)}m (within 500m)");
+      }
+
       // TIME PARSING
       final start = _toHMS(t.startTime);
       final end = _toHMS(t.endTime);
@@ -1059,21 +1141,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         endDt = endDt.add(const Duration(days: 1));
       }
 
-      if (now.isBefore(startDt) || now.isAfter(endDt)) {
-        print("⛔ Not in time window");
+      // ✅ FLEXIBLE TIME CHECK - Allow punch-in if:
+      // 1. Within task time window (startTime to endTime)
+      // 2. OR after start time (even if late) but before end time
+      if (now.isAfter(endDt)) {
+        print("⛔ Task already ended at ${t.endTime}");
         continue;
       }
-
-      double distance = Geolocator.distanceBetween(
-        _toSixDecimals(pos.latitude),
-        _toSixDecimals(pos.longitude),
-        double.tryParse(t.lat) ?? 0.0,
-        double.tryParse(t.longg) ?? 0.0,
-      );
-
-
-      if (distance > 500) {
-        print("⛔ Too far (>1km)");
+      
+      // Allow punch-in if we're past start time and before end time
+      if (now.isBefore(startDt)) {
+        print("⛔ Too early - Task starts at ${t.startTime}");
         continue;
       }
 
@@ -1112,6 +1190,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _autoPunchIn(Task task) async {
     try {
+      debugPrint('🔄 Starting auto punch-in for: ${task.taskName}');
+      
       final prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
@@ -1119,13 +1199,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
 
-      // Create a temporary empty image file
+      // Use default auto check-in image from assets
+      final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
       final Directory tempDir = await getTemporaryDirectory();
-      //final File emptyImage = File("assets/images/auto_check_in.jpeg");
-      final File emptyImage = File("${tempDir.path}/auto_check_in.jpeg");
-
-      // Write empty content (0 bytes) or minimal JPG header
-      await emptyImage.writeAsBytes([0xFF, 0xD8, 0xFF, 0xD9]); // minimal valid JPG
+      final File emptyImage = File('${tempDir.path}/auto_check_in.jpeg');
+      await emptyImage.writeAsBytes(imageData.buffer.asUint8List());
 
       final DateTime now = DateTime.now();
 
@@ -1138,8 +1216,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         await DBHelper().insertPunchAction({
           'task_id': task.id,
           'type': 'punch-in',
-          'lat': _toSixDecimals(position.latitude).toString(),
-          'long': _toSixDecimals(position.longitude).toString(),
+          'lat': _toFourDecimals(position.latitude).toString(),
+          'long': _toFourDecimals(position.longitude).toString(),
           'image_path': emptyImage.path,
           'timestamp': now.toIso8601String(),
           'remark': 'Auto Punch-in',
@@ -1176,14 +1254,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       request.headers['Authorization'] = 'token $token';
 
       request.fields['task_id'] = task.id;
-      request.fields['lat'] = _toSixDecimals(position.latitude).toString();
-      request.fields['long'] = _toSixDecimals(position.longitude).toString();
+      request.fields['lat'] = _toFourDecimals(position.latitude).toString();
+      request.fields['long'] = _toFourDecimals(position.longitude).toString();
 
-      // Attach blank file instead of camera image
+      // Attach auto check-in image file
       request.files.add(await http.MultipartFile.fromPath(
         'images',
         emptyImage.path,
-        filename: "auto_punch_blank.jpg",
+        filename: 'auto_check_in.jpeg',
       ));
 
       final response = await request.send();
@@ -1197,18 +1275,45 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _punchInTime = now;
 
         startDashboardWorkTimer();
-
-        // No snackbar needed (silent auto punch-in)
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('✅ Auto Check-in successful for ${task.taskName}'),
+              backgroundColor: Colors.green,
+              duration: const Duration(seconds: 2),
+            ),
+          );
+        }
+        print('✅ Auto punch-in completed successfully');
+      } else {
+        print('⚠️ Auto punch-in failed: ${body.body}');
+        // Don't show error snackbar for auto punch-in failures
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
       print("❌ Auto punch-in failed: $e");
+      print('🐞 Stack trace: $stackTrace');
     }
   }
-  double _toSixDecimals(double value) {
-    // Convert to 3 decimals → then format to 6 decimals
-    String three = value.toStringAsFixed(3);   // e.g. "26.892"
-    String six = double.parse(three).toStringAsFixed(6); // "26.892000"
-    return double.parse(six);
+  double _toFourDecimals(double value) {
+    // Convert to 4 decimals to ensure max 9 total digits (e.g., "28.4930" = 7 digits)
+    return double.parse(value.toStringAsFixed(4));
+  }
+  
+  // Helper function to parse task time
+  DateTime _parseTaskTime(String timeStr, DateTime referenceDate) {
+    final parts = timeStr.split(':');
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    final second = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+    return DateTime(
+      referenceDate.year,
+      referenceDate.month,
+      referenceDate.day,
+      hour,
+      minute,
+      second,
+    );
   }
 
   Future<void> fetchTasks() async {
@@ -1255,7 +1360,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         tasks.sort((a, b) {
           DateTime parseDateTime(Task t) {
             try {
-              final d = DateTime.parse(t.date!); // yyyy-MM-dd
+              // ✅ Handle empty or null dates
+              if (t.date.isEmpty) {
+                return DateTime(1970);
+              }
+              final d = DateTime.parse(t.date); // yyyy-MM-dd
 
               final parts = t.startTime.split(':');
               final h = int.tryParse(parts[0]) ?? 0;
@@ -1263,7 +1372,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
               final s = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
 
               return DateTime(d.year, d.month, d.day, h, m, s);
-            } catch (_) {
+            } catch (e) {
+              debugPrint('⚠️ Error parsing task date: $e');
               return DateTime(1970);
             }
           }
@@ -1286,7 +1396,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _locationService.updateTasks(tasks);
 
         _restoreTimerState();
-        await _checkAutoPunchIn();
+        
+        // ✅ Run auto punch-in check in background (non-blocking)
+        _checkAutoPunchIn().catchError((error) {
+          debugPrint('⚠️ Auto punch-in check failed (non-critical): $error');
+        });
         } else {
           throw Exception('Failed to fetch tasks: ${data['message'] ?? 'Unknown error'}');
         }
@@ -1302,7 +1416,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         parsed.sort((a, b) {
           DateTime parseDateTime(Task t) {
             try {
-              final d = DateTime.parse(t.date!);
+              // ✅ Handle empty or null dates
+              if (t.date.isEmpty) {
+                return DateTime(1970);
+              }
+              final d = DateTime.parse(t.date);
               final parts = t.startTime.split(':');
               return DateTime(
                 d.year,
@@ -1311,7 +1429,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 int.tryParse(parts[0]) ?? 0,
                 int.tryParse(parts[1]) ?? 0,
               );
-            } catch (_) {
+            } catch (e) {
+              debugPrint('⚠️ Error parsing offline task date: $e');
               return DateTime(1970);
             }
           }
@@ -1348,14 +1467,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         parsed.sort((a, b) {
           DateTime parseDateTime(Task t) {
             try {
-              final d = DateTime.parse(t.date!);
+              // ✅ Handle empty or null dates
+              if (t.date.isEmpty) {
+                return DateTime(1970);
+              }
+              final d = DateTime.parse(t.date);
               final parts = t.startTime.split(':');
               return DateTime(
                 d.year, d.month, d.day,
                 int.tryParse(parts[0]) ?? 0,
                 int.tryParse(parts[1]) ?? 0,
               );
-            } catch (_) {
+            } catch (e) {
+              debugPrint('⚠️ Error parsing cached task date: $e');
               return DateTime(1970);
             }
           }
@@ -1460,19 +1584,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
           // Map DB type to API endpoint
           switch (type) {
             case "punch-in":
+            case "punch_in":  // ✅ Support both formats
               endpoint = "punch-in";
               break;
             case "punch-out":
+            case "punch_out":  // ✅ Support both formats
               endpoint = "punch-out";
               break;
             case "break_in":
+            case "break-in":  // ✅ Support both formats
               endpoint = "break-in";
               break;
             case "break_out":
+            case "break-out":  // ✅ Support both formats
               endpoint = "break-out";
               break;
             default:
               debugPrint("⚠️ Unknown action type: $type");
+              // ✅ Delete invalid action to prevent infinite loops
+              await DBHelper().deletePunchAction(action["id"]);
+              debugPrint("🗑 Deleted invalid action with unknown type");
               continue;
           }
 
@@ -1529,23 +1660,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
           else if (response.statusCode == 400) {
             try {
               final errorBody = jsonDecode(resBody.body);
-              final errorMsg = errorBody['error']?.toString().toLowerCase() ?? '';
+              final errorMsg = errorBody.toString().toLowerCase();
+              
+              // ✅ Check for validation errors (lat/long digits, etc.)
+              final isValidationError = errorMsg.contains('ensure that there are no more') ||
+                  errorMsg.contains('invalid') && (errorMsg.contains('lat') || errorMsg.contains('long'));
               
               // ✅ Expanded list of permanent errors that should delete the action
               if (errorMsg.contains('already completed') ||
                   errorMsg.contains('duplicate') ||
                   errorMsg.contains('invalid task') ||
                   errorMsg.contains('task not found') ||
-                  errorMsg.contains('after the task end time') ||          // ✅ NEW
-                  errorMsg.contains('before the task start time') ||       // ✅ NEW
-                  errorMsg.contains('task has ended') ||                   // ✅ NEW
-                  errorMsg.contains('already punched in') ||               // ✅ NEW
+                  errorMsg.contains('after the task end time') ||
+                  errorMsg.contains('before the task start time') ||
+                  errorMsg.contains('task has ended') ||
+                  errorMsg.contains('already punched in') ||
                   errorMsg.contains('already punched out') || 
-                  errorMsg.contains('not punched in') ||                   // ✅ NEW
-                  errorMsg.contains('already on break') ||                 // ✅ NEW
-                  errorMsg.contains('not on break')) {                     // ✅ NEW
+                  errorMsg.contains('not punched in') ||
+                  errorMsg.contains('already on break') ||
+                  errorMsg.contains('not on break') ||
+                  isValidationError) {  // ✅ NEW: Delete validation errors
                 await DBHelper().deletePunchAction(action["id"]);
-                debugPrint("🗑 Deleted stale action: $errorMsg");
+                debugPrint("🗑 Deleted invalid action: ${errorBody.toString()}");
               } else {
                 debugPrint("⏳ Temporary error, will retry: $errorMsg");
               }
@@ -1588,6 +1724,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       print('🔄 Syncing background check-ins...');
       await BackgroundTaskManager.syncOfflineCheckIns();
       print('✅ Background check-ins synced successfully');
+      
+      // Clean up old pending tasks (1+ days old)
+      await BackgroundTaskManager.cleanupOldTasks();
+      
     } catch (e) {
       print('⚠️ Failed to sync background check-ins: $e');
     }
@@ -1693,8 +1833,8 @@ print(response.body);
         },
         body: jsonEncode({
           "task_id": taskId,
-          "lat": position.latitude.toStringAsFixed(6),
-          "long": position.longitude.toStringAsFixed(6),
+          "lat": position.latitude.toStringAsFixed(4),
+          "long": position.longitude.toStringAsFixed(4),
         }),
       );
 
@@ -1734,8 +1874,8 @@ print(response.body);
         await DBHelper().insertPunchAction({
           'task_id': taskId,
           'type': 'break_in',
-          'lat': position.latitude.toStringAsFixed(6),
-          'long': position.longitude.toStringAsFixed(6),
+          'lat': position.latitude.toStringAsFixed(4),
+          'long': position.longitude.toStringAsFixed(4),
           'image_path': '',
           'timestamp': DateTime.now().toIso8601String(),
           'remark': 'Break In (Offline)',
@@ -1760,8 +1900,8 @@ print(response.body);
         },
         body: jsonEncode({
           "task_id": taskId,
-          "lat": position.latitude.toStringAsFixed(6),
-          "long": position.longitude.toStringAsFixed(6),
+          "lat": position.latitude.toStringAsFixed(4),
+          "long": position.longitude.toStringAsFixed(4),
           "timestamp": DateTime.now().toIso8601String(),
         }),
       );
@@ -1801,8 +1941,8 @@ print(response.body);
         await DBHelper().insertPunchAction({
           'task_id': taskId,
           'type': 'break_out',
-          'lat': position.latitude.toStringAsFixed(6),
-          'long': position.longitude.toStringAsFixed(6),
+          'lat': position.latitude.toStringAsFixed(4),
+          'long': position.longitude.toStringAsFixed(4),
           'image_path': '',
           'timestamp': DateTime.now().toIso8601String(),
           'remark': 'Break Out (Offline)',
@@ -1826,8 +1966,8 @@ print(response.body);
         },
         body: jsonEncode({
           "task_id": taskId,
-          "lat": position.latitude.toStringAsFixed(6),
-          "long": position.longitude.toStringAsFixed(6),
+          "lat": position.latitude.toStringAsFixed(4),
+          "long": position.longitude.toStringAsFixed(4),
           "timestamp": DateTime.now().toIso8601String(),
         }),
       );
@@ -2111,6 +2251,17 @@ print(response.body);
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
+                      // ✅ VALIDATION: Check if user is actually punched in
+                      if (selectedTaskId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text("⛔ Cannot clock out - You are not clocked in to any task"),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        return;
+                      }
+                      
                       Task? punchedInTask;
                       try {
                         punchedInTask =
@@ -2620,6 +2771,22 @@ class _TaskCardState extends State<TaskCard> {
     return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
   }
+  
+  // Helper function to parse task time
+  DateTime _parseTaskTime(String timeStr, DateTime referenceDate) {
+    final parts = timeStr.split(':');
+    final hour = int.tryParse(parts[0]) ?? 0;
+    final minute = parts.length > 1 ? int.tryParse(parts[1]) ?? 0 : 0;
+    final second = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+    return DateTime(
+      referenceDate.year,
+      referenceDate.month,
+      referenceDate.day,
+      hour,
+      minute,
+      second,
+    );
+  }
 /* Future<void> _handlePunchIn(BuildContext context) async {
     try {
       widget.onPunchStart();
@@ -2732,6 +2899,56 @@ class _TaskCardState extends State<TaskCard> {
 
       widget.onPunchStart();
 
+      // Get location first to validate
+      final position = await _getCurrentLocation();
+      
+      // ✅ LOCATION VALIDATION
+      final task = widget.taskList.firstWhere((t) => t.id == widget.taskId);
+      double distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        double.tryParse(task.lat) ?? 0.0,
+        double.tryParse(task.longg) ?? 0.0,
+      );
+      
+      if (distance > 500) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⛔ You are not on location. Distance: ${distance.toStringAsFixed(0)}m (must be within 500m)'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+      
+      // ✅ TIME VALIDATION - Allow punch-in if within task time
+      final now = DateTime.now();
+      final start = _parseTaskTime(task.startTime, now);
+      final end = _parseTaskTime(task.endTime, now);
+      
+      if (end.isBefore(start)) {
+        // Handle overnight shifts
+        final adjustedEnd = end.add(const Duration(days: 1));
+        if (now.isAfter(adjustedEnd)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⛔ Task already ended at ${task.endTime}'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+          return;
+        }
+      } else if (now.isAfter(end)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('⛔ Task already ended at ${task.endTime}'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
       // Show loader
       showDialog(
         context: context,
@@ -2746,9 +2963,6 @@ class _TaskCardState extends State<TaskCard> {
         Navigator.pop(context);
         return;
       }
-
-      // Get location
-      final position = await _getCurrentLocation();
 
       // Check internet FIRST
       final connectivity = await Connectivity().checkConnectivity();
@@ -2778,8 +2992,8 @@ class _TaskCardState extends State<TaskCard> {
         await DBHelper().insertPunchAction({
           'task_id': widget.taskId,
           'type': 'punch-in',
-          'lat': position.latitude.toStringAsFixed(6),
-          'long': position.longitude.toStringAsFixed(6),
+          'lat': position.latitude.toStringAsFixed(4),
+          'long': position.longitude.toStringAsFixed(4),
           'image_path': image.path,
           'timestamp': DateTime.now().toIso8601String(),
           'remark': 'Offline Punch-In',
@@ -2817,8 +3031,8 @@ class _TaskCardState extends State<TaskCard> {
 
       request.headers['Authorization'] = 'token $token';
       request.fields['task_id'] = widget.taskId;
-      request.fields['lat'] = position.latitude.toStringAsFixed(6);
-      request.fields['long'] = position.longitude.toStringAsFixed(6);
+      request.fields['lat'] = position.latitude.toStringAsFixed(4);
+      request.fields['long'] = position.longitude.toStringAsFixed(4);
 
       request.files.add(await http.MultipartFile.fromPath(
         'images',
