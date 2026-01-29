@@ -310,10 +310,10 @@ class LocationService {
         double.tryParse(task.longg) ?? 0.0,
       );
 
-      debugPrint("📏 Distance to task ${task.taskName}: ${distance.toStringAsFixed(1)}m");
+      debugPrint("📏 Distance to task ${task.taskName}: ${distance.toStringAsFixed(1)}m (radius: ${task.radius}m)");
 
-      if (distance > 500) {
-        debugPrint("⛔ Not on location - Distance: ${distance.toStringAsFixed(1)}m (>500m)");
+      if (distance > task.radius) {
+        debugPrint("⛔ Not on location - Distance: ${distance.toStringAsFixed(1)}m (>${task.radius}m)");
         continue; // Skip this task if not on location
       }
 
@@ -341,11 +341,30 @@ class LocationService {
         continue;
       }
 
-      // Within 500m and in valid time window
+      // Calculate priority score for intelligent task selection
+      int priorityScore = 0;
+      
+      // Priority 1: Task that has started recently (within 30 minutes)
+      final timeSinceStart = now.difference(startDt).inMinutes;
+      if (timeSinceStart >= 0 && timeSinceStart <= 30) {
+        priorityScore += 100; // High priority for recently started tasks
+      }
+      
+      // Priority 2: High priority tasks get bonus
+      if (task.priority.toLowerCase() == 'high') {
+        priorityScore += 50;
+      }
+      
+      // Priority 3: Closer location gets higher score (inverse distance)
+      priorityScore += (1000 - distance.toInt()).clamp(0, 1000);
+
+      // Within radius and in valid time window
       matchedTasks.add({
         "task": task,
         "distance": distance,
         "startDt": startDt,
+        "priorityScore": priorityScore,
+        "timeSinceStart": timeSinceStart,
       });
     }
 
@@ -354,15 +373,31 @@ class LocationService {
       return;
     }
 
-    // Sort by nearest first, then by earliest start time
+    // Smart sorting: Priority score first, then distance, then start time
     matchedTasks.sort((a, b) {
-      int d = (a["distance"] as double).compareTo(b["distance"] as double);
-      if (d != 0) return d;
+      // Primary: Highest priority score wins
+      int scoreComp = (b["priorityScore"] as int).compareTo(a["priorityScore"] as int);
+      if (scoreComp != 0) return scoreComp;
+      
+      // Secondary: Closest distance
+      int distComp = (a["distance"] as double).compareTo(b["distance"] as double);
+      if (distComp != 0) return distComp;
+      
+      // Tertiary: Earliest start time
       return (a["startDt"] as DateTime).compareTo(b["startDt"] as DateTime);
     });
 
     Task bestTask = matchedTasks.first["task"];
-    debugPrint("🎯 Auto Check-in triggered for: ${bestTask.taskName}");
+    double bestDistance = matchedTasks.first["distance"];
+    int bestScore = matchedTasks.first["priorityScore"];
+    int timeSinceStart = matchedTasks.first["timeSinceStart"];
+    
+    debugPrint("🎯 Selected task for auto check-in:");
+    debugPrint("   Task: ${bestTask.taskName}");
+    debugPrint("   Distance: ${bestDistance.toStringAsFixed(1)}m (radius: ${bestTask.radius}m)");
+    debugPrint("   Priority Score: $bestScore");
+    debugPrint("   Time since start: ${timeSinceStart}m");
+    debugPrint("   Found ${matchedTasks.length} eligible tasks");
 
     await _performAutoCheckIn(bestTask, position, isOffline);
   }
@@ -429,27 +464,9 @@ class LocationService {
             _onAutoCheckInCallback!(task.id, now);
           }
         } else {
-          debugPrint("⚠️ Online auto check-in failed, saving offline for ${task.taskName}");
-          // Fall back to offline storage
-          await DBHelper().insertPunchAction({
-            'task_id': task.id,
-            'type': 'punch-in',
-            'lat': _toSixDecimals(position.latitude).toString(),
-            'long': _toSixDecimals(position.longitude).toString(),
-            'image_path': imageFile.path,
-            'timestamp': now.toIso8601String(),
-            'remark': timeOnlyMode ? 'Auto Check-in (Time-based, Fallback)' : 'Auto Check-in (Fallback)',
-            'synced': 0,
-          });
-
-          // Update local state anyway
-          await prefs.setString('punchedInTaskId', task.id);
-          await prefs.setString('punchInTime', now.toIso8601String());
-          
-          // Trigger callback to start timer in main app
-          if (_onAutoCheckInCallback != null) {
-            _onAutoCheckInCallback!(task.id, now);
-          }
+          debugPrint("⚠️ Online auto check-in failed for ${task.taskName} - API rejected (likely not on location)");
+          // Don't save offline or trigger callback for location-based failures
+          // The API is more accurate about location validation
         }
       }
 
@@ -487,21 +504,8 @@ class LocationService {
     bool shouldCheckOut = false;
     String reason = "";
 
-    // Check distance-based checkout (>300m)
-    double distance = Geolocator.distanceBetween(
-      position.latitude,
-      position.longitude,
-      double.tryParse(punchedTask.lat) ?? 0.0,
-      double.tryParse(punchedTask.longg) ?? 0.0,
-    );
-
-    if (distance > 300) {
-      shouldCheckOut = true;
-      reason = "Distance check-out (${distance.toStringAsFixed(1)}m > 300m)";
-    }
-
-    // Check time-based checkout
-    if (!shouldCheckOut && punchInTime != null) {
+    // Only check time-based checkout (no location restriction for checkout)
+    if (punchInTime != null) {
       List<int> _toHMS(String time) {
         final parts = time.trim().split(':');
         return [
@@ -561,6 +565,14 @@ class LocationService {
       final Directory tempDir = await getTemporaryDirectory();
       final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
       await imageFile.writeAsBytes(imageData.buffer.asUint8List());
+
+      // Verify the image file was created successfully
+      if (!await imageFile.exists()) {
+        debugPrint('❌ Failed to create auto_check_in.jpeg at ${imageFile.path}');
+        return;
+      } else {
+        debugPrint('✅ Created auto_check_in.jpeg at ${imageFile.path}');
+      }
 
       final DateTime now = DateTime.now();
 
@@ -628,6 +640,14 @@ class LocationService {
       final Directory tempDir = await getTemporaryDirectory();
       final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
       await imageFile.writeAsBytes(imageData.buffer.asUint8List());
+      
+      // Verify the image file was created successfully
+      if (!await imageFile.exists()) {
+        debugPrint('❌ Failed to create auto_check_in.jpeg at ${imageFile.path}');
+        return false;
+      } else {
+        debugPrint('✅ Created auto_check_in.jpeg at ${imageFile.path}');
+      }
       
       var request = http.MultipartRequest('POST', Uri.parse(url));
       request.headers['Authorization'] = 'token $token';

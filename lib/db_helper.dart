@@ -22,7 +22,7 @@ class DBHelper {
 
     return await openDatabase(
       path,
-      version: 2, // 🔥 IMPORTANT: VERSION INCREASED
+      version: 3, // 🔥 IMPORTANT: VERSION INCREASED
       onCreate: (Database db, int version) async {
         await _createTables(db);
       },
@@ -33,6 +33,9 @@ class DBHelper {
           await db.execute("ALTER TABLE tasks ADD COLUMN long TEXT");
           await db.execute("ALTER TABLE tasks ADD COLUMN auto_checkin INTEGER");
           await db.execute("ALTER TABLE tasks ADD COLUMN total_work_time TEXT");
+        }
+        if (oldVersion < 3) {
+          await db.execute("ALTER TABLE tasks ADD COLUMN radius INTEGER DEFAULT 500");
         }
       },
     );
@@ -62,7 +65,8 @@ class DBHelper {
         date TEXT,
 
         auto_checkin INTEGER,
-        total_work_time TEXT
+        total_work_time TEXT,
+        radius INTEGER DEFAULT 500
       )
     ''');
 

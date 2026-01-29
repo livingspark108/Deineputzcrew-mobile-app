@@ -16,6 +16,7 @@ class Task {
   final String date;
   final bool autoCheckin;
   final String totalWorkTime;
+  final int radius;
 
   Task({
     required this.id,
@@ -35,6 +36,7 @@ class Task {
     required this.date,
     required this.autoCheckin,
     required this.totalWorkTime,
+    required this.radius,
   });
 
   /// ✅ From API JSON
@@ -57,6 +59,7 @@ class Task {
       date: date ?? "",
       autoCheckin: json['auto_checkin'],   // ✅ important
       totalWorkTime: json['total_work_time'] ?? "0h 0m",
+      radius: json['radius'] ?? 500, // Default to 500m if not specified
 
     );
   }
@@ -81,6 +84,7 @@ class Task {
       date: map['date'] ?? "",
       autoCheckin: map['auto_checkin'] == 1,        // ✅ NEW
       totalWorkTime: map['total_work_time'] ?? "0h 0m",
+      radius: map['radius'] ?? 500, // Default to 500m if not specified
     );
   }
 
@@ -105,6 +109,7 @@ class Task {
       'date': date,
       'auto_checkin': autoCheckin ? 1 : 0,          // ✅ NEW
       'total_work_time': totalWorkTime,
+      'radius': radius,
     };
   }
 

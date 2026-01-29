@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:typed_data';
 import 'package:path/path.dart' as path;
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -1630,20 +1631,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
             request.fields["remark"] = action["remark"];
           }
 
-          // ✅ FIXED: Check if image file exists before attaching
+          // ✅ Handle image file for sync
           if (action["image_path"] != null && 
               action["image_path"].toString().isNotEmpty) {
-            final imageFile = File(action["image_path"]);
+            final String imagePath = action["image_path"];
             
-            if (await imageFile.exists()) {
-              request.files.add(await http.MultipartFile.fromPath(
+            // Check if it's an auto check-in image - use asset directly
+            if (imagePath.contains("auto_check_in")) {
+              debugPrint("🎯 Auto check-in detected - using asset image");
+              final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
+              final Uint8List imageBytes = imageData.buffer.asUint8List();
+              
+              request.files.add(http.MultipartFile.fromBytes(
                 "images",
-                action["image_path"],
-                filename: path.basename(action["image_path"]),
+                imageBytes,
+                filename: 'auto_check_in.jpeg',
               ));
+              debugPrint("✅ Added auto check-in asset image to request");
             } else {
-              debugPrint("⚠️ Image not found: ${action["image_path"]}");
-              // Continue without image (backend should handle optional images)
+              // Regular image file - check if it exists
+              final imageFile = File(imagePath);
+              if (await imageFile.exists()) {
+                request.files.add(await http.MultipartFile.fromPath(
+                  "images",
+                  imagePath,
+                  filename: path.basename(imagePath),
+                ));
+                debugPrint("✅ Added existing image file to request");
+              } else {
+                debugPrint("⚠️ Image file not found: $imagePath");
+              }
             }
           }
 
@@ -2081,6 +2098,7 @@ print(response.body);
         day: "",
         date:"",
         totalWorkTime: "0h 0m",
+        radius: 500, // Default radius for placeholder task
       ),
     );
 
@@ -2900,7 +2918,21 @@ class _TaskCardState extends State<TaskCard> {
       widget.onPunchStart();
 
       // Get location first to validate
-      final position = await _getCurrentLocation();
+      Position? position;
+      try {
+        position = await _getCurrentLocation();
+        debugPrint("📍 Got user location: ${position.latitude}, ${position.longitude}");
+      } catch (e) {
+        debugPrint("❌ Location error: $e");
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('⛔ Unable to get your location. Please enable location services.'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
       
       // ✅ LOCATION VALIDATION
       final task = widget.taskList.firstWhere((t) => t.id == widget.taskId);
@@ -2911,16 +2943,21 @@ class _TaskCardState extends State<TaskCard> {
         double.tryParse(task.longg) ?? 0.0,
       );
       
-      if (distance > 500) {
+      debugPrint("📏 Distance check: ${distance.toStringAsFixed(1)}m (radius: ${task.radius}m)");
+      
+      if (distance > task.radius) {
+        debugPrint("⛔ Location validation failed");
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('⛔ You are not on location. Distance: ${distance.toStringAsFixed(0)}m (must be within 500m)'),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 4),
+          const SnackBar(
+            content: Text('⛔ You are not on location'),
+            backgroundColor: Colors.red,
+            duration: Duration(seconds: 3),
           ),
         );
         return;
       }
+      
+      debugPrint("✅ Location validation passed");
       
       // ✅ TIME VALIDATION - Allow punch-in if within task time
       final now = DateTime.now();

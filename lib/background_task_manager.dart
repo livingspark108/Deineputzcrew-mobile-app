@@ -509,7 +509,7 @@ class BackgroundTaskManager {
   }
 
   /// Send check-in data to API
-  static Future<bool> _sendCheckInToAPI(String taskId, String lat, String lng) async {
+  static Future<Map<String, dynamic>> _sendCheckInToAPIWithStatus(String taskId, String lat, String lng) async {
     try {
       print('🚀 Sending auto check-in to API for task: $taskId');
       
@@ -518,17 +518,27 @@ class BackgroundTaskManager {
       
       if (token == null) {
         print('⚠️ No auth token found');
-        return false;
+        return {'success': false, 'shouldRetry': true, 'message': 'No auth token'};
       }
 
       // Use the same API endpoint as main app
       const url = 'https://admin.deineputzcrew.de/api/punch-in/';
       
       // Load default auto check-in image from assets
+      print('📸 Creating auto check-in image...');
       final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
       final Directory tempDir = await getTemporaryDirectory();
-      final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
+      final String imagePath = '${tempDir.path}/auto_check_in_${DateTime.now().millisecondsSinceEpoch}.jpeg';
+      final File imageFile = File(imagePath);
       await imageFile.writeAsBytes(imageData.buffer.asUint8List());
+      
+      // Verify the image file was created successfully
+      if (!await imageFile.exists()) {
+        print('❌ Failed to create auto_check_in.jpeg at ${imagePath}');
+        return {'success': false, 'shouldRetry': true, 'message': 'Failed to create image file'};
+      } else {
+        print('✅ Created auto_check_in.jpeg at ${imagePath}');
+      }
       
       var request = http.MultipartRequest('POST', Uri.parse(url));
       request.headers['Authorization'] = 'token $token';
@@ -543,13 +553,22 @@ class BackgroundTaskManager {
       // Attach image file
       request.files.add(await http.MultipartFile.fromPath(
         'images',
-        imageFile.path,
+        imagePath,
         filename: 'auto_check_in.jpeg',
       ));
       
       print('📦 Request fields: ${request.fields}');
+      print('📦 Request files: ${request.files.length} (${imagePath})');
       
       final response = await request.send();
+      
+      // Clean up the temporary image file
+      try {
+        await imageFile.delete();
+        print('🗑️ Cleaned up temporary image file');
+      } catch (e) {
+        print('⚠️ Failed to delete temporary image: $e');
+      }
       final responseBody = await response.stream.bytesToString();
       
       print('📱 API Response: ${response.statusCode}');
@@ -563,15 +582,37 @@ class BackgroundTaskManager {
         await prefs.setString('punchedInTaskId', taskId);
         await prefs.setString('punchInTime', DateTime.now().toIso8601String());
         
-        return true;
+        return {'success': true, 'shouldRetry': false, 'message': 'Success'};
+      } else if (response.statusCode == 400) {
+        // Check if already punched in
+        try {
+          final responseData = json.decode(responseBody);
+          final errorMessage = responseData['error']?.toString() ?? '';
+          
+          if (errorMessage.contains('Already punched in today')) {
+            print('✅ Already punched in - removing from sync queue');
+            return {'success': false, 'shouldRetry': false, 'message': 'Already punched in today'};
+          }
+        } catch (e) {
+          // If we can't parse the response, treat as retriable error
+        }
+        
+        print('❌ API request failed with status: ${response.statusCode}');
+        return {'success': false, 'shouldRetry': true, 'message': responseBody};
       } else {
         print('❌ API request failed with status: ${response.statusCode}');
-        return false;
+        return {'success': false, 'shouldRetry': true, 'message': responseBody};
       }
     } catch (e) {
       print('⚠️ Error sending check-in to API: $e');
-      return false;
+      return {'success': false, 'shouldRetry': true, 'message': e.toString()};
     }
+  }
+
+  /// Send check-in data to API (backwards compatibility)
+  static Future<bool> _sendCheckInToAPI(String taskId, String lat, String lng) async {
+    final result = await _sendCheckInToAPIWithStatus(taskId, lat, lng);
+    return result['success'] == true;
   }
 
   /// Update task check-in status in local database
@@ -601,6 +642,7 @@ class BackgroundTaskManager {
           date: _activeTasks[taskIndex].date,
           autoCheckin: _activeTasks[taskIndex].autoCheckin,
           totalWorkTime: _activeTasks[taskIndex].totalWorkTime,
+          radius: _activeTasks[taskIndex].radius, // Preserve existing radius
         );
       }
     } catch (e) {
@@ -683,14 +725,21 @@ class BackgroundTaskManager {
         final lat = double.tryParse(checkInData['lat'] ?? '0.0')?.toStringAsFixed(4) ?? '0.0';
         final lng = double.tryParse(checkInData['long'] ?? '0.0')?.toStringAsFixed(4) ?? '0.0';
         
-        final success = await _sendCheckInToAPI(
+        final result = await _sendCheckInToAPIWithStatus(
           checkInData['task_id'] ?? '',
           lat,
           lng,
         );
         
-        if (!success) {
+        // If success OR already punched in, remove from queue
+        // If shouldRetry is false (like "already punched in"), don't keep in queue
+        if (result['success'] == true || result['shouldRetry'] == false) {
+          // Successfully synced or no need to retry - don't add to remaining
+          print('✅ Check-in processed: ${result['message']}');
+        } else {
+          // Failed and should retry - keep in queue
           remainingCheckIns.add(checkInStr);
+          print('⚠️ Check-in failed, will retry: ${result['message']}');
         }
       }
       
