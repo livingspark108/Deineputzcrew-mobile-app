@@ -215,11 +215,35 @@ class LocationService {
       // Skip if auto check-in is disabled
       if (!task.autoCheckin) continue;
 
-      // Check if task is for today
-      if (task.date != todayDate) {
-        debugPrint("⛔ Task ${task.taskName} is not for today: ${task.date} vs $todayDate");
+      // Check if task is within 24 hours of its START TIME
+      DateTime taskStartDateTime;
+      try {
+        final taskDate = DateTime.parse(task.date);
+        final timeParts = task.startTime.split(':');
+        final hour = int.tryParse(timeParts[0]) ?? 0;
+        final minute = timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;
+        final second = timeParts.length > 2 ? int.tryParse(timeParts[2]) ?? 0 : 0;
+        
+        // Combine date + start time
+        taskStartDateTime = DateTime(
+          taskDate.year, taskDate.month, taskDate.day,
+          hour, minute, second
+        );
+      } catch (e) {
+        debugPrint("❌ Invalid task date/time: ${task.date} ${task.startTime}");
         continue;
       }
+      
+      // Calculate time difference from actual start time
+      final timeDifference = now.difference(taskStartDateTime).inHours;
+      
+      // Allow tasks within 24 hours of their start time
+      if (timeDifference > 24 || timeDifference < -24) {
+        debugPrint("⛔ Task ${task.taskName} is outside 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
+        continue;
+      }
+      
+      debugPrint("✅ Task ${task.taskName} is within 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
 
       // Parse time
       final start = _toHMS(task.startTime);
@@ -296,11 +320,35 @@ class LocationService {
       // Skip if auto check-in is disabled
       if (!task.autoCheckin) continue;
 
-      // Check if task is for today
-      if (task.date != todayDate) {
-        debugPrint("⛔ Task ${task.taskName} is not for today: ${task.date} vs $todayDate");
+      // Check if task is within 24 hours of its START TIME
+      DateTime taskStartDateTime;
+      try {
+        final taskDate = DateTime.parse(task.date);
+        final timeParts = task.startTime.split(':');
+        final hour = int.tryParse(timeParts[0]) ?? 0;
+        final minute = timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;
+        final second = timeParts.length > 2 ? int.tryParse(timeParts[2]) ?? 0 : 0;
+        
+        // Combine date + start time
+        taskStartDateTime = DateTime(
+          taskDate.year, taskDate.month, taskDate.day,
+          hour, minute, second
+        );
+      } catch (e) {
+        debugPrint("❌ Invalid task date/time: ${task.date} ${task.startTime}");
         continue;
       }
+      
+      // Calculate time difference from actual start time
+      final timeDifference = now.difference(taskStartDateTime).inHours;
+      
+      // Allow tasks within 24 hours of their start time
+      if (timeDifference > 24 || timeDifference < -24) {
+        debugPrint("⛔ Task ${task.taskName} is outside 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
+        continue;
+      }
+      
+      debugPrint("✅ Task ${task.taskName} is within 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
 
       // ✅ LOCATION CHECK FIRST
       double distance = Geolocator.distanceBetween(

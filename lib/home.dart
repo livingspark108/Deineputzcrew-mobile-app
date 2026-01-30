@@ -210,20 +210,39 @@ bool isTaskTimeValid(Task task) {
         p.length > 1 ? p[1] : 0,           // minutes
         p.length > 2 ? p[2] : 0,           // seconds
       ];
+    }
 
-      //return [p[0], p[1], p.length > 2 ? p[2] : 0];
+    // ✅ PARSE TASK DATE - Use task's actual date, not current date
+    DateTime taskDate;
+    try {
+      if (task.date.isNotEmpty) {
+        // Parse task date (expected format: YYYY-MM-DD or similar)
+        taskDate = DateTime.parse(task.date);
+      } else {
+        // Fallback to current date if no task date
+        taskDate = DateTime(now.year, now.month, now.day);
+      }
+    } catch (e) {
+      print("❌ Error parsing task date '${task.date}': $e");
+      // Fallback to current date if parsing fails
+      taskDate = DateTime(now.year, now.month, now.day);
     }
 
     final start = toHMS(task.startTime);
-    final end = toHMS(task.endTime);
-
+    
     DateTime startDt = DateTime(
-      now.year, now.month, now.day,
+      taskDate.year, taskDate.month, taskDate.day,
       start[0], start[1], start[2],
     );
 
+    // If task has no end time or end time is empty, allow punch-in after start time
+    if (task.endTime.isEmpty || task.endTime.trim() == '') {
+      return now.isAfter(startDt);
+    }
+    
+    final end = toHMS(task.endTime);
     DateTime endDt = DateTime(
-      now.year, now.month, now.day,
+      taskDate.year, taskDate.month, taskDate.day,
       end[0], end[1], end[2],
     );
 
@@ -274,6 +293,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static Duration _pausedDuration = Duration.zero;
   static bool _onBreak = false;
 
+  Timer? _autoCheckInTimer; // ✅ Add timer for periodic auto check-in
+
   void _startAutoCheckoutTimer() {
     _autoCheckoutTimer?.cancel();
     _autoCheckoutTimer = Timer.periodic(
@@ -285,6 +306,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _stopAutoCheckoutTimer() {
     _autoCheckoutTimer?.cancel();
     _autoCheckoutTimer = null;
+  }
+
+  // ✅ Start periodic auto check-in monitoring
+  void _startAutoCheckInTimer() {
+    _autoCheckInTimer?.cancel();
+    _autoCheckInTimer = Timer.periodic(
+      const Duration(seconds: 60), // Check every 60 seconds for auto check-in opportunities
+      (_) {
+        // Only check if not already punched in
+        SharedPreferences.getInstance().then((prefs) {
+          final punchedInTaskId = prefs.getString('punchedInTaskId');
+          if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
+            _checkAutoPunchIn().catchError((error) {
+              debugPrint('⚠️ Periodic auto check-in failed (non-critical): $error');
+            });
+          }
+        });
+      },
+    );
+  }
+
+  void _stopAutoCheckInTimer() {
+    _autoCheckInTimer?.cancel();
+    _autoCheckInTimer = null;
   }
 
 
@@ -350,6 +395,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     
     _initializeApp().then((_) {
       _startAutoCheckoutTimer();
+      _startAutoCheckInTimer(); // ✅ Start auto check-in monitoring
       _startSyncStatusMonitoring();
     });
 
@@ -383,6 +429,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void dispose() {
     _connectivitySub?.cancel();
     _syncStatusTimer?.cancel();
+    _autoCheckInTimer?.cancel(); // ✅ Stop auto check-in timer
     _locationService.stopMonitoring();
     super.dispose();
   }
@@ -1025,11 +1072,23 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }*/
 
+  // ✅ Force auto check-in after manual refresh or when page becomes visible
+  void _triggerAutoCheckInAfterRefresh() {
+    // Delay slightly to ensure UI is ready and all state is updated
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && allTasks.isNotEmpty) {
+        print('🔄 Triggering auto check-in after refresh...');
+        _checkAutoPunchIn().catchError((error) {
+          debugPrint('⚠️ Auto punch-in after refresh failed (non-critical): $error');
+        });
+      }
+    });
+  }
+
   Future<void> _checkAutoPunchIn() async {
-    if (_isManualRefresh) {
-      debugPrint("⏸ Auto punch-in skipped (manual refresh)");
-      return;
-    }
+    // ✅ REMOVED: Allow auto check-in on manual refresh too
+    // Users should be able to auto check-in when they refresh the page
+    
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       await Geolocator.openLocationSettings();
@@ -1110,11 +1169,35 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (t.autoCheckin == false) continue;
 
-      // 🔥 DATE CHECK (IMPORTANT)
-      if (t.date != todayDate) {
-        print("⛔ Date does not match today: ${t.date}");
+      // 🔥 DATE + TIME CHECK - Allow tasks within 24 hours of their START TIME
+      DateTime taskStartDateTime;
+      try {
+        final taskDate = DateTime.parse(t.date);  // 2026-01-29
+        final timeParts = t.startTime.split(':');
+        final hour = int.tryParse(timeParts[0]) ?? 0;     // 21
+        final minute = timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;  // 00
+        final second = timeParts.length > 2 ? int.tryParse(timeParts[2]) ?? 0 : 0;  // 00
+        
+        // Combine date + start time: 2026-01-29 21:00:00
+        taskStartDateTime = DateTime(
+          taskDate.year, taskDate.month, taskDate.day,
+          hour, minute, second
+        );
+      } catch (e) {
+        print("❌ Invalid task date/time: ${t.date} ${t.startTime}");
         continue;
       }
+      
+      // Calculate time difference from actual start time
+      final timeDifference = now.difference(taskStartDateTime).inHours;
+      
+      // Allow tasks within 24 hours of their start time
+      if (timeDifference > 24 || timeDifference < -24) {
+        print("⛔ Task ${t.taskName} is outside 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
+        continue;
+      }
+      
+      print("✅ Task ${t.taskName} is within 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
 
       // ✅ LOCATION CHECK FIRST
       double distance = Geolocator.distanceBetween(
@@ -1131,29 +1214,65 @@ class _DashboardScreenState extends State<DashboardScreen> {
         print("✅ Location verified - Distance: ${distance.toStringAsFixed(2)}m (within 500m)");
       }
 
-      // TIME PARSING
+      // TIME PARSING - Use task's actual date, not current date
       final start = _toHMS(t.startTime);
-      final end = _toHMS(t.endTime);
-
-      DateTime startDt = DateTime(now.year, now.month, now.day, start[0], start[1], start[2]);
-      DateTime endDt = DateTime(now.year, now.month, now.day, end[0], end[1], end[2]);
-
-      if (endDt.isBefore(startDt)) {
-        endDt = endDt.add(const Duration(days: 1));
+      
+      // Parse task's actual date
+      DateTime taskDate;
+      try {
+        taskDate = DateTime.parse(t.date);
+      } catch (e) {
+        print("❌ Invalid task date: ${t.date}");
+        continue;
       }
 
-      // ✅ FLEXIBLE TIME CHECK - Allow punch-in if:
-      // 1. Within task time window (startTime to endTime)
-      // 2. OR after start time (even if late) but before end time
-      if (now.isAfter(endDt)) {
-        print("⛔ Task already ended at ${t.endTime}");
+      DateTime startDt = DateTime(taskDate.year, taskDate.month, taskDate.day, start[0], start[1], start[2]);
+      
+      // ✅ HANDLE TASKS WITH NO END TIME
+      bool hasEndTime = t.endTime.isNotEmpty && t.endTime.trim().isNotEmpty;
+      DateTime? endDt;
+      
+      if (hasEndTime) {
+        final end = _toHMS(t.endTime);
+        endDt = DateTime(taskDate.year, taskDate.month, taskDate.day, end[0], end[1], end[2]);
+        
+        if (endDt.isBefore(startDt)) {
+          endDt = endDt.add(const Duration(days: 1));
+        }
+      }
+
+      // ✅ FLEXIBLE TIME CHECK FOR AUTO CHECK-IN:
+      
+      // Check if task has ended (only if it has an end time)
+      if (hasEndTime && endDt != null && now.isAfter(endDt)) {
+        print("⛔ Task already ended at ${t.endTime} on ${t.date}");
         continue;
       }
       
-      // Allow punch-in if we're past start time and before end time
-      if (now.isBefore(startDt)) {
-        print("⛔ Too early - Task starts at ${t.startTime}");
+      // If no end time, task is always available after start time
+      if (!hasEndTime) {
+        print("✅ Task ${t.taskName} has no end time - available after start time");
+      }
+      
+      // ✅ RELAXED TIME VALIDATION FOR AUTO CHECK-IN
+      // Allow punch-in for:
+      // 1. Tasks that have already started (even if late)
+      // 2. Tasks starting soon (within next 4 hours)
+      const maxFutureHours = 4;
+      final maxFutureTime = now.add(Duration(hours: maxFutureHours));
+      
+      if (startDt.isAfter(maxFutureTime)) {
+        final hoursUntilStart = startDt.difference(now).inHours;
+        print("⛔ Too early - Task starts in ${hoursUntilStart}h at ${t.startTime} on ${t.date}");
         continue;
+      }
+      
+      // Calculate how long ago the task started
+      final hoursSinceStart = now.difference(startDt).inHours;
+      if (hoursSinceStart > 0) {
+        print("✅ Time check passed - Task ${t.taskName} started ${hoursSinceStart}h ago, allowing auto check-in");
+      } else {
+        print("✅ Time check passed - Task ${t.taskName} starts soon, allowing auto check-in");
       }
 
       matchedTasks.add({
@@ -1227,8 +1346,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         // Update local state
         await prefs.setString('punchedInTaskId', task.id);
-        selectedTaskId = task.id;
-        _punchInTime = now;
+        
+        // ✅ Update UI state immediately
+        if (mounted) {
+          setState(() {
+            selectedTaskId = task.id;
+            _punchInTime = now;
+          });
+        }
 
         startDashboardWorkTimer();
 
@@ -1272,8 +1397,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setString('punchedInTaskId', task.id);
-        selectedTaskId = task.id;
-        _punchInTime = now;
+        
+        // ✅ Update UI state immediately
+        if (mounted) {
+          setState(() {
+            selectedTaskId = task.id;
+            _punchInTime = now;
+          });
+        }
 
         startDashboardWorkTimer();
         
@@ -1456,6 +1587,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _locationService.updateTasks(parsed);
 
         _restoreTimerState();
+        
+        // ✅ Run auto punch-in check for offline tasks too
+        _checkAutoPunchIn().catchError((error) {
+          debugPrint('⚠️ Auto punch-in check failed (non-critical): $error');
+        });
       }
     } catch (e) {
       // ✅ FIXED: Fallback to offline on any error
@@ -1505,6 +1641,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _locationService.updateTasks(parsed);
 
         _restoreTimerState();
+        
+        // ✅ Run auto punch-in check for cached tasks too
+        _checkAutoPunchIn().catchError((error) {
+          debugPrint('⚠️ Auto punch-in check failed (non-critical): $error');
+        });
       } catch (offlineError) {
         debugPrint('❌ Offline load also failed: $offlineError');
         if (mounted) {
@@ -2408,6 +2549,8 @@ print(response.body);
         await fetchTasks();
         await syncOfflineActions();
 
+        // ✅ FORCE AUTO CHECK-IN after refresh
+        _triggerAutoCheckInAfterRefresh();
 
         _isManualRefresh = false;
         _autoCheckoutLocked = false;     // 🔓 UNLOCK
@@ -2959,67 +3102,79 @@ class _TaskCardState extends State<TaskCard> {
       
       debugPrint("✅ Location validation passed");
       
-      // ✅ TIME VALIDATION - Allow punch-in if within task time
+      // 🔒 TIME VALIDATION - Check BEFORE opening camera with specific messages
       final now = DateTime.now();
-      final start = _parseTaskTime(task.startTime, now);
-      final end = _parseTaskTime(task.endTime, now);
       
-      if (end.isBefore(start)) {
-        // Handle overnight shifts
-        final adjustedEnd = end.add(const Duration(days: 1));
-        if (now.isAfter(adjustedEnd)) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('⛔ Task already ended at ${task.endTime}'),
-              backgroundColor: Colors.orange,
-            ),
-          );
-          return;
-        }
-      } else if (now.isAfter(end)) {
+      // Parse task date and times using ACTUAL task date (not current date)
+      DateTime taskDate;
+      try {
+        taskDate = DateTime.parse(task.date);
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("⛔ Invalid task date format"),
+            backgroundColor: Colors.red,
+          ),
+        );
+        return;
+      }
+      
+      final start = _parseTaskTime(task.startTime, taskDate);  // Use task date, not current date
+      final end = task.endTime.isNotEmpty ? _parseTaskTime(task.endTime, taskDate) : null;
+      
+      // Check if too early (before start time)
+      if (now.isBefore(start)) {
+        final timeUntilStart = start.difference(now);
+        final hoursUntil = timeUntilStart.inHours;
+        final minutesUntil = timeUntilStart.inMinutes % 60;
+        
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⛔ Task already ended at ${task.endTime}'),
+            content: Text(
+              "⛔ Too early! Task starts at ${task.startTime} on ${task.date} (in ${hoursUntil}h ${minutesUntil}m)",
+            ),
             backgroundColor: Colors.orange,
           ),
         );
         return;
       }
+      
+      // Check if task has ended
+      if (end != null) {
+        DateTime effectiveEnd = end;
+        // Handle overnight shifts
+        if (end.isBefore(start)) {
+          effectiveEnd = end.add(const Duration(days: 1));
+        }
+        
+        if (now.isAfter(effectiveEnd)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('⛔ Task ended at ${task.endTime} on ${task.date}'),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
 
-      // Show loader
+      // Take photo FIRST (before showing loader)
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      if (image == null) {
+        // User cancelled camera, no dialog to dismiss
+        return;
+      }
+
+      // Show loader AFTER photo is taken
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
-      // Take photo
-      final picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.camera);
-      if (image == null) {
-        Navigator.pop(context);
-        return;
-      }
-
       // Check internet FIRST
       final connectivity = await Connectivity().checkConnectivity();
-
-
-      // 🔒 BLOCK INVALID OFFLINE PUNCH
-      if (!isTaskTimeValid(widget.taskList.firstWhere(
-            (t) => t.id == widget.taskId,
-      ))) {
-        Navigator.pop(context);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "⛔ Punch-in/out isn't available for this task right now.",
-            ),
-          ),
-        );
-        return;
-      }
 
 
       // ==========================
@@ -3071,6 +3226,21 @@ class _TaskCardState extends State<TaskCard> {
       request.fields['lat'] = position.latitude.toStringAsFixed(4);
       request.fields['long'] = position.longitude.toStringAsFixed(4);
 
+      // 🔑 Add timestamp parameter
+      request.fields['timestamp'] = DateTime.now().toIso8601String();
+
+      // 📊 DEBUG: Print all API parameters
+      print('🚀 PUNCH-IN API CALL:');
+      print('📡 URL: https://admin.deineputzcrew.de/api/punch-in/');
+      print('🔐 Authorization: token ${token}');
+      print('📋 Parameters:');
+      print('   - task_id: ${widget.taskId}');
+      print('   - lat: ${position.latitude.toStringAsFixed(4)}');
+      print('   - long: ${position.longitude.toStringAsFixed(4)}');
+      print('   - timestamp: ${DateTime.now().toIso8601String()}');
+      print('🖼️ Image: ${image.path}');
+      print('─────────────────────────────────────');
+
       request.files.add(await http.MultipartFile.fromPath(
         'images',
         image.path,
@@ -3078,6 +3248,12 @@ class _TaskCardState extends State<TaskCard> {
 
       final response = await request.send();
       final body = await http.Response.fromStream(response);
+
+      // 📊 DEBUG: Print API response
+      print('📨 PUNCH-IN API RESPONSE:');
+      print('📊 Status Code: ${response.statusCode}');
+      print('📄 Response Body: ${body.body}');
+      print('─────────────────────────────────────');
 
       Navigator.pop(context); // close loader
 
