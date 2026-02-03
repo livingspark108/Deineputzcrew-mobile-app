@@ -10,6 +10,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:workmanager/workmanager.dart';
 
+import 'app_metadata.dart';
 import 'task_model.dart';
 import 'db_helper.dart';
 import 'location_service.dart';
@@ -215,7 +216,11 @@ class BackgroundTaskManager {
           'Content-Type': 'application/json',
           'Authorization': 'token $token',
         },
-        body: json.encode({"id": userId}),
+          body: json.encode({
+            "id": userId,
+            "app_version": AppMetadata.appVersion,
+            "mobile_type": AppMetadata.mobileType,
+          }),
       );
 
       if (response.statusCode == 200) {

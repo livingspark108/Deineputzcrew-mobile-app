@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
+import 'app_metadata.dart';
 import 'home.dart';
 
 
@@ -48,7 +49,11 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
           'Content-Type': 'application/json',
           'Authorization': 'token $token',
         },
-        body: jsonEncode({"id": userId}),
+        body: jsonEncode({
+          "id": userId,
+          "app_version": AppMetadata.appVersion,
+          "mobile_type": AppMetadata.mobileType,
+        }),
       );
 
       final data = jsonDecode(response.body);

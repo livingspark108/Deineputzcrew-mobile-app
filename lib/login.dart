@@ -342,6 +342,7 @@ import 'package:http/http.dart' as http;
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'app_metadata.dart';
 import 'home.dart';
 import 'privacypolicy.dart';
 import 'terms.dart';
@@ -814,6 +815,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const TextSpan(text: '.'),
                   ],
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // 📌 VERSION
+              Text(
+                'V'+AppMetadata.appVersion,
+                style: const TextStyle(
+                  color: Colors.black54,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
 

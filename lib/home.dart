@@ -19,6 +19,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'app_metadata.dart';
 import 'db_helper.dart';
 import 'main.dart';
 import 'task_model.dart';
@@ -34,6 +35,13 @@ class MainApp extends StatefulWidget {
 
   @override
   State<MainApp> createState() => _MainAppState();
+}
+
+class _UpdateOption {
+  final String label;
+  final String url;
+
+  const _UpdateOption(this.label, this.url);
 }
 
 class _MainAppState extends State<MainApp> {
@@ -279,6 +287,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _error; // Add error state
   //bool _initialized = false; // Add initialization flag
   String? punchedInTaskId;
+
+  bool _updateRequired = false;
+  String? _iosTestflightLink;
+  String? _iosDiawiLink;
+  String? _androidDownloadLink;
 
   int userId = 0;
   String? token;
@@ -840,10 +853,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final startTimeStr = prefs.getString('punchInStartTime');
     final pausedDurationMillis = prefs.getInt('pausedDuration') ?? 0;
     final onBreak = prefs.getBool('onBreak') ?? false;
-    // final breakDurationMillis = prefs.getInt('breakDuration') ?? 0;
     final breakStartStr = prefs.getString('breakStartTime');
 
-
+    // ✅ FIRST: Check SharedPreferences for stored timer state
     if (storedTaskId != null &&
         storedTaskId.isNotEmpty &&
         startTimeStr != null &&
@@ -879,6 +891,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _workingDuration =
             DateTime.now().difference(_punchInTime!) - _pausedDuration;
 
+        // ✅ AUTO-START TIMER IF TASK ALREADY PUNCHED IN
         _timer?.cancel();
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           setState(() {
@@ -889,19 +902,102 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           });
         });
+        
+        print('⏱️ Timer auto-started (from SharedPreferences) for task: $storedTaskId');
       }
     } else {
-      // Reset state if nothing found
-      setState(() {
-        selectedTaskId = "";
-        _punchInTime = null;
-        _workingDuration = Duration.zero;
-        _pausedDuration = Duration.zero;
-        _breakDuration = Duration.zero;
-        _onBreak = false;
-        isClockedIn = false;
-        isClockedOut = true;
-      });
+      // ✅ SECOND: Check API response (allTasks) for any punched-in task (handles logout/login scenario)
+      Task? punchedInTask;
+      
+      for (var task in allTasks) {
+        // Find a task that is punched in but NOT punched out (still in progress)
+        if (task.punchIn && !task.punchOut) {
+          punchedInTask = task;
+          break;
+        }
+      }
+
+      if (punchedInTask != null) {
+        // ✅ Found a punched-in task from API - extract punch-in time from attendances
+        DateTime? punchInTime;
+        
+        try {
+          // Fetch task details to get attendances (if not already in allTasks)
+          // For now, use the task's start time as fallback
+          final token = prefs.getString('token') ?? "";
+          
+          final response = await http.get(
+            Uri.parse('https://admin.deineputzcrew.de/api/task/${punchedInTask.id}/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'token $token',
+            },
+          ).timeout(const Duration(seconds: 5));
+
+          if (response.statusCode == 200) {
+            final data = jsonDecode(response.body);
+            final attendances = data['attendances'] ?? [];
+            
+            // Find the latest punch_in from attendances
+            for (var att in attendances) {
+              if (att['punch_type'] == 'punch_in') {
+                punchInTime = DateTime.parse(att['timestamp']);
+                break; // Use the first (latest) punch_in
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Failed to fetch task details: $e');
+        }
+
+        // Fallback: Use stored time or current time
+        punchInTime ??= DateTime.now();
+
+        setState(() {
+          selectedTaskId = punchedInTask!.id;
+          _punchInTime = punchInTime;
+          _pausedDuration = Duration.zero;
+          _onBreak = punchedInTask.breakIn && !punchedInTask.breakOut;
+          isClockedIn = true;
+          isClockedOut = false;
+        });
+
+        // Save to SharedPreferences for next session
+        await prefs.setString('punchedInTaskId', punchedInTask.id);
+        await prefs.setString('punchInStartTime', punchInTime!.toIso8601String());
+        await prefs.setInt('pausedDuration', 0);
+        await prefs.setBool('onBreak', _onBreak);
+
+        // ✅ AUTO-START TIMER FOR PUNCHED-IN TASK (from API)
+        _workingDuration = DateTime.now().difference(_punchInTime!) - _pausedDuration;
+
+        _timer?.cancel();
+        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (!_onBreak && _punchInTime != null) {
+            setState(() {
+              _workingDuration =
+                  DateTime.now().difference(_punchInTime!) - _pausedDuration;
+              if (_workingDuration.isNegative) {
+                _workingDuration = Duration.zero;
+              }
+            });
+          }
+        });
+        
+        print('⏱️ Timer auto-started (from API response) for task: ${punchedInTask.id}');
+      } else {
+        // Reset state if nothing found in SharedPreferences or API
+        setState(() {
+          selectedTaskId = "";
+          _punchInTime = null;
+          _workingDuration = Duration.zero;
+          _pausedDuration = Duration.zero;
+          _breakDuration = Duration.zero;
+          _onBreak = false;
+          isClockedIn = false;
+          isClockedOut = true;
+        });
+      }
     }
   }
 
@@ -1469,12 +1565,58 @@ class _DashboardScreenState extends State<DashboardScreen> {
             'Content-Type': 'application/json',
             'Authorization': 'token $token',
           },
-          body: jsonEncode({"id": userId}),
+          body: jsonEncode({
+            "id": userId,
+            "app_version": AppMetadata.appVersion,
+            "mobile_type": AppMetadata.mobileType,
+          }),
         ).timeout(const Duration(seconds: 10));
 
         final data = jsonDecode(response.body);
-
+        var sss = AppMetadata.mobileType + " " + AppMetadata.appVersion;
+        print('📱 App Version Sent: $sss');
+        
+        // Print curl equivalent for debugging
+        final curlCommand = '''
+curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: token $token" \\
+  -d '{
+    "id": $userId,
+    "app_version": "${AppMetadata.appVersion}",
+    "mobile_type": "${AppMetadata.mobileType}"
+  }'
+        ''';
+        print('🔗 CURL Command:\n$curlCommand');
+        print("📡 Fetch Tasks Response: ${response.body}");
         if (data['success']) {
+          // ✅ Check for app_update object (new API format)
+          final appUpdate = data['app_update'];
+          
+          final bool updateRequired = 
+              appUpdate != null && (appUpdate['update_required'] == true || appUpdate['update_required'] == "true");
+          final String? iosTestflightLink =
+              appUpdate != null ? appUpdate['ios_testflight_link']?.toString() : null;
+          final String? iosDiawiLink = 
+              appUpdate != null ? appUpdate['ios_diawi_link']?.toString() : null;
+          final String? androidDownloadLink =
+              appUpdate != null ? appUpdate['android_download_link']?.toString() : null;
+
+          if (mounted) {
+            setState(() {
+              _updateRequired = updateRequired;
+              _iosTestflightLink = iosTestflightLink;
+              _iosDiawiLink = iosDiawiLink;
+              _androidDownloadLink = androidDownloadLink;
+            });
+            
+            // Debug print
+            print('📱 Update Required: $_updateRequired');
+            print('🍎 iOS TestFlight: $_iosTestflightLink');
+            print('🍎 iOS Diawi: $_iosDiawiLink');
+            print('🤖 Android Download: $_androidDownloadLink');
+          }
+
           final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
           // 🔑 Flatten all tasks
@@ -2564,6 +2706,8 @@ print(response.body);
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            if (_updateRequired) _buildUpdateBanner(),
+            if (_updateRequired) const SizedBox(height: 12),
             // ✅ Connectivity & Sync Status Banner
             if (!_isOnline || _pendingSyncCount > 0) _buildStatusBanner(),
             if (!_isOnline || _pendingSyncCount > 0) const SizedBox(height: 12),
@@ -2600,6 +2744,128 @@ print(response.body);
         ),
       ),
     );
+  }
+
+  Widget _buildUpdateBanner() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.orange.shade50,
+        border: Border.all(color: Colors.orange.shade200),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.system_update, color: Colors.orange.shade700),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Update available. Please update to continue.',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: _handleUpdateButtonPressed,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange.shade600,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Text('Update'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _handleUpdateButtonPressed() {
+    if (AppMetadata.isIOS) {
+      _showIosUpdateOptions();
+      return;
+    }
+
+    _launchUpdateUrl(_androidDownloadLink);
+  }
+
+  void _showIosUpdateOptions() {
+    final List<_UpdateOption> options = [];
+
+    if (_iosTestflightLink != null && _iosTestflightLink!.trim().isNotEmpty) {
+      options.add(_UpdateOption('TestFlight', _iosTestflightLink!));
+    }
+
+    if (_iosDiawiLink != null && _iosDiawiLink!.trim().isNotEmpty) {
+      options.add(_UpdateOption('Diawi', _iosDiawiLink!));
+    }
+
+    if (options.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Update link is not available.')),
+      );
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 8),
+              const Text(
+                'Choose update source',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 12),
+              ...options.map(
+                (option) => ListTile(
+                  leading: const Icon(Icons.open_in_new),
+                  title: Text(option.label),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _launchUpdateUrl(option.url);
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _launchUpdateUrl(String? url) async {
+    if (url == null || url.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Update link is not available.')),
+      );
+      return;
+    }
+
+    final uri = Uri.tryParse(url);
+    if (uri == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Invalid update link.')),
+      );
+      return;
+    }
+
+    final canLaunch = await canLaunchUrl(uri);
+    if (!canLaunch) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Unable to open update link.')),
+      );
+      return;
+    }
+
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   final TextEditingController _searchController = TextEditingController();
@@ -2959,9 +3225,12 @@ class _TaskCardState extends State<TaskCard> {
         builder: (_) => const Center(child: CircularProgressIndicator()),
       );
 
-      // Take photo
+      // Take photo with front camera only
       final picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+      );
       if (image == null) {
         Navigator.pop(context);
         return;
@@ -3158,9 +3427,12 @@ class _TaskCardState extends State<TaskCard> {
         }
       }
 
-      // Take photo FIRST (before showing loader)
+      // Take photo FIRST (before showing loader) with front camera only
       final picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      final XFile? image = await picker.pickImage(
+        source: ImageSource.camera,
+        preferredCameraDevice: CameraDevice.front,
+      );
       if (image == null) {
         // User cancelled camera, no dialog to dismiss
         return;
@@ -3628,7 +3900,11 @@ int? userId;
           'Content-Type': 'application/json',
           'Authorization': 'token $token',
         },
-        body: jsonEncode({"id": userId}),
+        body: jsonEncode({
+          "id": userId,
+          "app_version": AppMetadata.appVersion,
+          "mobile_type": AppMetadata.mobileType,
+        }),
       ).timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
