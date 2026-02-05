@@ -2849,23 +2849,55 @@ print(response.body);
       return;
     }
 
-    final uri = Uri.tryParse(url);
-    if (uri == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Invalid update link.')),
-      );
-      return;
-    }
+    try {
+      Uri uri = Uri.tryParse(url) ?? Uri();
+      if (uri.toString().isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Invalid update link.')),
+        );
+        return;
+      }
 
-    final canLaunch = await canLaunchUrl(uri);
-    if (!canLaunch) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Unable to open update link.')),
-      );
-      return;
-    }
+      // For Play Store links, try both https and market schemes
+      if (url.contains('play.google.com')) {
+        // Try market:// scheme first (native Play Store app)
+        final marketUri = Uri.parse('market://details?id=com.diveinpuits');
+        
+        try {
+          if (await canLaunchUrl(marketUri)) {
+            await launchUrl(marketUri, mode: LaunchMode.externalApplication);
+            return;
+          }
+        } catch (e) {
+          print('🔗 Market URI failed: $e');
+        }
+      }
 
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
+      // Try launching the URL as-is
+      if (await canLaunchUrl(uri)) {
+        await launchUrl(uri, mode: LaunchMode.externalApplication);
+      } else {
+        // If canLaunchUrl fails, still try launching it
+        // Some URLs might still work even if canLaunchUrl returns false
+        try {
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
+        } catch (e) {
+          print('🔗 Launch URL failed: $e');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Unable to open update link: ${e.toString()}')),
+            );
+          }
+        }
+      }
+    } catch (e) {
+      print('🔗 Update URL error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error opening update link: ${e.toString()}')),
+        );
+      }
+    }
   }
 
   final TextEditingController _searchController = TextEditingController();
@@ -3682,130 +3714,137 @@ class _TaskCardState extends State<TaskCard> {
           border: isSelected
               ? Border.all(color: Colors.blueAccent, width: 1.5)
               : null,
-        ),        child: Row(
-        children: [
-          Icon(
-            isCompleted ? Icons.check_circle : Icons.circle_outlined,
-            color: isCompleted ? Colors.green : Colors.grey.shade400,
-            size: 28,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text("${widget.day} • ${widget.date}", style: TextStyle(fontSize: 12, color: Colors.grey)),
+        ),
+        child: Row(
+          children: [
+            // Icon indicator
+            Icon(
+              isCompleted ? Icons.check_circle : Icons.circle_outlined,
+              color: isCompleted ? Colors.green : Colors.grey.shade400,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            
+            // Task details - expanded to take remaining space
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text("${widget.day} • ${widget.date}", style: TextStyle(fontSize: 12, color: Colors.grey)),
 
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        widget.title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          fontFamily: 'Poppins',
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (isHigh)
-                      Container(
-                        margin: const EdgeInsets.only(left: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.red.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
+                  Row(
+                    children: [
+                      Flexible(
                         child: Text(
-                          'High',
-                          style: TextStyle(
-                            color: Colors.red.shade600,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
+                          widget.title,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                             fontFamily: 'Poppins',
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                    if (widget.punchIn && widget.completed!='completed')
-                      Container(
-                        margin: const EdgeInsets.only(left: 6),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: Colors.green.shade100,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Text(
-                          'Punched In',
-                          style: TextStyle(
-                            color: Colors.green.shade700,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w500,
-                            fontFamily: 'Poppins',
+                      if (isHigh)
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'High',
+                            style: TextStyle(
+                              color: Colors.red.shade600,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Poppins',
+                            ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                InkWell(
-                  onTap: () => _openMap(
-                    double.parse(widget.lat!) ,
-                    double.parse(widget.longg!) ,
+                      if (widget.punchIn && widget.completed!='completed')
+                        Container(
+                          margin: const EdgeInsets.only(left: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.green.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            'Punched In',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                              fontFamily: 'Poppins',
+                            ),
+                          ),
+                        ),
+                    ],
                   ),
-                  child: Row(
+                  const SizedBox(height: 6),
+                  
+                  Row(
                     children: [
                       const Icon(Icons.location_on, size: 14, color: Colors.blue),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
-                          widget.location, // still show location name/address
+                          widget.location,
                           style: const TextStyle(
                             fontSize: 13,
                             fontFamily: 'Poppins',
-                            decoration: TextDecoration.underline, // looks clickable
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                     ],
                   ),
-                ),
-                Row(
-                  children: [
-                    const Icon(Icons.schedule,
-                        size: 14, color: Colors.orange),
-                    const SizedBox(width: 4),
-                    Text(
-                      widget.time,
-                      style: const TextStyle(
-                          fontSize: 13, fontFamily: 'Poppins'),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-
-              ],
-            ),
-          ),
-
-
-          Row(
-            children: [
-              const Icon(Icons.access_time,
-                  size: 16, color: Colors.black54),
-              const SizedBox(width: 4),
-              Text(
-                widget. duration,
-                style:
-                const TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+                  
+                  Row(
+                    children: [
+                      const Icon(Icons.schedule, size: 14, color: Colors.orange),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.time,
+                        style: const TextStyle(
+                            fontSize: 13, fontFamily: 'Poppins'),
+                      ),
+                      const SizedBox(width: 12),
+                      const Icon(Icons.access_time, size: 14, color: Colors.black54),
+                      const SizedBox(width: 4),
+                      Text(
+                        widget.duration,
+                        style: const TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-            ],
-          )
-        ],
-      ),
+            ),
+            
+            // Direction button on right
+            const SizedBox(width: 8),
+            IconButton(
+              icon: const Icon(Icons.directions, color: Colors.blue),
+              iconSize: 24,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(
+                minWidth: 40,
+                minHeight: 40,
+              ),
+              onPressed: () {
+                _openMap(
+                  double.parse(widget.lat ?? "0.0"),
+                  double.parse(widget.longg ?? "0.0"),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
