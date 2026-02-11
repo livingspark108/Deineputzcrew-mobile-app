@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'login.dart';
 import 'privacypolicy.dart';
 import 'terms.dart';
+import 'notification_service.dart';
 
 class ConsentScreen extends StatefulWidget {
   const ConsentScreen({super.key});
@@ -27,7 +28,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
       notificationAccepted &&
       locationDeviceIdAccepted;
 
-  /// 🧾 SAVE CONSENT + AUDIT LOG
+  /// 🧾 SAVE CONSENT + AUDIT LOG + REQUEST NOTIFICATION PERMISSION
   Future<void> _continue() async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -44,10 +45,34 @@ class _ConsentScreenState extends State<ConsentScreen> {
     await prefs.setBool('consent_accepted', true);
     await prefs.setString('consent_audit', jsonEncode(auditLog));
 
+    // ✅ REQUEST NOTIFICATION PERMISSION IF USER ACCEPTED IN CONSENT
+    if (notificationAccepted) {
+      await _requestNotificationPermission();
+    }
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => LoginScreen()),
     );
+  }
+
+  /// 🔔 REQUEST NOTIFICATION PERMISSION
+  Future<void> _requestNotificationPermission() async {
+    try {
+      print('🔔 Requesting notification permission after consent...');
+      
+      // Use NotificationService to request permissions
+      final granted = await NotificationService.requestNotificationPermissions();
+      
+      if (granted) {
+        print('✅ Notification permissions granted by user');
+      } else {
+        print('⚠️ Notification permissions denied by user');
+        // Optionally show a message to the user
+      }
+    } catch (e) {
+      print('⚠️ Error requesting notification permission: $e');
+    }
   }
 
   // CONSENT CARD

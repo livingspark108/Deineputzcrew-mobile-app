@@ -61,32 +61,10 @@ class NotificationService {
       _firebaseMessaging = FirebaseMessaging.instance;
       print('✅ FirebaseMessaging instance created');
 
-      // Request permissions for both iOS and Android
-      print('📱 Requesting notification permissions...');
-      
-      // For Android 13+ (API 33+), request notification permission first
-      if (Platform.isAndroid) {
-        print('🤖 Android detected, checking notification permission...');
-        PermissionStatus status = await Permission.notification.status;
-        print('📋 Current notification permission status: $status');
-        
-        if (status.isDenied || status.isPermanentlyDenied) {
-          print('🔔 Requesting notification permission for Android...');
-          PermissionStatus newStatus = await Permission.notification.request();
-          print('📋 New notification permission status: $newStatus');
-          
-          if (newStatus.isPermanentlyDenied) {
-            print('⚠️ Notification permission permanently denied');
-            print('💡 User needs to enable notifications manually in Settings');
-          } else if (newStatus.isDenied) {
-            print('⚠️ Notification permission denied');
-          } else if (newStatus.isGranted) {
-            print('✅ Android notification permission granted');
-          }
-        } else {
-          print('✅ Android notification permission already granted');
-        }
-      }
+      // Note: Permission requests removed from initialization
+      // Permissions will be requested after user consent
+      print('📱 Skipping notification permission request during initialization...');
+      print('   Permissions will be requested after user completes consent screen');
       
       // Debug: Check app configuration
       print('🔍 App Configuration:');
@@ -100,17 +78,8 @@ class NotificationService {
         print('   Package: com.diveinpuits');
       }
       
-      final settings = await _firebaseMessaging!.requestPermission(
-        alert: true,
-        badge: true,
-        sound: true,
-        provisional: false,
-      );
-      
+      // Check app configuration (no permission request)
       if (Platform.isIOS) {
-        print('✅ iOS notification permissions: ${settings.authorizationStatus}');
-        
-        // Check if we have the right APNs configuration
         if (kDebugMode) {
           print('🛠️ Running in DEBUG mode - using Development APNs');
         } else if (kReleaseMode) {
@@ -119,7 +88,6 @@ class NotificationService {
           print('📊 Running in PROFILE mode');
         }
       } else {
-        print('✅ Android notification permissions: ${settings.authorizationStatus}');
         print('📱 Android SDK: ${Platform.version}');
       }
 
@@ -176,6 +144,63 @@ class NotificationService {
       print('📋 Stack trace: ${StackTrace.current}');
       // Don't throw error, just log it
       _isInitialized = false;
+    }
+  }
+
+  /// 🔔 REQUEST NOTIFICATION PERMISSIONS (Called after user consent)
+  static Future<bool> requestNotificationPermissions() async {
+    try {
+      print('🔔 Requesting notification permissions after user consent...');
+
+      if (_firebaseMessaging == null) {
+        print('⚠️ FirebaseMessaging not initialized. Initializing now...');
+        await initialize();
+      }
+
+      // For Android 13+ (API 33+)
+      if (Platform.isAndroid) {
+        print('🤖 Requesting Android notification permission...');
+        PermissionStatus status = await Permission.notification.request();
+        print('📋 Android notification permission status: $status');
+        
+        if (status.isGranted) {
+          print('✅ Android notification permission granted');
+          return true;
+        } else if (status.isPermanentlyDenied) {
+          print('⚠️ Android notification permission permanently denied');
+          return false;
+        } else {
+          print('⚠️ Android notification permission denied');
+          return false;
+        }
+      }
+
+      // For iOS - Request Firebase messaging permission
+      if (Platform.isIOS) {
+        print('🍎 Requesting iOS notification permission...');
+        final settings = await _firebaseMessaging!.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+          provisional: false,
+        );
+        
+        print('✅ iOS notification permission: ${settings.authorizationStatus}');
+        
+        if (settings.authorizationStatus == AuthorizationStatus.authorized ||
+            settings.authorizationStatus == AuthorizationStatus.provisional) {
+          print('✅ iOS notification permission granted');
+          return true;
+        } else {
+          print('⚠️ iOS notification permission denied');
+          return false;
+        }
+      }
+
+      return false;
+    } catch (e) {
+      print('❌ Error requesting notification permissions: $e');
+      return false;
     }
   }
 

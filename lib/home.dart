@@ -16,6 +16,7 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -55,7 +56,157 @@ class _MainAppState extends State<MainApp> {
     // Handle any notification when app is opened
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleAutoCheckInNotificationOnAppOpen();
+      _checkAndSyncPermissionStatusOnHomeOpen();
     });
+  }
+
+    static const String _permissionStatusUrl =
+      'https://admin.deineputzcrew.de/api/user-permissions/';
+
+  Future<void> _checkAndSyncPermissionStatusOnHomeOpen() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final userId = prefs.getInt('userid');
+
+      if (token == null || token.isEmpty || userId == null || userId == 0) {
+        return;
+      }
+
+      final bool alreadyPrompted =
+          prefs.getBool('permission_prompted_once') ?? false;
+
+      // 📍 Location services + permission
+      final bool locationServicesEnabled =
+          await Geolocator.isLocationServiceEnabled();
+
+      LocationPermission locationPermission =
+          await Geolocator.checkPermission();
+
+      if (!alreadyPrompted && locationPermission == LocationPermission.denied) {
+        locationPermission = await Geolocator.requestPermission();
+      }
+
+      // 🔔 Notification permission (default system popup)
+      if (!alreadyPrompted) {
+        final notificationStatus = await Permission.notification.status;
+        if (notificationStatus.isDenied ||
+            notificationStatus.isRestricted ||
+            notificationStatus.isLimited) {
+          await Permission.notification.request();
+        }
+      }
+
+      if (!alreadyPrompted) {
+        await prefs.setBool('permission_prompted_once', true);
+      }
+
+      // Final status after prompt
+      final PermissionStatus notificationStatus =
+          await Permission.notification.status;
+
+      Position? position;
+      if (locationPermission == LocationPermission.always ||
+          locationPermission == LocationPermission.whileInUse) {
+        try {
+          position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high,
+          );
+        } catch (_) {
+          // Ignore location fetch errors
+        }
+      }
+
+      await _sendPermissionStatusToApi(
+        token: token,
+        userId: userId,
+        locationPermission: _mapLocationPermission(locationPermission),
+        notificationPermission: _mapNotificationPermission(notificationStatus),
+        locationServicesEnabled: locationServicesEnabled,
+        latitude: position?.latitude,
+        longitude: position?.longitude,
+      );
+    } catch (e) {
+      debugPrint('⚠️ Permission sync error: $e');
+    }
+  }
+
+  String _mapLocationPermission(LocationPermission permission) {
+    switch (permission) {
+      case LocationPermission.always:
+        return 'always';
+      case LocationPermission.whileInUse:
+        return 'while_in_use';
+      case LocationPermission.denied:
+        return 'denied';
+      case LocationPermission.deniedForever:
+        return 'denied_forever';
+      case LocationPermission.unableToDetermine:
+        return 'unable_to_determine';
+    }
+  }
+
+  String _mapNotificationPermission(PermissionStatus status) {
+    if (status.isGranted) return 'granted';
+    if (status.isPermanentlyDenied) return 'denied_forever';
+    if (status.isRestricted) return 'restricted';
+    if (status.isLimited) return 'limited';
+    if (status.isDenied) return 'denied';
+    return 'unknown';
+  }
+
+  Future<void> _sendPermissionStatusToApi({
+    required String token,
+    required int userId,
+    required String locationPermission,
+    required String notificationPermission,
+    required bool locationServicesEnabled,
+    double? latitude,
+    double? longitude,
+  }) async {
+    try {
+      final uri = Uri.parse(_permissionStatusUrl);
+
+      final body = {
+        'id': userId,
+        'location_permission': locationPermission,
+        'notification_permission': notificationPermission,
+        'location_services_enabled': locationServicesEnabled,
+        'lat': latitude == null
+            ? null
+            : double.parse(latitude.toStringAsFixed(6)),
+        'long': longitude == null
+            ? null
+            : double.parse(longitude.toStringAsFixed(6)),
+        'platform': Theme.of(context).platform.name,
+        'app_version': AppMetadata.appVersion,
+        'mobile_type': AppMetadata.mobileType,
+        'timestamp': DateTime.now().toUtc().toIso8601String(),
+      };
+
+      debugPrint('📡 user-permissions API request: $body');
+
+      final response = await http.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'token $token',
+        },
+        body: jsonEncode(body),
+      );
+
+      debugPrint(
+        '📨 user-permissions API response: ${response.statusCode} ${response.body}',
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        debugPrint(
+          '⚠️ Permission status API failed: ${response.statusCode} ${response.body}',
+        );
+      }
+    } catch (e) {
+      debugPrint('⚠️ Permission status API error: $e');
+    }
   }
   
   /// Handle any notification when app opens
@@ -634,13 +785,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // If completed, skip
     if (task.status.toLowerCase() == "completed") return;
 
+    // ✅ CHECK IF AUTO_CHECKOUT IS ENABLED
+    if (!task.autoCheckout) {
+      debugPrint("⛔ Auto checkout disabled for task: ${task.id}");
+      return;
+    }
+
     // TIME-BASED AUTO CHECKOUT
     if (_isTimeExceeded(task)) {
       await _autoPunchOut(task);
       return;
     }
 
-    // LOCATION CHECK
+    // LOCATION CHECK - Use dynamic radius from API
     try {
       final pos = await Geolocator.getCurrentPosition();
 
@@ -651,8 +808,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         double.tryParse(task.longg) ?? 0.0,
       );
 
-      // More than 300m away
-      if (distance > 300) {
+      // ✅ Use radius from API (default 300m)
+      if (distance > task.radius) {
+        debugPrint("📍 User left location (distance: ${distance.toStringAsFixed(2)}m, radius: ${task.radius}m) - Auto punch-out triggered");
         await _autoPunchOut(task);
         return;
       }
@@ -908,51 +1066,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
     } else {
       // ✅ SECOND: Check API response (allTasks) for any punched-in task (handles logout/login scenario)
       Task? punchedInTask;
+      DateTime? punchInTime;
       
       for (var task in allTasks) {
-        // Find a task that is punched in but NOT punched out (still in progress)
-        if (task.punchIn && !task.punchOut) {
-          punchedInTask = task;
-          break;
+        // ✅ NEW LOGIC: Check attendances for active punch-in
+        if (task.attendances.isNotEmpty) {
+          // Find the latest punch_in without a corresponding punch_out
+          Map<String, dynamic>? latestPunchIn;
+          
+          for (var attendance in task.attendances) {
+            if (attendance['punch_type'] == 'punch_in') {
+              latestPunchIn = attendance;
+              break; // Attendances are typically ordered latest first
+            }
+          }
+          
+          // If we found a punch_in, check if there's a punch_out after it
+          if (latestPunchIn != null) {
+            bool hasPunchOut = false;
+            
+            for (var attendance in task.attendances) {
+              if (attendance['punch_type'] == 'punch_out') {
+                // Check if punch_out is after punch_in
+                try {
+                  DateTime punchOutTime = DateTime.parse(attendance['timestamp']);
+                  DateTime punchInTimeTemp = DateTime.parse(latestPunchIn['timestamp']);
+                  
+                  if (punchOutTime.isAfter(punchInTimeTemp)) {
+                    hasPunchOut = true;
+                    break;
+                  }
+                } catch (e) {
+                  debugPrint('⚠️ Error parsing attendance timestamps: $e');
+                }
+              }
+            }
+            
+            // If no punch_out found after punch_in, this task is active
+            if (!hasPunchOut) {
+              punchedInTask = task;
+              try {
+                punchInTime = DateTime.parse(latestPunchIn['timestamp']);
+              } catch (e) {
+                debugPrint('⚠️ Error parsing punch_in timestamp: $e');
+                punchInTime = DateTime.now();
+              }
+              break;
+            }
+          }
         }
       }
 
-      if (punchedInTask != null) {
-        // ✅ Found a punched-in task from API - extract punch-in time from attendances
-        DateTime? punchInTime;
-        
-        try {
-          // Fetch task details to get attendances (if not already in allTasks)
-          // For now, use the task's start time as fallback
-          final token = prefs.getString('token') ?? "";
-          
-          final response = await http.get(
-            Uri.parse('https://admin.deineputzcrew.de/api/task/${punchedInTask.id}/'),
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': 'token $token',
-            },
-          ).timeout(const Duration(seconds: 5));
-
-          if (response.statusCode == 200) {
-            final data = jsonDecode(response.body);
-            final attendances = data['attendances'] ?? [];
-            
-            // Find the latest punch_in from attendances
-            for (var att in attendances) {
-              if (att['punch_type'] == 'punch_in') {
-                punchInTime = DateTime.parse(att['timestamp']);
-                break; // Use the first (latest) punch_in
-              }
-            }
-          }
-        } catch (e) {
-          debugPrint('⚠️ Failed to fetch task details: $e');
-        }
-
-        // Fallback: Use stored time or current time
-        punchInTime ??= DateTime.now();
-
+      if (punchedInTask != null && punchInTime != null) {
+        // ✅ Found a punched-in task from attendances data
         setState(() {
           selectedTaskId = punchedInTask!.id;
           _punchInTime = punchInTime;
@@ -964,11 +1130,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         // Save to SharedPreferences for next session
         await prefs.setString('punchedInTaskId', punchedInTask.id);
-        await prefs.setString('punchInStartTime', punchInTime!.toIso8601String());
+        await prefs.setString('punchInStartTime', punchInTime.toIso8601String());
         await prefs.setInt('pausedDuration', 0);
         await prefs.setBool('onBreak', _onBreak);
 
-        // ✅ AUTO-START TIMER FOR PUNCHED-IN TASK (from API)
+        // ✅ AUTO-START TIMER FOR PUNCHED-IN TASK (from attendances)
         _workingDuration = DateTime.now().difference(_punchInTime!) - _pausedDuration;
 
         _timer?.cancel();
@@ -984,7 +1150,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           }
         });
         
-        print('⏱️ Timer auto-started (from API response) for task: ${punchedInTask.id}');
+        print('⏱️ Timer auto-started (from attendances data) for task: ${punchedInTask.id}');
+        print('📍 Punch-in time from attendance: $punchInTime');
       } else {
         // Reset state if nothing found in SharedPreferences or API
         setState(() {
@@ -1765,10 +1932,14 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           return parseDateTime(b).compareTo(parseDateTime(a));
         });
 
+        final connectivityResult = await Connectivity().checkConnectivity();
+        final isOnline = connectivityResult != ConnectivityResult.none;
+
         setState(() {
           allTasks = parsed;
           taskList = List.from(allTasks);
-          _error = 'Offline mode: Showing cached tasks';
+          _error = null;
+          _isOnline = isOnline;
         });
 
         // 📱 Update BackgroundTaskManager with cached tasks
@@ -1821,6 +1992,11 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
 
     try {
 
+      final duplicateCount = await DBHelper().pruneDuplicatePunchActions();
+      if (duplicateCount > 0) {
+        debugPrint("🧹 Removed duplicate offline actions: $duplicateCount");
+      }
+
       final pendingData = await DBHelper().getPunchActions();
 
       // ✅ ADD THIS DEBUG BLOCK
@@ -1858,6 +2034,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
         );
       }
 
+      final int pendingTotal = pending.length;
       int syncedCount = 0;
 
       for (var action in pending) {
@@ -2008,6 +2185,10 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           ),
         );
       }
+
+      debugPrint(
+        "📊 Sync summary: pending=$pendingTotal, synced=$syncedCount, remaining=${pendingTotal - syncedCount}",
+      );
 
       // Update UI with new pending count
       await _updatePendingSyncCount();
@@ -2369,6 +2550,7 @@ print(response.body);
         startTime: '',
         endTime: '',
         autoCheckin: false,
+        autoCheckout: false,
         locationName: '',
         priority: '',
         status: '',
@@ -2381,7 +2563,7 @@ print(response.body);
         day: "",
         date:"",
         totalWorkTime: "0h 0m",
-        radius: 500, // Default radius for placeholder task
+        radius: 300, // Default radius for placeholder task
       ),
     );
 
@@ -3660,12 +3842,34 @@ class _TaskCardState extends State<TaskCard> {
           widget.onTaskSelected(widget.taskId);
         } else {
           // Get the currently punched-in task name
-          final Task? punchedInTask = widget.taskList.firstWhere(
+              final Task punchedInTask = widget.taskList.firstWhere(
                 (task) => task.id == storedPunchedInTaskId,
+                orElse: () => Task(
+              id: '',
+              taskName: '',
+              startTime: '',
+              endTime: '',
+              locationName: '',
+              priority: '',
+              status: '',
+              lat: '',
+              longg: '',
+              punchIn: false,
+              punchOut: false,
+              breakIn: false,
+              breakOut: false,
+              day: '',
+              date: '',
+              autoCheckin: false,
+              autoCheckout: false,
+              totalWorkTime: '',
+              radius: 300,
+              attendances: const [],
+                ),
+              );
 
-          );
-
-          final String taskName = punchedInTask?.taskName ?? 'another task';
+                final String taskName =
+                  punchedInTask.id.isNotEmpty ? punchedInTask.taskName : 'another task';
 
 
           ScaffoldMessenger.of(context).showSnackBar(

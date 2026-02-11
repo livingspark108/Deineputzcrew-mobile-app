@@ -65,8 +65,9 @@ class DBHelper {
         date TEXT,
 
         auto_checkin INTEGER,
+        auto_checkout INTEGER DEFAULT 1,
         total_work_time TEXT,
-        radius INTEGER DEFAULT 500
+        radius INTEGER DEFAULT 300
       )
     ''');
 
@@ -149,7 +150,81 @@ class DBHelper {
   // ================= PUNCH ACTIONS =================
   Future<int> insertPunchAction(Map<String, dynamic> action) async {
     final dbClient = await db;
-    return await dbClient.insert('punch_actions', action);
+    final String taskId = (action['task_id'] ?? '').toString();
+    final String type = _normalizeActionType(action['type']?.toString());
+
+    final Map<String, dynamic> normalizedAction = Map<String, dynamic>.from(action);
+    if (type.isNotEmpty) {
+      normalizedAction['type'] = type;
+    }
+
+    if (taskId.isNotEmpty && type.isNotEmpty) {
+      final existing = await dbClient.query(
+        'punch_actions',
+        columns: ['id', 'type'],
+        where: 'synced = ? AND task_id = ?',
+        whereArgs: [0, taskId],
+        orderBy: 'timestamp DESC',
+        limit: 1,
+      );
+
+      if (existing.isNotEmpty) {
+        final existingType =
+            _normalizeActionType(existing.first['type']?.toString());
+        if (existingType == type) {
+          return 0;
+        }
+      }
+    }
+
+    return await dbClient.insert('punch_actions', normalizedAction);
+  }
+
+  String _normalizeActionType(String? type) {
+    if (type == null) return '';
+    return type.replaceAll('_', '-').trim().toLowerCase();
+  }
+
+  Future<int> pruneDuplicatePunchActions() async {
+    final dbClient = await db;
+    final rows = await dbClient.query(
+      'punch_actions',
+      where: 'synced = ?',
+      whereArgs: [0],
+      orderBy: 'timestamp DESC',
+    );
+
+    final Map<String, int> latestByKey = {};
+    final List<int> toDelete = [];
+
+    for (final row in rows) {
+      final String taskId = (row['task_id'] ?? '').toString();
+      final String type = _normalizeActionType(row['type']?.toString());
+      final String key = '$taskId|$type';
+
+      if (latestByKey.containsKey(key)) {
+        final id = row['id'] as int?;
+        if (id != null) {
+          toDelete.add(id);
+        }
+      } else {
+        final id = row['id'] as int?;
+        if (id != null) {
+          latestByKey[key] = id;
+        }
+      }
+    }
+
+    int deleted = 0;
+    for (final id in toDelete) {
+      deleted += await dbClient.delete(
+        'punch_actions',
+        where: 'id = ?',
+        whereArgs: [id],
+      );
+    }
+
+    return deleted;
   }
 
   Future<List<Map<String, dynamic>>> getPunchActions() async {
@@ -226,7 +301,7 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: (Database db, int version) async {
         await db.execute('''
           CREATE TABLE tasks(
@@ -246,9 +321,30 @@ class DatabaseHelper {
             day TEXT,
             date TEXT,
             auto_checkin INTEGER,
-            total_work_time TEXT
+            auto_checkout INTEGER DEFAULT 1,
+            total_work_time TEXT,
+            radius INTEGER DEFAULT 300
           )
         ''');
+      },
+      onUpgrade: (Database db, int oldVersion, int newVersion) async {
+        if (oldVersion < 2) {
+          // Add auto_checkout column if it doesn't exist
+          try {
+            await db.execute('ALTER TABLE tasks ADD COLUMN auto_checkout INTEGER DEFAULT 1');
+            print('✅ Added auto_checkout column to tasks table');
+          } catch (e) {
+            print('⚠️ auto_checkout column might already exist: $e');
+          }
+          
+          // Update radius default if needed
+          try {
+            await db.execute('ALTER TABLE tasks ADD COLUMN radius INTEGER DEFAULT 300');
+            print('✅ Added radius column to tasks table');
+          } catch (e) {
+            print('⚠️ radius column might already exist: $e');
+          }
+        }
       },
     );
   }

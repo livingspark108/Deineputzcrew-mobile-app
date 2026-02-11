@@ -536,6 +536,15 @@ class LocationService {
 
     if (punchedTask == null) {
       debugPrint("⚠️ Punched-in task not found: $taskId");
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('punchedInTaskId');
+      await prefs.remove('punchInTime');
+      return;
+    }
+
+    // ✅ CHECK IF AUTO_CHECKOUT IS ENABLED
+    if (!punchedTask.autoCheckout) {
+      debugPrint("⛔ Auto checkout disabled for task: $taskId");
       return;
     }
 
@@ -552,7 +561,7 @@ class LocationService {
     bool shouldCheckOut = false;
     String reason = "";
 
-    // Only check time-based checkout (no location restriction for checkout)
+    // TIME-BASED CHECKOUT
     if (punchInTime != null) {
       List<int> _toHMS(String time) {
         final parts = time.trim().split(':');
@@ -581,6 +590,21 @@ class LocationService {
       if (now.isAfter(endTime)) {
         shouldCheckOut = true;
         reason = "Time check-out (task ended at ${punchedTask.endTime})";
+      }
+    }
+
+    // ✅ LOCATION-BASED CHECKOUT - Use dynamic radius from API
+    if (!shouldCheckOut) {
+      double distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        double.tryParse(punchedTask.lat) ?? 0.0,
+        double.tryParse(punchedTask.longg) ?? 0.0,
+      );
+
+      if (distance > punchedTask.radius) {
+        shouldCheckOut = true;
+        reason = "Location check-out (distance: ${distance.toStringAsFixed(2)}m, radius: ${punchedTask.radius}m)";
       }
     }
 

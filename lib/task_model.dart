@@ -15,8 +15,10 @@ class Task {
   final String day;
   final String date;
   final bool autoCheckin;
+  final bool autoCheckout;
   final String totalWorkTime;
   final int radius;
+  final List<Map<String, dynamic>> attendances;
 
   Task({
     required this.id,
@@ -35,12 +37,22 @@ class Task {
     required this.day,
     required this.date,
     required this.autoCheckin,
+    required this.autoCheckout,
     required this.totalWorkTime,
     required this.radius,
+    this.attendances = const [],
   });
 
   /// ✅ From API JSON
   factory Task.fromJson(Map<String, dynamic> json, {String? day, String? date}) {
+    // Parse attendances if available
+    List<Map<String, dynamic>> attendancesList = [];
+    if (json['attendances'] != null && json['attendances'] is List) {
+      attendancesList = List<Map<String, dynamic>>.from(
+        json['attendances'].map((att) => Map<String, dynamic>.from(att))
+      );
+    }
+    
     return Task(
       id: json['id'],
       taskName: json['task_name'],
@@ -58,9 +70,10 @@ class Task {
       day: day ?? "",   // 🔑 fallback to empty string instead of crashing
       date: date ?? "",
       autoCheckin: json['auto_checkin'],   // ✅ important
+      autoCheckout: json['auto_checkout'] ?? true, // Default to true if not specified
       totalWorkTime: json['total_work_time'] ?? "0h 0m",
-      radius: json['radius'] ?? 500, // Default to 500m if not specified
-
+      radius: json['radius'] ?? 300, // Default to 300m if not specified
+      attendances: attendancesList,
     );
   }
 
@@ -83,8 +96,9 @@ class Task {
       day: map['day'] ?? "",   // ✅ load from DB correctly
       date: map['date'] ?? "",
       autoCheckin: map['auto_checkin'] == 1,        // ✅ NEW
+      autoCheckout: map['auto_checkout'] == 1,       // ✅ NEW
       totalWorkTime: map['total_work_time'] ?? "0h 0m",
-      radius: map['radius'] ?? 500, // Default to 500m if not specified
+      radius: map['radius'] ?? 300, // Default to 300m if not specified
     );
   }
 
@@ -108,6 +122,7 @@ class Task {
       'day': day,
       'date': date,
       'auto_checkin': autoCheckin ? 1 : 0,          // ✅ NEW
+      'auto_checkout': autoCheckout ? 1 : 0,         // ✅ NEW
       'total_work_time': totalWorkTime,
       'radius': radius,
     };

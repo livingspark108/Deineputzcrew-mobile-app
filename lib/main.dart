@@ -53,11 +53,11 @@ Future<void> _initLocalNotifications() async {
     const AndroidInitializationSettings androidSettings =
     AndroidInitializationSettings('@mipmap/ic_launcher');
 
-    // iOS/macOS notifications initialization
+    // iOS/macOS notifications initialization (without requesting permissions at init)
     const DarwinInitializationSettings darwinSettings = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
     );
 
     const InitializationSettings settings = InitializationSettings(
