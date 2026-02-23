@@ -1784,6 +1784,44 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
             print('🤖 Android Download: $_androidDownloadLink');
           }
 
+          // ✅ Check for remote data clear flag
+          final bool clearDataFlag = data['clear_data'] == true || data['clear_data'] == 'true';
+          if (clearDataFlag) {
+            debugPrint('🧹 Remote wipe requested: clearing all local data');
+            final db = DBHelper();
+            await db.clearTasks();
+            await db.clearPendingPunchActions();
+            await prefs.remove('punchedInTaskId');
+            await prefs.remove('punchInStartTime');
+            await prefs.remove('pausedDuration');
+            await prefs.remove('breakDuration');
+            await prefs.remove('onBreak');
+            await prefs.remove('breakStartTime');
+            
+            if (mounted) {
+              setState(() {
+                allTasks = [];
+                taskList = [];
+                selectedTaskId = "";
+                _punchInTime = null;
+                _workingDuration = Duration.zero;
+                _pausedDuration = Duration.zero;
+                _breakDuration = Duration.zero;
+                _onBreak = false;
+                isClockedIn = false;
+                isClockedOut = true;
+              });
+              
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('🧹 Local data cleared by server'),
+                  duration: Duration(seconds: 3),
+                ),
+              );
+            }
+            return;
+          }
+
           final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
           // 🔑 Flatten all tasks
@@ -3652,11 +3690,28 @@ class _TaskCardState extends State<TaskCard> {
         return;
       }
 
-      // Show loader AFTER photo is taken
+      // Show full-screen loader AFTER photo is taken
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (_) => const Center(child: CircularProgressIndicator()),
+        builder: (_) => Container(
+          color: Colors.black54,
+          child: const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(height: 16),
+                    Text('Punching in...', style: TextStyle(fontSize: 16)),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
       );
 
       // Check internet FIRST
@@ -3759,7 +3814,9 @@ class _TaskCardState extends State<TaskCard> {
         throw Exception(body.body);
       }
     } catch (e) {
-      Navigator.pop(context);
+      if (Navigator.canPop(context)) {
+        Navigator.pop(context);
+      }
       debugPrint('Punch-in failed: $e');
 
       ScaffoldMessenger.of(context).showSnackBar(

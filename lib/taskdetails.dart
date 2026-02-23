@@ -655,6 +655,30 @@ Future<void> _handlePunchOut(
       return;
     }
 
+    // Show full-screen loader
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => Container(
+        color: Colors.black54,
+        child: const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Punching out...', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
     // Step 1: Get location
     final position = await Geolocator.getCurrentPosition();
 
@@ -695,6 +719,9 @@ Future<void> _handlePunchOut(
       await prefs.remove('breakDuration');
       await prefs.remove('breakStartTime');
 
+      // Dismiss loader
+      Navigator.pop(context);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('📴 Punch-out saved offline. Will sync when online.'),
@@ -707,7 +734,7 @@ Future<void> _handlePunchOut(
         MaterialPageRoute(builder: (_) => MainApp()),
             (route) => false,
       );
-      
+
       return; // ⛔ STOP HERE
     }
 
@@ -738,6 +765,9 @@ Future<void> _handlePunchOut(
 
     debugPrint("📡 Punch-out online response: ${response.statusCode} ${response.body}");
 
+    // Dismiss loader
+    Navigator.pop(context);
+
     if (response.statusCode == 200 || response.statusCode == 201) {
       // ✅ Success → clear prefs
       await prefs.remove('punchedInTaskId');
@@ -759,8 +789,12 @@ Future<void> _handlePunchOut(
     } else {
       throw Exception("Server error: ${response.statusCode}");
     }
-    
+
   } catch (e) {
+    // Dismiss loader in case of error
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
     debugPrint('❌ Punch-out exception: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: $e')),
