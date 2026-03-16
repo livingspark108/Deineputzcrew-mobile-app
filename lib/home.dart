@@ -28,8 +28,6 @@ import 'location_service.dart';
 import 'background_task_manager.dart';
 import 'notification_service.dart';
 
-
-
 class MainApp extends StatefulWidget {
   final int initialIndex;
   const MainApp({Key? key, this.initialIndex = 0}) : super(key: key);
@@ -52,7 +50,7 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
     _selectedIndex = widget.initialIndex; // 👈 Start on passed index
-    
+
     // Handle any notification when app is opened
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _handleAutoCheckInNotificationOnAppOpen();
@@ -60,7 +58,7 @@ class _MainAppState extends State<MainApp> {
     });
   }
 
-    static const String _permissionStatusUrl =
+  static const String _permissionStatusUrl =
       'https://admin.deineputzcrew.de/api/user-permissions/';
 
   Future<void> _checkAndSyncPermissionStatusOnHomeOpen() async {
@@ -172,9 +170,8 @@ class _MainAppState extends State<MainApp> {
         'location_permission': locationPermission,
         'notification_permission': notificationPermission,
         'location_services_enabled': locationServicesEnabled,
-        'lat': latitude == null
-            ? null
-            : double.parse(latitude.toStringAsFixed(6)),
+        'lat':
+            latitude == null ? null : double.parse(latitude.toStringAsFixed(6)),
         'long': longitude == null
             ? null
             : double.parse(longitude.toStringAsFixed(6)),
@@ -208,13 +205,13 @@ class _MainAppState extends State<MainApp> {
       debugPrint('⚠️ Permission status API error: $e');
     }
   }
-  
+
   /// Handle any notification when app opens
   void _handleAutoCheckInNotificationOnAppOpen() async {
     // Check if any notification sound is playing
     if (NotificationService.isPlayingAutoCheckInSound) {
       final taskId = NotificationService.currentAutoCheckInTaskId;
-      
+
       // Show dialog to acknowledge any notification
       showDialog(
         context: context,
@@ -237,7 +234,7 @@ class _MainAppState extends State<MainApp> {
                 // Stop continuous sound
                 await NotificationService.stopContinuousSound();
                 Navigator.of(context).pop();
-                
+
                 // Check if user is logged in and reload home page
                 await _reloadHomePageIfLoggedIn();
               },
@@ -248,18 +245,18 @@ class _MainAppState extends State<MainApp> {
       );
     }
   }
-  
+
   /// Check if user is logged in and reload home page data
   Future<void> _reloadHomePageIfLoggedIn() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       final userId = prefs.getInt('userid');
-      
+
       // Check if user is logged in (has valid token and userId)
       if (token != null && token.isNotEmpty && userId != null && userId > 0) {
         print('🔄 User is logged in, reloading home page...');
-        
+
         // Show loading indicator briefly
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -269,7 +266,7 @@ class _MainAppState extends State<MainApp> {
             ),
           );
         }
-        
+
         // Reload dashboard data if callback is available
         if (_reloadDashboard != null) {
           _reloadDashboard!();
@@ -279,7 +276,7 @@ class _MainAppState extends State<MainApp> {
           setState(() {});
           print('⚠️ Dashboard callback not available, forcing rebuild');
         }
-        
+
         print('✅ Home page refreshed successfully');
       } else {
         print('❌ User not logged in, skipping home page reload');
@@ -310,7 +307,7 @@ class _MainAppState extends State<MainApp> {
         return DashboardScreen(onReloadCallback: _reloadDashboard);
     }
   }
-  
+
   // Global dashboard reload callback
   VoidCallback? _reloadDashboard;
 
@@ -333,16 +330,13 @@ class _MainAppState extends State<MainApp> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Tasks'),
-          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Settings'),
         ],
       ),
     );
   }
 }
-
-
-
 
 class DashboardScreen extends StatefulWidget {
   final VoidCallback? onReloadCallback;
@@ -352,66 +346,72 @@ class DashboardScreen extends StatefulWidget {
 
   StreamSubscription<ConnectivityResult>? _connectivitySub;
 
-
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
-
 }
 
 bool isTaskTimeValid(Task task) {
-    final now = DateTime.now();
+  final now = DateTime.now();
 
-    List<int> toHMS(String t) {
-      final p = t.split(':').map((e) => int.tryParse(e) ?? 0).toList();
-      // ✅ SAFE ACCESS - handle missing parts
-      return [
-        p.isNotEmpty ? p[0] : 0,           // hours
-        p.length > 1 ? p[1] : 0,           // minutes
-        p.length > 2 ? p[2] : 0,           // seconds
-      ];
-    }
+  List<int> toHMS(String t) {
+    final p = t.split(':').map((e) => int.tryParse(e) ?? 0).toList();
+    // ✅ SAFE ACCESS - handle missing parts
+    return [
+      p.isNotEmpty ? p[0] : 0, // hours
+      p.length > 1 ? p[1] : 0, // minutes
+      p.length > 2 ? p[2] : 0, // seconds
+    ];
+  }
 
-    // ✅ PARSE TASK DATE - Use task's actual date, not current date
-    DateTime taskDate;
-    try {
-      if (task.date.isNotEmpty) {
-        // Parse task date (expected format: YYYY-MM-DD or similar)
-        taskDate = DateTime.parse(task.date);
-      } else {
-        // Fallback to current date if no task date
-        taskDate = DateTime(now.year, now.month, now.day);
-      }
-    } catch (e) {
-      print("❌ Error parsing task date '${task.date}': $e");
-      // Fallback to current date if parsing fails
+  // ✅ PARSE TASK DATE - Use task's actual date, not current date
+  DateTime taskDate;
+  try {
+    if (task.date.isNotEmpty) {
+      // Parse task date (expected format: YYYY-MM-DD or similar)
+      taskDate = DateTime.parse(task.date);
+    } else {
+      // Fallback to current date if no task date
       taskDate = DateTime(now.year, now.month, now.day);
     }
-
-    final start = toHMS(task.startTime);
-    
-    DateTime startDt = DateTime(
-      taskDate.year, taskDate.month, taskDate.day,
-      start[0], start[1], start[2],
-    );
-
-    // If task has no end time or end time is empty, allow punch-in after start time
-    if (task.endTime.isEmpty || task.endTime.trim() == '') {
-      return now.isAfter(startDt);
-    }
-    
-    final end = toHMS(task.endTime);
-    DateTime endDt = DateTime(
-      taskDate.year, taskDate.month, taskDate.day,
-      end[0], end[1], end[2],
-    );
-
-    // Overnight shift support
-    if (endDt.isBefore(startDt)) {
-      endDt = endDt.add(const Duration(days: 1));
-    }
-
-    return now.isAfter(startDt) && now.isBefore(endDt);
+  } catch (e) {
+    print("❌ Error parsing task date '${task.date}': $e");
+    // Fallback to current date if parsing fails
+    taskDate = DateTime(now.year, now.month, now.day);
   }
+
+  final start = toHMS(task.startTime);
+
+  DateTime startDt = DateTime(
+    taskDate.year,
+    taskDate.month,
+    taskDate.day,
+    start[0],
+    start[1],
+    start[2],
+  );
+
+  // If task has no end time or end time is empty, allow punch-in after start time
+  if (task.endTime.isEmpty || task.endTime.trim() == '') {
+    return now.isAfter(startDt);
+  }
+
+  final end = toHMS(task.endTime);
+  DateTime endDt = DateTime(
+    taskDate.year,
+    taskDate.month,
+    taskDate.day,
+    end[0],
+    end[1],
+    end[2],
+  );
+
+  // Overnight shift support
+  if (endDt.isBefore(startDt)) {
+    endDt = endDt.add(const Duration(days: 1));
+  }
+
+  return now.isAfter(startDt) && now.isBefore(endDt);
+}
 
 class _DashboardScreenState extends State<DashboardScreen> {
   String selectedPriority = "all"; // all | low | medium | high
@@ -426,11 +426,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _isOnline = true;
   int _pendingSyncCount = 0;
   Timer? _syncStatusTimer;
-  
+
   // Location service for background monitoring
   final LocationService _locationService = LocationService();
 
-  static  Duration _workingDuration = Duration.zero;
+  static Duration _workingDuration = Duration.zero;
   static DateTime? _punchInTime;
 
   bool _isLoadingBreak = false;
@@ -476,14 +476,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void _startAutoCheckInTimer() {
     _autoCheckInTimer?.cancel();
     _autoCheckInTimer = Timer.periodic(
-      const Duration(seconds: 60), // Check every 60 seconds for auto check-in opportunities
+      const Duration(
+          seconds:
+              60), // Check every 60 seconds for auto check-in opportunities
       (_) {
         // Only check if not already punched in
         SharedPreferences.getInstance().then((prefs) {
           final punchedInTaskId = prefs.getString('punchedInTaskId');
           if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
             _checkAutoPunchIn().catchError((error) {
-              debugPrint('⚠️ Periodic auto check-in failed (non-critical): $error');
+              debugPrint(
+                  '⚠️ Periodic auto check-in failed (non-critical): $error');
             });
           }
         });
@@ -496,10 +499,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _autoCheckInTimer = null;
   }
 
-
   Future<void> showAutoCheckoutNotification(String taskName) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
+        AndroidNotificationDetails(
       'auto_checkout_channel',
       'Auto Checkout',
       importance: Importance.max,
@@ -507,9 +509,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
 
     const NotificationDetails platformChannelSpecifics =
-    NotificationDetails(android: androidPlatformChannelSpecifics);
+        NotificationDetails(android: androidPlatformChannelSpecifics);
     final FlutterLocalNotificationsPlugin notificationsPlugin =
-    FlutterLocalNotificationsPlugin();
+        FlutterLocalNotificationsPlugin();
     await notificationsPlugin.show(
       0,
       'Auto Checkout',
@@ -517,6 +519,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       platformChannelSpecifics,
     );
   }
+
   Future<File> generateBlankImage() async {
     final dir = await getTemporaryDirectory();
     final file = File("${dir.path}/auto_checkout.jpg");
@@ -530,17 +533,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   void initState() {
     super.initState();
     print('🏠 DashboardScreen initState called');
-    
+
     // Set up reload callback for parent widget
     if (widget.onReloadCallback != null) {
       // Pass our reload method to the parent
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (context.findAncestorStateOfType<_MainAppState>() != null) {
-          context.findAncestorStateOfType<_MainAppState>()!._reloadDashboard = () async {
-            print('🔄 Dashboard notification reload triggered (like swipe down)');
-            
+          context.findAncestorStateOfType<_MainAppState>()!._reloadDashboard =
+              () async {
+            print(
+                '🔄 Dashboard notification reload triggered (like swipe down)');
+
             // Use same logic as RefreshIndicator swipe-down
-            _autoCheckoutLocked = true;      // 🔒 HARD LOCK
+            _autoCheckoutLocked = true; // 🔒 HARD LOCK
             _isManualRefresh = true;
             _stopAutoCheckoutTimer();
 
@@ -548,15 +553,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
             await syncOfflineActions();
 
             _isManualRefresh = false;
-            _autoCheckoutLocked = false;     // 🔓 UNLOCK
+            _autoCheckoutLocked = false; // 🔓 UNLOCK
             _startAutoCheckoutTimer();
-            
+
             print('✅ Dashboard notification reload completed');
           };
         }
       });
     }
-    
+
     _initializeApp().then((_) {
       _startAutoCheckoutTimer();
       _startAutoCheckInTimer(); // ✅ Start auto check-in monitoring
@@ -564,12 +569,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     _connectivitySub =
-      Connectivity().onConnectivityChanged.listen((result) async {
+        Connectivity().onConnectivityChanged.listen((result) async {
       final isOnline = result != ConnectivityResult.none;
       setState(() {
         _isOnline = isOnline;
       });
-      
+
       if (isOnline) {
         debugPrint("🌐 Internet restored → syncing offline data");
         await syncOfflineActions();
@@ -578,15 +583,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (mounted) {
           await fetchTasks(); // reloads tasks & applies auto-hide logic
         }
-
       }
     });
-
 
     // Timer.periodic(const Duration(seconds: 30), (_) {
     //   _checkAutoCheckout();
     // });
-    
   }
 
   @override
@@ -597,7 +599,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _locationService.stopMonitoring();
     super.dispose();
   }
-
 
   // Future<void> _initializeApp() async {
   //   print('🚀 Starting app initialization...');
@@ -617,7 +618,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // }
   Future<void> _initializeApp() async {
     if (!mounted) return;
-  
+
     setState(() {
       _isLoading = true;
       //_initialized = false;
@@ -625,7 +626,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     _autoCheckoutLocked = true;
-    
+
     // ✅ Add timeout to prevent infinite loading
     try {
       await Future.any([
@@ -655,7 +656,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _autoCheckoutLocked = false;
     }
   }
-  
+
   Future<void> _performInitialization() async {
     try {
       // Check initial connectivity
@@ -667,7 +668,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       }
 
       await loadUserData(); // Loads tasks + restores timer state
-      
+
       // ✅ Start location service with tasks
       try {
         await _locationService.startMonitoring(
@@ -677,7 +678,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       } catch (e) {
         print('⚠️ Location service error (non-critical): $e');
       }
-      
+
       // ✅ FIXED: Sync AFTER timer state is restored
       try {
         await syncOfflineActions();
@@ -685,7 +686,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       } catch (e) {
         print('⚠️ Sync error (non-critical): $e');
       }
-      
+
       // 📱 Sync offline check-ins from BackgroundTaskManager
       try {
         await _syncBackgroundCheckIns();
@@ -699,7 +700,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _isLoading = false;
         });
       }
-      
+
       print('✅ App initialization completed successfully');
     } catch (e, stackTrace) {
       print('❌ App initialization failed: $e');
@@ -727,19 +728,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
   /// Handle auto check-in callback from location service
   void _handleAutoCheckIn(String taskId, DateTime punchInTime) {
     debugPrint("📞 Auto check-in callback: $taskId at $punchInTime");
-    
+
     if (mounted) {
       setState(() {
         selectedTaskId = taskId;
         _punchInTime = punchInTime;
       });
-      
+
       // Start the dashboard timer
       startDashboardWorkTimer();
-      
+
       // Update UI sync count
       _updatePendingSyncCount();
-      
+
       // Show notification
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -810,7 +811,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       // ✅ Use radius from API (default 300m)
       if (distance > task.radius) {
-        debugPrint("📍 User left location (distance: ${distance.toStringAsFixed(2)}m, radius: ${task.radius}m) - Auto punch-out triggered");
+        debugPrint(
+            "📍 User left location (distance: ${distance.toStringAsFixed(2)}m, radius: ${task.radius}m) - Auto punch-out triggered");
         await _autoPunchOut(task);
         return;
       }
@@ -839,10 +841,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   // }
   bool _isTimeExceeded(Task task) {
     if (_punchInTime == null) return false;
-    
+
     // Safety check: ensure endTime is not empty
     if (task.endTime.isEmpty || task.endTime.trim().isEmpty) {
-      print('⚠️ Task ${task.id} has empty endTime - cannot check if time exceeded');
+      print(
+          '⚠️ Task ${task.id} has empty endTime - cannot check if time exceeded');
       return false;
     }
 
@@ -859,13 +862,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final endParts = hm(task.endTime);
-    
+
     // Additional safety check after parsing
     if (endParts.length < 2) {
       print('⚠️ Failed to parse endTime "${task.endTime}" for task ${task.id}');
       return false;
     }
-    
+
     DateTime endTime = DateTime(
       _punchInTime!.year,
       _punchInTime!.month,
@@ -886,17 +889,18 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _autoPunchOut(Task task) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
-    
+
     // ✅ VALIDATION: Check if user is actually punched in
     final punchedInTaskId = prefs.getString('punchedInTaskId');
     if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
       debugPrint("⛔ Auto punch-out cancelled - No active punch-in found");
       return;
     }
-    
+
     // ✅ VALIDATION: Ensure punched-in task matches the current task
     if (punchedInTaskId != task.id) {
-      debugPrint("⛔ Auto punch-out cancelled - Task mismatch. Punched in: $punchedInTaskId, Current: ${task.id}");
+      debugPrint(
+          "⛔ Auto punch-out cancelled - Task mismatch. Punched in: $punchedInTaskId, Current: ${task.id}");
       return;
     }
 
@@ -935,7 +939,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('📴 Auto Check-out saved offline. Will sync when online.'),
+            content:
+                Text('📴 Auto Check-out saved offline. Will sync when online.'),
             duration: Duration(seconds: 3),
           ),
         );
@@ -969,7 +974,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       await showAutoCheckoutNotification(task.taskName);
     } else {
       // Save offline fallback
-
     }
   }
 
@@ -999,7 +1003,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _breakDuration = Duration.zero;
     });
   }
-
 
   // =========================
   // RESTORE TIMER STATE
@@ -1035,8 +1038,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _breakTimer?.cancel();
         _breakTimer = Timer.periodic(const Duration(seconds: 1), (_) {
           setState(() {
-            _breakDuration =
-                DateTime.now().difference(_breakStartTime!);
+            _breakDuration = DateTime.now().difference(_breakStartTime!);
           });
         });
 
@@ -1060,38 +1062,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           });
         });
-        
-        print('⏱️ Timer auto-started (from SharedPreferences) for task: $storedTaskId');
+
+        print(
+            '⏱️ Timer auto-started (from SharedPreferences) for task: $storedTaskId');
       }
     } else {
       // ✅ SECOND: Check API response (allTasks) for any punched-in task (handles logout/login scenario)
       Task? punchedInTask;
       DateTime? punchInTime;
-      
+
       for (var task in allTasks) {
         // ✅ NEW LOGIC: Check attendances for active punch-in
         if (task.attendances.isNotEmpty) {
           // Find the latest punch_in without a corresponding punch_out
           Map<String, dynamic>? latestPunchIn;
-          
+
           for (var attendance in task.attendances) {
             if (attendance['punch_type'] == 'punch_in') {
               latestPunchIn = attendance;
               break; // Attendances are typically ordered latest first
             }
           }
-          
+
           // If we found a punch_in, check if there's a punch_out after it
           if (latestPunchIn != null) {
             bool hasPunchOut = false;
-            
+
             for (var attendance in task.attendances) {
               if (attendance['punch_type'] == 'punch_out') {
                 // Check if punch_out is after punch_in
                 try {
-                  DateTime punchOutTime = DateTime.parse(attendance['timestamp']);
-                  DateTime punchInTimeTemp = DateTime.parse(latestPunchIn['timestamp']);
-                  
+                  DateTime punchOutTime =
+                      DateTime.parse(attendance['timestamp']);
+                  DateTime punchInTimeTemp =
+                      DateTime.parse(latestPunchIn['timestamp']);
+
                   if (punchOutTime.isAfter(punchInTimeTemp)) {
                     hasPunchOut = true;
                     break;
@@ -1101,7 +1106,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 }
               }
             }
-            
+
             // If no punch_out found after punch_in, this task is active
             if (!hasPunchOut) {
               punchedInTask = task;
@@ -1130,12 +1135,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         // Save to SharedPreferences for next session
         await prefs.setString('punchedInTaskId', punchedInTask.id);
-        await prefs.setString('punchInStartTime', punchInTime.toIso8601String());
+        await prefs.setString(
+            'punchInStartTime', punchInTime.toIso8601String());
         await prefs.setInt('pausedDuration', 0);
         await prefs.setBool('onBreak', _onBreak);
 
         // ✅ AUTO-START TIMER FOR PUNCHED-IN TASK (from attendances)
-        _workingDuration = DateTime.now().difference(_punchInTime!) - _pausedDuration;
+        _workingDuration =
+            DateTime.now().difference(_punchInTime!) - _pausedDuration;
 
         _timer?.cancel();
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -1149,8 +1156,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
             });
           }
         });
-        
-        print('⏱️ Timer auto-started (from attendances data) for task: ${punchedInTask.id}');
+
+        print(
+            '⏱️ Timer auto-started (from attendances data) for task: ${punchedInTask.id}');
         print('📍 Punch-in time from attendance: $punchInTime');
       } else {
         // Reset state if nothing found in SharedPreferences or API
@@ -1181,7 +1189,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!isResuming) {
       _punchInTime = DateTime.now();
       _pausedDuration = Duration.zero;
-      await prefs.setString('punchInStartTime', _punchInTime!.toIso8601String());
+      await prefs.setString(
+          'punchInStartTime', _punchInTime!.toIso8601String());
       await prefs.setInt('pausedDuration', 0);
       await prefs.setBool('onBreak', false);
     }
@@ -1198,9 +1207,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         });
       }
     });
-
-
-   }
+  }
 
 // -------------------- PAUSE WORK (BREAK IN) --------------------
   void pauseDashboardWorkTimer() async {
@@ -1266,13 +1273,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
-
-
-
-
   Future<void> loadUserData() async {
     print('📊 loadUserData called');
-    
+
     try {
       final prefs = await SharedPreferences.getInstance();
       if (mounted) {
@@ -1281,12 +1284,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           token = prefs.getString('token');
         });
       }
-      
-      print('👤 User ID: $userId, Token: ${token != null ? "present" : "missing"}');
-      
+
+      print(
+          '👤 User ID: $userId, Token: ${token != null ? "present" : "missing"}');
+
       // Call fetchTasks outside of setState
       await fetchTasks();
-      
+
       print('✅ loadUserData completed successfully');
     } catch (e, stackTrace) {
       print('❌ loadUserData failed: $e');
@@ -1306,7 +1310,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Duration _breakDuration = Duration.zero;
   DateTime? _breakStartTime;
   Timer? _breakTimer;
-
 
   /* Future<void> fetchTasks() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1342,7 +1345,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (mounted && allTasks.isNotEmpty) {
         print('🔄 Triggering auto check-in after refresh...');
         _checkAutoPunchIn().catchError((error) {
-          debugPrint('⚠️ Auto punch-in after refresh failed (non-critical): $error');
+          debugPrint(
+              '⚠️ Auto punch-in after refresh failed (non-critical): $error');
         });
       }
     });
@@ -1351,7 +1355,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _checkAutoPunchIn() async {
     // ✅ REMOVED: Allow auto check-in on manual refresh too
     // Users should be able to auto check-in when they refresh the page
-    
+
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
       await Geolocator.openLocationSettings();
@@ -1397,7 +1401,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-
     // CURRENT LOCATION
     Position pos;
     try {
@@ -1429,38 +1432,39 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // ❌ Skip completed
       if (t.status.toLowerCase() == "completed") continue;
 
-
       if (t.autoCheckin == false) continue;
 
       // 🔥 DATE + TIME CHECK - Allow tasks within 24 hours of their START TIME
       DateTime taskStartDateTime;
       try {
-        final taskDate = DateTime.parse(t.date);  // 2026-01-29
+        final taskDate = DateTime.parse(t.date); // 2026-01-29
         final timeParts = t.startTime.split(':');
-        final hour = int.tryParse(timeParts[0]) ?? 0;     // 21
-        final minute = timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0;  // 00
-        final second = timeParts.length > 2 ? int.tryParse(timeParts[2]) ?? 0 : 0;  // 00
-        
+        final hour = int.tryParse(timeParts[0]) ?? 0; // 21
+        final minute =
+            timeParts.length > 1 ? int.tryParse(timeParts[1]) ?? 0 : 0; // 00
+        final second =
+            timeParts.length > 2 ? int.tryParse(timeParts[2]) ?? 0 : 0; // 00
+
         // Combine date + start time: 2026-01-29 21:00:00
         taskStartDateTime = DateTime(
-          taskDate.year, taskDate.month, taskDate.day,
-          hour, minute, second
-        );
+            taskDate.year, taskDate.month, taskDate.day, hour, minute, second);
       } catch (e) {
         print("❌ Invalid task date/time: ${t.date} ${t.startTime}");
         continue;
       }
-      
+
       // Calculate time difference from actual start time
       final timeDifference = now.difference(taskStartDateTime).inHours;
-      
+
       // Allow tasks within 24 hours of their start time
       if (timeDifference > 24 || timeDifference < -24) {
-        print("⛔ Task ${t.taskName} is outside 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
+        print(
+            "⛔ Task ${t.taskName} is outside 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
         continue;
       }
-      
-      print("✅ Task ${t.taskName} is within 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
+
+      print(
+          "✅ Task ${t.taskName} is within 24-hour window: starts ${taskStartDateTime} (${timeDifference}h ago)");
 
       // ✅ LOCATION CHECK FIRST
       double distance = Geolocator.distanceBetween(
@@ -1471,15 +1475,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
 
       if (distance > 500) {
-        print("⛔ Not on location - Distance: ${distance.toStringAsFixed(2)}m (>500m)");
+        print(
+            "⛔ Not on location - Distance: ${distance.toStringAsFixed(2)}m (>500m)");
         continue; // Skip this task if not on location
       } else {
-        print("✅ Location verified - Distance: ${distance.toStringAsFixed(2)}m (within 500m)");
+        print(
+            "✅ Location verified - Distance: ${distance.toStringAsFixed(2)}m (within 500m)");
       }
 
       // TIME PARSING - Use task's actual date, not current date
       final start = _toHMS(t.startTime);
-      
+
       // Parse task's actual date
       DateTime taskDate;
       try {
@@ -1489,53 +1495,59 @@ class _DashboardScreenState extends State<DashboardScreen> {
         continue;
       }
 
-      DateTime startDt = DateTime(taskDate.year, taskDate.month, taskDate.day, start[0], start[1], start[2]);
-      
+      DateTime startDt = DateTime(taskDate.year, taskDate.month, taskDate.day,
+          start[0], start[1], start[2]);
+
       // ✅ HANDLE TASKS WITH NO END TIME
       bool hasEndTime = t.endTime.isNotEmpty && t.endTime.trim().isNotEmpty;
       DateTime? endDt;
-      
+
       if (hasEndTime) {
         final end = _toHMS(t.endTime);
-        endDt = DateTime(taskDate.year, taskDate.month, taskDate.day, end[0], end[1], end[2]);
-        
+        endDt = DateTime(taskDate.year, taskDate.month, taskDate.day, end[0],
+            end[1], end[2]);
+
         if (endDt.isBefore(startDt)) {
           endDt = endDt.add(const Duration(days: 1));
         }
       }
 
       // ✅ FLEXIBLE TIME CHECK FOR AUTO CHECK-IN:
-      
+
       // Check if task has ended (only if it has an end time)
       if (hasEndTime && endDt != null && now.isAfter(endDt)) {
         print("⛔ Task already ended at ${t.endTime} on ${t.date}");
         continue;
       }
-      
+
       // If no end time, task is always available after start time
       if (!hasEndTime) {
-        print("✅ Task ${t.taskName} has no end time - available after start time");
+        print(
+            "✅ Task ${t.taskName} has no end time - available after start time");
       }
-      
+
       // ✅ RELAXED TIME VALIDATION FOR AUTO CHECK-IN
       // Allow punch-in for:
       // 1. Tasks that have already started (even if late)
       // 2. Tasks starting soon (within next 4 hours)
       const maxFutureHours = 4;
       final maxFutureTime = now.add(Duration(hours: maxFutureHours));
-      
+
       if (startDt.isAfter(maxFutureTime)) {
         final hoursUntilStart = startDt.difference(now).inHours;
-        print("⛔ Too early - Task starts in ${hoursUntilStart}h at ${t.startTime} on ${t.date}");
+        print(
+            "⛔ Too early - Task starts in ${hoursUntilStart}h at ${t.startTime} on ${t.date}");
         continue;
       }
-      
+
       // Calculate how long ago the task started
       final hoursSinceStart = now.difference(startDt).inHours;
       if (hoursSinceStart > 0) {
-        print("✅ Time check passed - Task ${t.taskName} started ${hoursSinceStart}h ago, allowing auto check-in");
+        print(
+            "✅ Time check passed - Task ${t.taskName} started ${hoursSinceStart}h ago, allowing auto check-in");
       } else {
-        print("✅ Time check passed - Task ${t.taskName} starts soon, allowing auto check-in");
+        print(
+            "✅ Time check passed - Task ${t.taskName} starts soon, allowing auto check-in");
       }
 
       matchedTasks.add({
@@ -1564,9 +1576,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> requestNotificationPermission() async {
-    final androidImplementation = notificationsPlugin
-        .resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
+    final androidImplementation =
+        notificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
 
     await androidImplementation?.requestNotificationsPermission();
   }
@@ -1574,7 +1586,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _autoPunchIn(Task task) async {
     try {
       debugPrint('🔄 Starting auto punch-in for: ${task.taskName}');
-      
+
       final prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
@@ -1583,7 +1595,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           desiredAccuracy: LocationAccuracy.high);
 
       // Use default auto check-in image from assets
-      final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
+      final ByteData imageData =
+          await rootBundle.load('assets/images/auto_check_in.jpeg');
       final Directory tempDir = await getTemporaryDirectory();
       final File emptyImage = File('${tempDir.path}/auto_check_in.jpeg');
       await emptyImage.writeAsBytes(imageData.buffer.asUint8List());
@@ -1592,7 +1605,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       // ✅ CHECK CONNECTIVITY FIRST
       final connectivity = await Connectivity().checkConnectivity();
-      
+
       // OFFLINE → Save to SQLite
       if (connectivity == ConnectivityResult.none) {
         debugPrint("📴 Offline - Saving auto punch-in to DB");
@@ -1609,7 +1622,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         // Update local state
         await prefs.setString('punchedInTaskId', task.id);
-        
+
         // ✅ Update UI state immediately
         if (mounted) {
           setState(() {
@@ -1626,7 +1639,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('📴 Auto Check-in saved offline. Will sync when online.'),
+              content: Text(
+                  '📴 Auto Check-in saved offline. Will sync when online.'),
               duration: Duration(seconds: 3),
             ),
           );
@@ -1660,7 +1674,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setString('punchedInTaskId', task.id);
-        
+
         // ✅ Update UI state immediately
         if (mounted) {
           setState(() {
@@ -1670,7 +1684,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         }
 
         startDashboardWorkTimer();
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -1690,11 +1704,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       print('🐞 Stack trace: $stackTrace');
     }
   }
+
   double _toFourDecimals(double value) {
     // Convert to 4 decimals to ensure max 9 total digits (e.g., "28.4930" = 7 digits)
     return double.parse(value.toStringAsFixed(4));
   }
-  
+
   // Helper function to parse task time
   DateTime _parseTaskTime(String timeStr, DateTime referenceDate) {
     final parts = timeStr.split(':');
@@ -1714,11 +1729,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> fetchTasks() async {
     print('📡 fetchTasks called');
     if (!mounted) return;
-    
+
     setState(() {
       _error = null;
     });
-    
+
     try {
       final connectivityResult = await Connectivity().checkConnectivity();
       final prefs = await SharedPreferences.getInstance();
@@ -1726,23 +1741,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (connectivityResult != ConnectivityResult.none) {
         // ✅ Online
-        final response = await http.post(
-          Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'token $token',
-          },
-          body: jsonEncode({
-            "id": userId,
-            "app_version": AppMetadata.appVersion,
-            "mobile_type": AppMetadata.mobileType,
-          }),
-        ).timeout(const Duration(seconds: 10));
+        final response = await http
+            .post(
+              Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'token $token',
+              },
+              body: jsonEncode({
+                "id": userId,
+                "app_version": AppMetadata.appVersion,
+                "mobile_type": AppMetadata.mobileType,
+              }),
+            )
+            .timeout(const Duration(seconds: 10));
 
         final data = jsonDecode(response.body);
         var sss = AppMetadata.mobileType + " " + AppMetadata.appVersion;
         print('📱 App Version Sent: $sss');
-        
+
         // Print curl equivalent for debugging
         final curlCommand = '''
 curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
@@ -1759,15 +1776,19 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
         if (data['success']) {
           // ✅ Check for app_update object (new API format)
           final appUpdate = data['app_update'];
-          
-          final bool updateRequired = 
-              appUpdate != null && (appUpdate['update_required'] == true || appUpdate['update_required'] == "true");
-          final String? iosTestflightLink =
-              appUpdate != null ? appUpdate['ios_testflight_link']?.toString() : null;
-          final String? iosDiawiLink = 
-              appUpdate != null ? appUpdate['ios_diawi_link']?.toString() : null;
-          final String? androidDownloadLink =
-              appUpdate != null ? appUpdate['android_download_link']?.toString() : null;
+
+          final bool updateRequired = appUpdate != null &&
+              (appUpdate['update_required'] == true ||
+                  appUpdate['update_required'] == "true");
+          final String? iosTestflightLink = appUpdate != null
+              ? appUpdate['ios_testflight_link']?.toString()
+              : null;
+          final String? iosDiawiLink = appUpdate != null
+              ? appUpdate['ios_diawi_link']?.toString()
+              : null;
+          final String? androidDownloadLink = appUpdate != null
+              ? appUpdate['android_download_link']?.toString()
+              : null;
 
           if (mounted) {
             setState(() {
@@ -1776,7 +1797,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
               _iosDiawiLink = iosDiawiLink;
               _androidDownloadLink = androidDownloadLink;
             });
-            
+
             // Debug print
             print('📱 Update Required: $_updateRequired');
             print('🍎 iOS TestFlight: $_iosTestflightLink');
@@ -1785,7 +1806,8 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           }
 
           // ✅ Check for remote data clear flag
-          final bool clearDataFlag = data['clear_data'] == true || data['clear_data'] == 'true';
+          final bool clearDataFlag =
+              data['clear_data'] == true || data['clear_data'] == 'true';
           if (clearDataFlag) {
             debugPrint('🧹 Remote wipe requested: clearing all local data');
             final db = DBHelper();
@@ -1797,7 +1819,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
             await prefs.remove('breakDuration');
             await prefs.remove('onBreak');
             await prefs.remove('breakStartTime');
-            
+
             if (mounted) {
               setState(() {
                 allTasks = [];
@@ -1811,7 +1833,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
                 isClockedIn = false;
                 isClockedOut = true;
               });
-              
+
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
                   content: Text('🧹 Local data cleared by server'),
@@ -1835,53 +1857,54 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
                 .map((t) => Task.fromJson(t, day: day, date: date));
           }).toList();
 
-        // 🔥 SORT → LATEST FIRST (DATE + START TIME)
-        tasks.sort((a, b) {
-          DateTime parseDateTime(Task t) {
-            try {
-              // ✅ Handle empty or null dates
-              if (t.date.isEmpty) {
+          // 🔥 SORT → LATEST FIRST (DATE + START TIME)
+          tasks.sort((a, b) {
+            DateTime parseDateTime(Task t) {
+              try {
+                // ✅ Handle empty or null dates
+                if (t.date.isEmpty) {
+                  return DateTime(1970);
+                }
+                final d = DateTime.parse(t.date); // yyyy-MM-dd
+
+                final parts = t.startTime.split(':');
+                final h = int.tryParse(parts[0]) ?? 0;
+                final m = int.tryParse(parts[1]) ?? 0;
+                final s = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
+
+                return DateTime(d.year, d.month, d.day, h, m, s);
+              } catch (e) {
+                debugPrint('⚠️ Error parsing task date: $e');
                 return DateTime(1970);
               }
-              final d = DateTime.parse(t.date); // yyyy-MM-dd
-
-              final parts = t.startTime.split(':');
-              final h = int.tryParse(parts[0]) ?? 0;
-              final m = int.tryParse(parts[1]) ?? 0;
-              final s = parts.length > 2 ? int.tryParse(parts[2]) ?? 0 : 0;
-
-              return DateTime(d.year, d.month, d.day, h, m, s);
-            } catch (e) {
-              debugPrint('⚠️ Error parsing task date: $e');
-              return DateTime(1970);
             }
+
+            return parseDateTime(b).compareTo(parseDateTime(a));
+          });
+
+          final db = DBHelper();
+          await db.clearTasks(); // clear old tasks
+
+          for (final task in tasks) {
+            await db.insertTask(task.toMap());
           }
+          setState(() {
+            allTasks = tasks;
+            taskList = List.from(allTasks);
+          });
 
-          return parseDateTime(b).compareTo(parseDateTime(a));
-        });
+          // ✅ Update location service with new tasks
+          _locationService.updateTasks(tasks);
 
-        final db = DBHelper();
-        await db.clearTasks(); // clear old tasks
+          _restoreTimerState();
 
-        for (final task in tasks) {
-          await db.insertTask(task.toMap());
-        }
-        setState(() {
-          allTasks = tasks;
-          taskList = List.from(allTasks);
-        });
-
-        // ✅ Update location service with new tasks
-        _locationService.updateTasks(tasks);
-
-        _restoreTimerState();
-        
-        // ✅ Run auto punch-in check in background (non-blocking)
-        _checkAutoPunchIn().catchError((error) {
-          debugPrint('⚠️ Auto punch-in check failed (non-critical): $error');
-        });
+          // ✅ Run auto punch-in check in background (non-blocking)
+          _checkAutoPunchIn().catchError((error) {
+            debugPrint('⚠️ Auto punch-in check failed (non-critical): $error');
+          });
         } else {
-          throw Exception('Failed to fetch tasks: ${data['message'] ?? 'Unknown error'}');
+          throw Exception(
+              'Failed to fetch tasks: ${data['message'] ?? 'Unknown error'}');
         }
       } else {
         // ❌ Offline → load from SQLite
@@ -1889,7 +1912,6 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
 
         //final parsed = offlineTasks.map((t) => Task.fromJson(t)).toList();
         final parsed = offlineTasks.map((t) => Task.fromMap(t)).toList();
-
 
         // 🔥 SORT OFFLINE TASKS ALSO
         parsed.sort((a, b) {
@@ -1934,7 +1956,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
         _locationService.updateTasks(parsed);
 
         _restoreTimerState();
-        
+
         // ✅ Run auto punch-in check for offline tasks too
         _checkAutoPunchIn().catchError((error) {
           debugPrint('⚠️ Auto punch-in check failed (non-critical): $error');
@@ -1943,7 +1965,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
     } catch (e) {
       // ✅ FIXED: Fallback to offline on any error
       debugPrint('❌ Online fetch failed: $e, loading offline...');
-      
+
       try {
         final offlineTasks = await DBHelper().getTasks();
         final parsed = offlineTasks.map((t) => Task.fromMap(t)).toList();
@@ -1958,7 +1980,9 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
               final d = DateTime.parse(t.date);
               final parts = t.startTime.split(':');
               return DateTime(
-                d.year, d.month, d.day,
+                d.year,
+                d.month,
+                d.day,
                 int.tryParse(parts[0]) ?? 0,
                 int.tryParse(parts[1]) ?? 0,
               );
@@ -1967,6 +1991,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
               return DateTime(1970);
             }
           }
+
           return parseDateTime(b).compareTo(parseDateTime(a));
         });
 
@@ -1985,14 +2010,15 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           await BackgroundTaskManager.refreshTasks();
           print('✅ BackgroundTaskManager refreshed with cached tasks');
         } catch (e) {
-          print('⚠️ Failed to update BackgroundTaskManager with cached tasks: $e');
+          print(
+              '⚠️ Failed to update BackgroundTaskManager with cached tasks: $e');
         }
 
         // ✅ Update location service with cached tasks
         _locationService.updateTasks(parsed);
 
         _restoreTimerState();
-        
+
         // ✅ Run auto punch-in check for cached tasks too
         _checkAutoPunchIn().catchError((error) {
           debugPrint('⚠️ Auto punch-in check failed (non-critical): $error');
@@ -2010,9 +2036,6 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
     }
   }
 
-
-
-
   Future<void> syncOfflineActions() async {
     if (_isSyncing) {
       debugPrint("⏸ Sync already in progress, skipping...");
@@ -2029,7 +2052,6 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
     _isSyncing = true;
 
     try {
-
       final duplicateCount = await DBHelper().pruneDuplicatePunchActions();
       if (duplicateCount > 0) {
         debugPrint("🧹 Removed duplicate offline actions: $duplicateCount");
@@ -2041,7 +2063,8 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
       debugPrint("📊 Database check BEFORE sync:");
       debugPrint("   Total actions to sync: ${pendingData.length}");
       for (var action in pendingData) {
-        debugPrint("   - ID: ${action['id']}, Type: ${action['type']}, Time: ${action['timestamp']}");
+        debugPrint(
+            "   - ID: ${action['id']}, Type: ${action['type']}, Time: ${action['timestamp']}");
       }
       // END DEBUG
 
@@ -2077,25 +2100,26 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
 
       for (var action in pending) {
         try {
-          final type = action['type']; // punch-in / punch-out / break_in / break_out
+          final type =
+              action['type']; // punch-in / punch-out / break_in / break_out
           String endpoint = "";
 
           // Map DB type to API endpoint
           switch (type) {
             case "punch-in":
-            case "punch_in":  // ✅ Support both formats
+            case "punch_in": // ✅ Support both formats
               endpoint = "punch-in";
               break;
             case "punch-out":
-            case "punch_out":  // ✅ Support both formats
+            case "punch_out": // ✅ Support both formats
               endpoint = "punch-out";
               break;
             case "break_in":
-            case "break-in":  // ✅ Support both formats
+            case "break-in": // ✅ Support both formats
               endpoint = "break-in";
               break;
             case "break_out":
-            case "break-out":  // ✅ Support both formats
+            case "break-out": // ✅ Support both formats
               endpoint = "break-out";
               break;
             default:
@@ -2106,7 +2130,8 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
               continue;
           }
 
-          final uri = Uri.parse("https://admin.deineputzcrew.de/api/$endpoint/");
+          final uri =
+              Uri.parse("https://admin.deineputzcrew.de/api/$endpoint/");
           var request = http.MultipartRequest("POST", uri);
 
           final prefs = await SharedPreferences.getInstance();
@@ -2120,9 +2145,10 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           request.fields["lat"] = action["lat"] ?? "";
           request.fields["long"] = action["long"] ?? "";
           request.fields["timestamp"] = action["timestamp"] ?? "";
-          
+
           // ✅ DEBUG: Log the exact timestamp being sent
-          debugPrint("📡 Sending timestamp to API: ${action["timestamp"]} (Original location time)");
+          debugPrint(
+              "📡 Sending timestamp to API: ${action["timestamp"]} (Original location time)");
 
           // Optional: remark for punch-out
           if (action.containsKey("remark") && action["remark"] != null) {
@@ -2130,16 +2156,17 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           }
 
           // ✅ Handle image file for sync
-          if (action["image_path"] != null && 
+          if (action["image_path"] != null &&
               action["image_path"].toString().isNotEmpty) {
             final String imagePath = action["image_path"];
-            
+
             // Check if it's an auto check-in image - use asset directly
             if (imagePath.contains("auto_check_in")) {
               debugPrint("🎯 Auto check-in detected - using asset image");
-              final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');
+              final ByteData imageData =
+                  await rootBundle.load('assets/images/auto_check_in.jpeg');
               final Uint8List imageBytes = imageData.buffer.asUint8List();
-              
+
               request.files.add(http.MultipartFile.fromBytes(
                 "images",
                 imageBytes,
@@ -2165,22 +2192,24 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           // Send to API
           final response = await request.send();
           final resBody = await http.Response.fromStream(response);
-          debugPrint("📡 Sync response ($type): ${resBody.statusCode} ${resBody.body}");
+          debugPrint(
+              "📡 Sync response ($type): ${resBody.statusCode} ${resBody.body}");
 
           if (response.statusCode == 200 || response.statusCode == 201) {
             await DBHelper().deletePunchAction(action["id"]);
             syncedCount++;
             debugPrint("✅ Synced action ${action['id']}");
-          }
-          else if (response.statusCode == 400) {
+          } else if (response.statusCode == 400) {
             try {
               final errorBody = jsonDecode(resBody.body);
               final errorMsg = errorBody.toString().toLowerCase();
-              
+
               // ✅ Check for validation errors (lat/long digits, etc.)
-              final isValidationError = errorMsg.contains('ensure that there are no more') ||
-                  errorMsg.contains('invalid') && (errorMsg.contains('lat') || errorMsg.contains('long'));
-              
+              final isValidationError = errorMsg
+                      .contains('ensure that there are no more') ||
+                  errorMsg.contains('invalid') &&
+                      (errorMsg.contains('lat') || errorMsg.contains('long'));
+
               // ✅ Expanded list of permanent errors that should delete the action
               if (errorMsg.contains('already completed') ||
                   errorMsg.contains('duplicate') ||
@@ -2190,24 +2219,24 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
                   errorMsg.contains('before the task start time') ||
                   errorMsg.contains('task has ended') ||
                   errorMsg.contains('already punched in') ||
-                  errorMsg.contains('already punched out') || 
+                  errorMsg.contains('already punched out') ||
                   errorMsg.contains('not punched in') ||
                   errorMsg.contains('already on break') ||
                   errorMsg.contains('not on break') ||
-                  isValidationError) {  // ✅ NEW: Delete validation errors
+                  isValidationError) {
+                // ✅ NEW: Delete validation errors
                 await DBHelper().deletePunchAction(action["id"]);
-                debugPrint("🗑 Deleted invalid action: ${errorBody.toString()}");
+                debugPrint(
+                    "🗑 Deleted invalid action: ${errorBody.toString()}");
               } else {
                 debugPrint("⏳ Temporary error, will retry: $errorMsg");
               }
             } catch (e) {
               debugPrint("⏳ Cannot parse error, will retry later");
             }
-          }
-          else {
+          } else {
             debugPrint("⏳ Will retry later");
           }
-
         } catch (e) {
           debugPrint("❌ Sync error: $e");
         }
@@ -2243,15 +2272,13 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
       print('🔄 Syncing background check-ins...');
       await BackgroundTaskManager.syncOfflineCheckIns();
       print('✅ Background check-ins synced successfully');
-      
+
       // Clean up old pending tasks (1+ days old)
       await BackgroundTaskManager.cleanupOldTasks();
-      
     } catch (e) {
       print('⚠️ Failed to sync background check-ins: $e');
     }
   }
-
 
   Future<Position> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -2275,8 +2302,6 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
     return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
   }
-
-
 
   /*Future<bool> callBreakInApi(String taskId, BuildContext context) async {
     try {
@@ -2448,7 +2473,8 @@ print(response.body);
 
       if (token == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Authentication error. Please log in again.")),
+          const SnackBar(
+              content: Text("Authentication error. Please log in again.")),
         );
         return false;
       }
@@ -2471,7 +2497,8 @@ print(response.body);
         await prefs.setBool('onBreak', false);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("▶️ Break-Out saved offline. Will sync later.")),
+          const SnackBar(
+              content: Text("▶️ Break-Out saved offline. Will sync later.")),
         );
         return true;
       }
@@ -2500,7 +2527,8 @@ print(response.body);
       } else {
         print('Break-out failed: ${response.statusCode} ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text("❌ Break-Out failed (${response.statusCode}).")),
+          SnackBar(
+              content: Text("❌ Break-Out failed (${response.statusCode}).")),
         );
         return false;
       }
@@ -2512,9 +2540,9 @@ print(response.body);
       return false;
     }
   }
+
   Widget _priorityChip(String label) {
-    final bool isSelected =
-        selectedPriority == label.toLowerCase();
+    final bool isSelected = selectedPriority == label.toLowerCase();
 
     Color chipColor;
     switch (label.toLowerCase()) {
@@ -2547,22 +2575,21 @@ print(response.body);
       },
     );
   }
+
   void _applyDashboardFilters() {
     List<Task> filtered = allTasks;
 
     // 🔹 Priority filter
     if (selectedPriority != "all") {
       filtered = filtered
-          .where((t) =>
-      t.priority.toLowerCase() == selectedPriority)
+          .where((t) => t.priority.toLowerCase() == selectedPriority)
           .toList();
     }
 
     final query = _searchController.text.trim().toLowerCase();
     if (query.isNotEmpty) {
       filtered = filtered
-          .where((t) =>
-          t.taskName.toLowerCase().contains(query))
+          .where((t) => t.taskName.toLowerCase().contains(query))
           .toList();
     }
 
@@ -2576,12 +2603,14 @@ print(response.body);
     _timer = null;
     _workingDuration = Duration.zero;
   }
+
   Widget buildTimerCard(BuildContext context, String date) {
     // Get selected task safely from allTasks
-    final Duration currentDuration = _onBreak ? _breakDuration : _workingDuration;
+    final Duration currentDuration =
+        _onBreak ? _breakDuration : _workingDuration;
 
     final Task selectedTask = allTasks.firstWhere(
-          (task) => task.id == selectedTaskId,
+      (task) => task.id == selectedTaskId,
       orElse: () => Task(
         id: 'N/A',
         taskName: 'No Task Selected',
@@ -2592,14 +2621,14 @@ print(response.body);
         locationName: '',
         priority: '',
         status: '',
-          lat: '',
-          longg: '',
+        lat: '',
+        longg: '',
         punchIn: false,
         punchOut: false,
         breakIn: false,
         breakOut: false,
         day: "",
-        date:"",
+        date: "",
         totalWorkTime: "0h 0m",
         radius: 300, // Default radius for placeholder task
       ),
@@ -2610,12 +2639,11 @@ print(response.body);
       setState(() {
         _timer?.cancel();
         _workingDuration = Duration.zero;
-        _pausedDuration = Duration.zero;   // also reset paused duration
-        _breakDuration = Duration.zero;    // also reset break duration
+        _pausedDuration = Duration.zero; // also reset paused duration
+        _breakDuration = Duration.zero; // also reset break duration
         _onBreak = false;
       });
     }
-
 
     return Container(
       padding: const EdgeInsets.all(12), // Reduced from 18 to 12
@@ -2649,7 +2677,8 @@ print(response.body);
           const SizedBox(height: 6), // Reduced from 16 to 10
 
           // Timer Row - Only show when task is selected and timer running
-          if (selectedTaskId.isNotEmpty && (currentDuration.inSeconds > 0 || _timer != null))
+          if (selectedTaskId.isNotEmpty &&
+              (currentDuration.inSeconds > 0 || _timer != null))
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -2660,18 +2689,22 @@ print(response.body);
                 ),
                 const SizedBox(width: 6),
                 _TimerDigit(
-                  value: (currentDuration.inMinutes % 60).toString().padLeft(2, '0'),
+                  value: (currentDuration.inMinutes % 60)
+                      .toString()
+                      .padLeft(2, '0'),
                   label: 'Mins',
                   color: Colors.purple,
                 ),
                 const SizedBox(width: 6),
                 _TimerDigit(
-                  value: (currentDuration.inSeconds % 60).toString().padLeft(2, '0'),
+                  value: (currentDuration.inSeconds % 60)
+                      .toString()
+                      .padLeft(2, '0'),
                   label: 'Secs',
                   color: Colors.pink,
                 ),
-            ],
-          ),
+              ],
+            ),
           const SizedBox(height: 16),
 
           // Task info - Only show when task is selected
@@ -2686,7 +2719,7 @@ print(response.body);
                   fontFamily: 'Poppins',
                 ),
               ),
-              subtitle: selectedTaskId.isNotEmpty 
+              subtitle: selectedTaskId.isNotEmpty
                   ? Text(
                       selectedTask.locationName.isNotEmpty
                           ? selectedTask.locationName
@@ -2700,11 +2733,8 @@ print(response.body);
 
           // Clock In / Clock Out Buttons
 
-
-
-
           // Break + Clock Out Row - Only show when task is selected
-          if (selectedTaskId.isNotEmpty) 
+          if (selectedTaskId.isNotEmpty)
             Row(
               children: [
                 // Break button
@@ -2714,7 +2744,8 @@ print(response.body);
                       if (selectedTaskId == null || selectedTaskId!.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text('Please select a task before starting a break.'),
+                            content: Text(
+                                'Please select a task before starting a break.'),
                           ),
                         );
                         return;
@@ -2725,13 +2756,15 @@ print(response.body);
 
                       if (_onBreak) {
                         // ✅ Break OUT
-                        bool success = await callBreakOutApi(selectedTaskId!, context);
+                        bool success =
+                            await callBreakOutApi(selectedTaskId!, context);
                         if (success) {
                           resumeDashboardWorkTimer();
                         }
                       } else {
                         // ✅ Break IN
-                        bool success = await callBreakInApi(selectedTaskId!, context);
+                        bool success =
+                            await callBreakInApi(selectedTaskId!, context);
                         if (success) {
                           pauseDashboardWorkTimer();
                           await prefs.setBool('onBreak', true);
@@ -2742,14 +2775,14 @@ print(response.body);
                     },
                     icon: _isLoadingBreak
                         ? const SizedBox(
-                      height: 18,
-                      width: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                            height: 18,
+                            width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
                         : Icon(
-                      Icons.free_breakfast,
-                      color: _onBreak ? Colors.green : Colors.orange,
-                    ),
+                            Icons.free_breakfast,
+                            color: _onBreak ? Colors.green : Colors.orange,
+                          ),
                     label: Text(
                       _onBreak ? 'End Break' : 'Go for Break',
                       style: TextStyle(
@@ -2758,13 +2791,14 @@ print(response.body);
                       ),
                     ),
                     style: OutlinedButton.styleFrom(
-                      side: BorderSide(color: _onBreak ? Colors.green : Colors.orange),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      side: BorderSide(
+                          color: _onBreak ? Colors.green : Colors.orange),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),
                 ),
-
 
                 const SizedBox(width: 12),
 
@@ -2776,23 +2810,25 @@ print(response.body);
                       if (selectedTaskId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                            content: Text("⛔ Cannot clock out - You are not clocked in to any task"),
+                            content: Text(
+                                "⛔ Cannot clock out - You are not clocked in to any task"),
                             backgroundColor: Colors.orange,
                           ),
                         );
                         return;
                       }
-                      
+
                       Task? punchedInTask;
                       try {
-                        punchedInTask =
-                            allTasks.firstWhere((task) => task.id == selectedTaskId);
+                        punchedInTask = allTasks
+                            .firstWhere((task) => task.id == selectedTaskId);
                       } catch (e) {
                         punchedInTask = null;
                       }
 
                       if (punchedInTask != null) {
-                        final totalDuration = _workingDuration; // Already contains accumulated work time
+                        final totalDuration =
+                            _workingDuration; // Already contains accumulated work time
 
                         final bool? punchedOut = await Navigator.push(
                           context,
@@ -2801,7 +2837,8 @@ print(response.body);
                               title: punchedInTask!.taskName,
                               time: punchedInTask.timeRange,
                               location: punchedInTask.locationName,
-                              duration: formatDuration(totalDuration), // pass total work duration
+                              duration: formatDuration(
+                                  totalDuration), // pass total work duration
                               highPriority: punchedInTask.priority,
                               completed: punchedInTask.status,
                               taskId: punchedInTask.id,
@@ -2814,10 +2851,10 @@ print(response.body);
                         }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text("No punched-in task found.")),
+                          const SnackBar(
+                              content: Text("No punched-in task found.")),
                         );
                       }
-
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.red,
@@ -2827,7 +2864,8 @@ print(response.body);
                     ),
                     child: const Text(
                       'Clock Out',
-                      style: TextStyle(color: Colors.white, fontFamily: 'Poppins'),
+                      style:
+                          TextStyle(color: Colors.white, fontFamily: 'Poppins'),
                     ),
                   ),
                 ),
@@ -2837,10 +2875,12 @@ print(response.body);
       ),
     );
   }
+
   @override
   Widget build(BuildContext context) {
-    print('🖼️ DashboardScreen build called - _isLoading: $_isLoading, _initialized:  _error: $_error');
-    
+    print(
+        '🖼️ DashboardScreen build called - _isLoading: $_isLoading, _initialized:  _error: $_error');
+
     // Always return a Scaffold to prevent white screen
     return Scaffold(
       backgroundColor: Colors.white,
@@ -2849,7 +2889,7 @@ print(response.body);
       ),
     );
   }
-  
+
   Widget _buildMainContent() {
     // Show error state first
     if (_error != null) {
@@ -2869,7 +2909,7 @@ print(response.body);
         ),
       );
     }
-    
+
     // // Show loading state
     // if (!_initialized || _isLoading) {
     //   return Center(
@@ -2896,7 +2936,6 @@ print(response.body);
       );
     }
 
-    
     // Show main dashboard content
     final now = DateTime.now();
     final date = DateFormat('MMMM d, EEEE').format(now);
@@ -2904,7 +2943,7 @@ print(response.body);
     return RefreshIndicator(
       //onRefresh: fetchTasks,
       onRefresh: () async {
-        _autoCheckoutLocked = true;      // 🔒 HARD LOCK
+        _autoCheckoutLocked = true; // 🔒 HARD LOCK
         _isManualRefresh = true;
         _stopAutoCheckoutTimer();
 
@@ -2915,10 +2954,9 @@ print(response.body);
         _triggerAutoCheckInAfterRefresh();
 
         _isManualRefresh = false;
-        _autoCheckoutLocked = false;     // 🔓 UNLOCK
+        _autoCheckoutLocked = false; // 🔓 UNLOCK
         _startAutoCheckoutTimer();
       },
-
 
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -2991,7 +3029,8 @@ print(response.body);
               backgroundColor: Colors.orange.shade600,
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Update'),
           ),
@@ -3082,7 +3121,7 @@ print(response.body);
       if (url.contains('play.google.com')) {
         // Try market:// scheme first (native Play Store app)
         final marketUri = Uri.parse('market://details?id=com.diveinpuits');
-        
+
         try {
           if (await canLaunchUrl(marketUri)) {
             await launchUrl(marketUri, mode: LaunchMode.externalApplication);
@@ -3105,7 +3144,8 @@ print(response.body);
           print('🔗 Launch URL failed: $e');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Unable to open update link: ${e.toString()}')),
+              SnackBar(
+                  content: Text('Unable to open update link: ${e.toString()}')),
             );
           }
         }
@@ -3183,7 +3223,9 @@ print(response.body);
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
-                    color: !_isOnline ? Colors.orange.shade900 : Colors.blue.shade900,
+                    color: !_isOnline
+                        ? Colors.orange.shade900
+                        : Colors.blue.shade900,
                   ),
                 ),
                 const SizedBox(height: 2),
@@ -3193,7 +3235,9 @@ print(response.body);
                       : '$_pendingSyncCount action${_pendingSyncCount == 1 ? '' : 's'} pending sync',
                   style: TextStyle(
                     fontSize: 12,
-                    color: !_isOnline ? Colors.orange.shade700 : Colors.blue.shade700,
+                    color: !_isOnline
+                        ? Colors.orange.shade700
+                        : Colors.blue.shade700,
                   ),
                 ),
               ],
@@ -3213,7 +3257,6 @@ print(response.body);
     );
   }
 
-
   Widget _buildTaskHeader(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -3225,12 +3268,10 @@ print(response.body);
                 fontFamily: 'Poppins')),
         TextButton(
           onPressed: () {
-
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => AllTasksScreen2()),
             );
-
           },
           child: const Text('View all',
               style: TextStyle(fontFamily: 'Poppins', color: Colors.blue)),
@@ -3238,78 +3279,63 @@ print(response.body);
       ],
     );
   }
-  String selectedTaskId = '';
 
+  String selectedTaskId = '';
 
   Widget _buildTaskList() {
     if (taskList.isEmpty) {
       return const Center(
-        child: Text(
-            "No tasks available", style: TextStyle(fontFamily: 'Poppins')),
+        child:
+            Text("No tasks available", style: TextStyle(fontFamily: 'Poppins')),
       );
     }
 
+    return ListView.builder(
+      shrinkWrap: true,
+      itemCount: taskList.length,
+      physics: const NeverScrollableScrollPhysics(),
+      itemBuilder: (context, index) {
+        final task = taskList[index];
+        return TaskCard(
+          title: task.taskName,
+          time: task.timeRange,
+          location: task.locationName,
+          duration: task.totalWorkTime,
+          highPriority: task.priority,
+          completed: task.status,
+          taskId: task.id,
 
-
-
-    return
-
-
-      ListView.builder(
-        shrinkWrap: true,
-        itemCount: taskList.length,
-        physics: const NeverScrollableScrollPhysics(),
-        itemBuilder: (context, index) {
-          final task = taskList[index];
-          return TaskCard(
-            title: task.taskName,
-            time: task.timeRange,
-            location: task.locationName,
-            duration: task.totalWorkTime,
-            highPriority: task.priority,
-            completed: task.status,
-            taskId: task.id,
-
-
-            punchIn: task.punchIn,
-            selectedTaskId: selectedTaskId ?? "",
-            punchedInTaskId: punchedInTaskId ?? "",
-            taskList: taskList,
-            day: task.day,
-            date: task.date,
-              lat:task.lat,
-            longg: task.longg,// ✅ add this
-            onTaskSelected: (id) {
-              final taskObj = taskList.firstWhere((t) => t.id == id);
-              setState(() {
-
-                if(selectedTaskId ==""){
-                  startDashboardWorkTimer();
-                }
-                selectedTaskId = id;
-
-              });
-            },
-            onPunchIn: () async {
-              setState(() {
-                selectedTaskId = task.id;
-              });
-              startDashboardWorkTimer();
-            },
-            onPunchStart: () {},
-          );
-
-        },
-      );
+          punchIn: task.punchIn,
+          selectedTaskId: selectedTaskId ?? "",
+          punchedInTaskId: punchedInTaskId ?? "",
+          taskList: taskList,
+          day: task.day,
+          date: task.date,
+          lat: task.lat,
+          longg: task.longg, // ✅ add this
+          onTaskSelected: (id) {
+            final taskObj = taskList.firstWhere((t) => t.id == id);
+            setState(() {
+              if (selectedTaskId == "") {
+                startDashboardWorkTimer();
+              }
+              selectedTaskId = id;
+            });
+          },
+          onPunchIn: () async {
+            setState(() {
+              selectedTaskId = task.id;
+            });
+            startDashboardWorkTimer();
+          },
+          onPunchStart: () {},
+        );
+      },
+    );
   }
 }
 
-
-
-
 // Simple placeholder screens for navigation
-
-
 
 // Reusable Widgets
 class _TimerDigit extends StatelessWidget {
@@ -3362,10 +3388,7 @@ class _InfoBox extends StatelessWidget {
   }
 }
 
-
-
 class TaskCard extends StatefulWidget {
-
   final String taskId;
   final String title;
   final String time;
@@ -3397,7 +3420,6 @@ class TaskCard extends StatefulWidget {
     required this.selectedTaskId,
     required this.punchedInTaskId,
     required this.onTaskSelected,
-
     required this.onPunchIn,
     required this.onPunchStart,
     required this.taskList,
@@ -3405,7 +3427,6 @@ class TaskCard extends StatefulWidget {
     this.date,
     required this.lat,
     required this.longg,
-
   });
 
   @override
@@ -3414,19 +3435,16 @@ class TaskCard extends StatefulWidget {
 
 class _TaskCardState extends State<TaskCard> {
   bool isSelected = false;
-  
 
   // Add this method to _TaskCardState class
   Future<bool> _hasOfflinePunchOut(String taskId) async {
-    final actions = await DBHelper().db.then((db) => 
-      db.query(
-        'punch_actions',
-        where: 'task_id = ? AND type = ?',
-        whereArgs: [taskId, 'punch-out'],
-      )
-    );
+    final actions = await DBHelper().db.then((db) => db.query(
+          'punch_actions',
+          where: 'task_id = ? AND type = ?',
+          whereArgs: [taskId, 'punch-out'],
+        ));
     return actions.isNotEmpty;
-  } 
+  }
 
   Future<Position> _getCurrentLocation() async {
     bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -3450,7 +3468,7 @@ class _TaskCardState extends State<TaskCard> {
     return await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high);
   }
-  
+
   // Helper function to parse task time
   DateTime _parseTaskTime(String timeStr, DateTime referenceDate) {
     final parts = timeStr.split(':');
@@ -3571,7 +3589,8 @@ class _TaskCardState extends State<TaskCard> {
       if (hasPunchOut) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('⛔ You already punched out from this task (offline). Cannot punch in again.'),
+            content: Text(
+                '⛔ You already punched out from this task (offline). Cannot punch in again.'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
@@ -3585,19 +3604,21 @@ class _TaskCardState extends State<TaskCard> {
       Position? position;
       try {
         position = await _getCurrentLocation();
-        debugPrint("📍 Got user location: ${position.latitude}, ${position.longitude}");
+        debugPrint(
+            "📍 Got user location: ${position.latitude}, ${position.longitude}");
       } catch (e) {
         debugPrint("❌ Location error: $e");
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('⛔ Unable to get your location. Please enable location services.'),
+            content: Text(
+                '⛔ Unable to get your location. Please enable location services.'),
             backgroundColor: Colors.red,
             duration: Duration(seconds: 3),
           ),
         );
         return;
       }
-      
+
       // ✅ LOCATION VALIDATION
       final task = widget.taskList.firstWhere((t) => t.id == widget.taskId);
       double distance = Geolocator.distanceBetween(
@@ -3606,9 +3627,10 @@ class _TaskCardState extends State<TaskCard> {
         double.tryParse(task.lat) ?? 0.0,
         double.tryParse(task.longg) ?? 0.0,
       );
-      
-      debugPrint("📏 Distance check: ${distance.toStringAsFixed(1)}m (radius: ${task.radius}m)");
-      
+
+      debugPrint(
+          "📏 Distance check: ${distance.toStringAsFixed(1)}m (radius: ${task.radius}m)");
+
       if (distance > task.radius) {
         debugPrint("⛔ Location validation failed");
         ScaffoldMessenger.of(context).showSnackBar(
@@ -3620,12 +3642,12 @@ class _TaskCardState extends State<TaskCard> {
         );
         return;
       }
-      
+
       debugPrint("✅ Location validation passed");
-      
+
       // 🔒 TIME VALIDATION - Check BEFORE opening camera with specific messages
       final now = DateTime.now();
-      
+
       // Parse task date and times using ACTUAL task date (not current date)
       DateTime taskDate;
       try {
@@ -3639,16 +3661,19 @@ class _TaskCardState extends State<TaskCard> {
         );
         return;
       }
-      
-      final start = _parseTaskTime(task.startTime, taskDate);  // Use task date, not current date
-      final end = task.endTime.isNotEmpty ? _parseTaskTime(task.endTime, taskDate) : null;
-      
+
+      final start = _parseTaskTime(
+          task.startTime, taskDate); // Use task date, not current date
+      final end = task.endTime.isNotEmpty
+          ? _parseTaskTime(task.endTime, taskDate)
+          : null;
+
       // Check if too early (before start time)
       if (now.isBefore(start)) {
         final timeUntilStart = start.difference(now);
         final hoursUntil = timeUntilStart.inHours;
         final minutesUntil = timeUntilStart.inMinutes % 60;
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -3659,7 +3684,7 @@ class _TaskCardState extends State<TaskCard> {
         );
         return;
       }
-      
+
       // Check if task has ended
       if (end != null) {
         DateTime effectiveEnd = end;
@@ -3667,7 +3692,7 @@ class _TaskCardState extends State<TaskCard> {
         if (end.isBefore(start)) {
           effectiveEnd = end.add(const Duration(days: 1));
         }
-        
+
         if (now.isAfter(effectiveEnd)) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -3717,7 +3742,6 @@ class _TaskCardState extends State<TaskCard> {
       // Check internet FIRST
       final connectivity = await Connectivity().checkConnectivity();
 
-
       // ==========================
       // 🔴 OFFLINE MODE
       // ==========================
@@ -3744,7 +3768,8 @@ class _TaskCardState extends State<TaskCard> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('📴 Punch-in saved offline. Will sync automatically.'),
+            content:
+                Text('📴 Punch-in saved offline. Will sync automatically.'),
           ),
         );
 
@@ -3825,7 +3850,6 @@ class _TaskCardState extends State<TaskCard> {
     }
   }
 
-  
   Future<void> _openMap(double latitude, double longitude) async {
     final Uri url = Uri.parse(
       "https://www.google.com/maps/search/?api=1&query=$latitude,$longitude",
@@ -3836,16 +3860,13 @@ class _TaskCardState extends State<TaskCard> {
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final bool isHigh = widget.highPriority.toLowerCase() == "high";
-    final bool isCompleted =widget. completed.toLowerCase() == "completed";
+    final bool isCompleted = widget.completed.toLowerCase() == "completed";
     final bool isSelected = widget.selectedTaskId == widget.taskId;
 
-    return
-      InkWell(
+    return InkWell(
       borderRadius: BorderRadius.circular(16),
       onTap: () async {
         final prefs = await SharedPreferences.getInstance();
@@ -3859,7 +3880,8 @@ class _TaskCardState extends State<TaskCard> {
         if (hasPunchOut && !isCurrentPunchedIn) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('⛔ This task already has an offline punch-out. Cannot punch in again.'),
+              content: Text(
+                  '⛔ This task already has an offline punch-out. Cannot punch in again.'),
               backgroundColor: Colors.orange,
             ),
           );
@@ -3878,14 +3900,11 @@ class _TaskCardState extends State<TaskCard> {
             const SnackBar(content: Text('This task is already completed.')),
           );
           return;
-        }
-        else{
-
-         /* if (!isCurrentPunchedIn) {
+        } else {
+          /* if (!isCurrentPunchedIn) {
             await prefs.remove('punchedInTaskId');
             storedPunchedInTaskId = "";
           }*/
-
         }
         // ✅ If no task is punched in → punch this one in
         if (storedPunchedInTaskId.isEmpty) {
@@ -3899,9 +3918,9 @@ class _TaskCardState extends State<TaskCard> {
           widget.onTaskSelected(widget.taskId);
         } else {
           // Get the currently punched-in task name
-              final Task punchedInTask = widget.taskList.firstWhere(
-                (task) => task.id == storedPunchedInTaskId,
-                orElse: () => Task(
+          final Task punchedInTask = widget.taskList.firstWhere(
+            (task) => task.id == storedPunchedInTaskId,
+            orElse: () => Task(
               id: '',
               taskName: '',
               startTime: '',
@@ -3922,12 +3941,12 @@ class _TaskCardState extends State<TaskCard> {
               totalWorkTime: '',
               radius: 300,
               attendances: const [],
-                ),
-              );
+            ),
+          );
 
-                final String taskName =
-                  punchedInTask.id.isNotEmpty ? punchedInTask.taskName : 'another task';
-
+          final String taskName = punchedInTask.id.isNotEmpty
+              ? punchedInTask.taskName
+              : 'another task';
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -3936,12 +3955,6 @@ class _TaskCardState extends State<TaskCard> {
           );
         }
       },
-
-
-
-
-
-
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         padding: const EdgeInsets.all(14),
@@ -3949,18 +3962,18 @@ class _TaskCardState extends State<TaskCard> {
           borderRadius: BorderRadius.circular(16),
           gradient: isHigh
               ? LinearGradient(
-            colors: [Colors.orange.shade50, Colors.white],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          )
+                  colors: [Colors.orange.shade50, Colors.white],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                )
               : null,
           color: isHigh
               ? null
               : (widget.punchedInTaskId.isNotEmpty &&
-              widget.taskId != widget.punchedInTaskId &&
-              widget.completed.toLowerCase() != "completed")
-              ? Colors.grey.shade200
-              : Colors.white,
+                      widget.taskId != widget.punchedInTaskId &&
+                      widget.completed.toLowerCase() != "completed")
+                  ? Colors.grey.shade200
+                  : Colors.white,
 
           // <-- here
           boxShadow: [
@@ -3985,14 +3998,14 @@ class _TaskCardState extends State<TaskCard> {
               size: 28,
             ),
             const SizedBox(width: 12),
-            
+
             // Task details - expanded to take remaining space
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("${widget.day} • ${widget.date}", style: TextStyle(fontSize: 12, color: Colors.grey)),
-
+                  Text("${widget.day} • ${widget.date}",
+                      style: TextStyle(fontSize: 12, color: Colors.grey)),
                   Row(
                     children: [
                       Flexible(
@@ -4025,7 +4038,7 @@ class _TaskCardState extends State<TaskCard> {
                             ),
                           ),
                         ),
-                      if (widget.punchIn && widget.completed!='completed')
+                      if (widget.punchIn && widget.completed != 'completed')
                         Container(
                           margin: const EdgeInsets.only(left: 6),
                           padding: const EdgeInsets.symmetric(
@@ -4047,10 +4060,10 @@ class _TaskCardState extends State<TaskCard> {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  
                   Row(
                     children: [
-                      const Icon(Icons.location_on, size: 14, color: Colors.blue),
+                      const Icon(Icons.location_on,
+                          size: 14, color: Colors.blue),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -4064,10 +4077,10 @@ class _TaskCardState extends State<TaskCard> {
                       ),
                     ],
                   ),
-                  
                   Row(
                     children: [
-                      const Icon(Icons.schedule, size: 14, color: Colors.orange),
+                      const Icon(Icons.schedule,
+                          size: 14, color: Colors.orange),
                       const SizedBox(width: 4),
                       Text(
                         widget.time,
@@ -4075,18 +4088,20 @@ class _TaskCardState extends State<TaskCard> {
                             fontSize: 13, fontFamily: 'Poppins'),
                       ),
                       const SizedBox(width: 12),
-                      const Icon(Icons.access_time, size: 14, color: Colors.black54),
+                      const Icon(Icons.access_time,
+                          size: 14, color: Colors.black54),
                       const SizedBox(width: 4),
                       Text(
                         widget.duration,
-                        style: const TextStyle(fontSize: 12, fontFamily: 'Poppins'),
+                        style: const TextStyle(
+                            fontSize: 12, fontFamily: 'Poppins'),
                       ),
                     ],
                   ),
                 ],
               ),
             ),
-            
+
             // Direction button on right
             const SizedBox(width: 8),
             IconButton(
@@ -4110,8 +4125,6 @@ class _TaskCardState extends State<TaskCard> {
     );
   }
 }
-
-
 
 class PunchResponse {
   final String? error;
@@ -4162,6 +4175,7 @@ class PunchResponse {
 
   bool get isSuccess => error == null;
 }
+
 class AllTasksScreen extends StatefulWidget {
   const AllTasksScreen({super.key});
 
@@ -4179,13 +4193,13 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
   bool isLoading = false;
   String selectedTaskId = '';
   String? punchedInTaskId;
-int? userId;
+  int? userId;
   @override
   void initState() {
     super.initState();
     fetchTasks();
-
   }
+
   Future<void> fetchTasks() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     final prefs = await SharedPreferences.getInstance();
@@ -4194,31 +4208,32 @@ int? userId;
 
     if (connectivityResult != ConnectivityResult.none) {
       // ✅ Online
-      final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'token $token',
-        },
-        body: jsonEncode({
-          "id": userId,
-          "app_version": AppMetadata.appVersion,
-          "mobile_type": AppMetadata.mobileType,
-        }),
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .post(
+            Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'token $token',
+            },
+            body: jsonEncode({
+              "id": userId,
+              "app_version": AppMetadata.appVersion,
+              "mobile_type": AppMetadata.mobileType,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
 
       final data = jsonDecode(response.body);
 
       if (data['success']) {
         final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
-        final List<Task> parsed = taskByDate
-            .expand((dayData) {
+        final List<Task> parsed = taskByDate.expand((dayData) {
           final String day = dayData['day'] ?? "";
           final String date = dayData['date'] ?? "";
           final List<dynamic> jsonTasks = dayData['tasks'] ?? [];
           return jsonTasks.map(
-                (t) => Task.fromJson(t, day: day, date: date),
+            (t) => Task.fromJson(t, day: day, date: date),
           );
         }).toList();
 
@@ -4262,23 +4277,18 @@ int? userId;
           return dtB.compareTo(dtA);
         });
 
-
-
         setState(() {
           tasks = parsed;
           applyFilter(); // keeps status + priority filters
           isLoading = false;
         });
       }
-
     } else {
       // ❌ Offline → load from SQLite
       //setState(() => isLoading = false);
       final offlineTasks = await DBHelper().getTasks();
 
-      final parsed = offlineTasks
-          .map((t) => Task.fromMap(t))
-          .toList();
+      final parsed = offlineTasks.map((t) => Task.fromMap(t)).toList();
 
       setState(() {
         tasks = parsed;
@@ -4288,17 +4298,19 @@ int? userId;
     }
   }
 
-
   void applyFilter() {
     List<Task> temp = tasks;
 
     // 🔹 TODAY ONLY FILTER - Show only today's tasks
     final today = DateTime.now();
-    final todayStr = "${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
+    final todayStr =
+        "${today.year.toString().padLeft(4, '0')}-${today.month.toString().padLeft(2, '0')}-${today.day.toString().padLeft(2, '0')}";
     temp = temp.where((t) => t.date == todayStr).toList();
 
     // 🔹 EXCLUDE COMPLETED TASKS - Ensure no completed status shows
-    temp = temp.where((t) => (t.status ?? '').toLowerCase() != 'completed').toList();
+    temp = temp
+        .where((t) => (t.status ?? '').toLowerCase() != 'completed')
+        .toList();
 
     // 🔹 STATUS FILTER
     if (selectedTabIndex != 0) {
@@ -4315,10 +4327,9 @@ int? userId;
 
     filteredTasks = temp;
   }
+
   int priorityCount(String priority) {
-    return tasks
-        .where((t) => t.priority.toLowerCase() == priority)
-        .length;
+    return tasks.where((t) => t.priority.toLowerCase() == priority).length;
   }
 
   Widget _priorityChip(String label) {
@@ -4353,7 +4364,11 @@ int? userId;
     final hour = int.parse(parts[0]);
     final minute = int.parse(parts[1]);
     final period = hour < 12 ? "AM" : "PM";
-    final formattedHour = hour == 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    final formattedHour = hour == 0
+        ? 12
+        : hour > 12
+            ? hour - 12
+            : hour;
     return "$formattedHour:${parts[1]} $period";
   }
 
@@ -4389,165 +4404,172 @@ int? userId;
       body: isLoading
           ? const Center(child: CircularProgressIndicator())
           : Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Tabs Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(tabs.length, (index) {
-                final isSelected = selectedTabIndex == index;
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  // Tabs Row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: List.generate(tabs.length, (index) {
+                      final isSelected = selectedTabIndex == index;
 
-                // Count logic
-                int count = 0;
-                if (index == 0) {
-                  count = tasks.length; // All
-                } else if (index == 1) {
-                  count = tasks.where((t) => t.status== 'pending').length;
-                } else if (index == 2) {
-                  count = tasks.where((t) => t.status == 'completed').length;
-                }
+                      // Count logic
+                      int count = 0;
+                      if (index == 0) {
+                        count = tasks.length; // All
+                      } else if (index == 1) {
+                        count =
+                            tasks.where((t) => t.status == 'pending').length;
+                      } else if (index == 2) {
+                        count =
+                            tasks.where((t) => t.status == 'completed').length;
+                      }
 
-                return GestureDetector(
-                  onTap: () => onTabChanged(index),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: isSelected ? Colors.grey.shade200 : Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: isSelected ? Colors.black : Colors.grey.shade300,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Text(
-                          tabs[index],
-                          style: TextStyle(
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.w400,
-                            color: isSelected ? Colors.black : Colors.black87,
+                      return GestureDetector(
+                        onTap: () => onTabChanged(index),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 14, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? Colors.grey.shade200
+                                : Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              color: isSelected
+                                  ? Colors.black
+                                  : Colors.grey.shade300,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Text(
+                                tabs[index],
+                                style: TextStyle(
+                                  fontWeight: isSelected
+                                      ? FontWeight.bold
+                                      : FontWeight.w400,
+                                  color: isSelected
+                                      ? Colors.black
+                                      : Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: Colors.black,
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Text(
+                                  count.toString(),
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Colors.white),
+                                ),
+                              )
+                            ],
                           ),
                         ),
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Text(
-                            count.toString(),
-                            style: const TextStyle(fontSize: 12, color: Colors.white),
-                          ),
-                        )
-                      ],
+                      );
+                    }),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Wrap(
+                    spacing: 10,
+                    children: [
+                      _priorityChip("All"),
+                      _priorityChip("Low"),
+                      _priorityChip("Medium"),
+                      _priorityChip("High"),
+                    ],
+                  ),
+
+                  // Search Bar
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade100,
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    child: TextField(
+                      onChanged: (value) {
+                        setState(() {
+                          applyFilter();
+                          filteredTasks = filteredTasks
+                              .where((task) => task.taskName
+                                  .toString()
+                                  .toLowerCase()
+                                  .contains(value.toLowerCase()))
+                              .toList();
+                        });
+                      },
+                      decoration: const InputDecoration(
+                        icon: Icon(Icons.search, color: Colors.grey),
+                        hintText: "Search Task",
+                        border: InputBorder.none,
+                      ),
                     ),
                   ),
-                );
-              }),
-            ),
+                  const SizedBox(height: 16),
 
-            const SizedBox(height: 16),
+                  // Task List
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount: filteredTasks.length,
+                      itemBuilder: (context, index) {
+                        final task = filteredTasks[index];
+                        return TaskCard(
+                          title: task.taskName,
+                          time: task.timeRange,
+                          location: task.locationName,
+                          duration: task.totalWorkTime,
+                          highPriority: task.priority,
+                          completed: task.status,
+                          taskId: task.id,
+                          punchIn: task.punchIn,
+                          selectedTaskId: selectedTaskId ?? "",
+                          punchedInTaskId: punchedInTaskId ?? "",
+                          taskList: filteredTasks,
+                          day: task.day,
+                          date: task.date,
+                          lat: task.lat,
+                          longg: task.longg,
+                          onTaskSelected: (id) {
+                            final taskObj =
+                                filteredTasks.firstWhere((t) => t.id == id);
 
+                            // ❌ Block if completed
 
-            Wrap(
-              spacing: 10,
-              children: [
-                _priorityChip("All"),
-                _priorityChip("Low"),
-                _priorityChip("Medium"),
-                _priorityChip("High"),
-              ],
-            ),
+                            // ✅ Allow selecting if it's the active punched-in task
+                            setState(() {
+                              selectedTaskId = id;
 
-            // Search Bar
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(30),
-              ),
-              child: TextField(
-                onChanged: (value) {
-                  setState(() {
-                    applyFilter();
-                    filteredTasks = filteredTasks
-                        .where((task) => task.taskName
-                        .toString()
-                        .toLowerCase()
-                        .contains(value.toLowerCase()))
-                        .toList();
-                  });
-                },
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.search, color: Colors.grey),
-                  hintText: "Search Task",
-                  border: InputBorder.none,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
+                              if (task.punchIn == true) {
+                                // startDashboardWorkTimer();
+                              }
+                            });
+                          },
+                          onPunchIn: () async {
+                            setState(() {
+                              selectedTaskId = task.id; // Select the task
+                              // Mark as punched in
+                            });
 
-            // Task List
-            Expanded(
-              child: ListView.builder(
-                itemCount: filteredTasks.length,
-                itemBuilder: (context, index) {
-                  final task = filteredTasks[index];
-                  return TaskCard(
-                    title: task.taskName,
-                    time: task.timeRange,
-                    location: task.locationName,
-                    duration: task.totalWorkTime,
-                    highPriority: task.priority,
-                    completed: task.status,
-                    taskId: task.id,
-                    punchIn: task.punchIn,
-                    selectedTaskId: selectedTaskId ?? "",
-                    punchedInTaskId: punchedInTaskId ?? "",
-                    taskList: filteredTasks,
-                    day: task.day,
-                    date:task.date,
-                    lat: task.lat,
-                      longg: task.longg,
-                    onTaskSelected: (id) {
-                      final taskObj = filteredTasks.firstWhere((t) => t.id == id);
-
-                      // ❌ Block if completed
-
-                      // ✅ Allow selecting if it's the active punched-in task
-                      setState(() {
-                        selectedTaskId = id;
-
-                        if(task.punchIn==true){
-                         // startDashboardWorkTimer();
-
-                        }
-                      });
-                    },
-
-
-                    onPunchIn: () async {
-                      setState(() {
-                        selectedTaskId = task.id; // Select the task
-                        // Mark as punched in
-                      });
-
-
-
-                      //startDashboardWorkTimer();
-                    },
-
-                    onPunchStart: () {
-                      //stopTimer();
-                    },
-                  );
-                },
+                            //startDashboardWorkTimer();
+                          },
+                          onPunchStart: () {
+                            //stopTimer();
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
-        ),
-      ),
     );
   }
 }

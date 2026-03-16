@@ -18,7 +18,8 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   String _name = "";
   String _employeeInfo = "";
-  final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  final FlutterLocalNotificationsPlugin _localNotifications =
+      FlutterLocalNotificationsPlugin();
 
   @override
   void initState() {
@@ -73,9 +74,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.close, color: Colors.black),
-          onPressed: () {
-
-          },
+          onPressed: () {},
         ),
         title: const Text(
           "Settings",
@@ -91,7 +90,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             // Profile Section
             Row(
               children: [
-
                 const SizedBox(width: 12),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -133,6 +131,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
 
             const SizedBox(height: 12),
+
+            // 🔥 SENTRY TEST BUTTON — remove after testing
+            // ElevatedButton(
+            //   onPressed: () => throw Exception('🔥 Sentry Test Error'),
+            //   child: const Text('Test Sentry'),
+            // ),
+
+            // const SizedBox(height: 12),
 
             // Logout Button
             GestureDetector(

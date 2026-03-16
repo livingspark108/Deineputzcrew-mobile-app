@@ -15,29 +15,29 @@ import 'dart:convert';
 import 'db_helper.dart';
 import 'home.dart';
 
-  class TaskDetailsScreen extends StatefulWidget {
-    final String? title;
-    final String? time;
-    final String? location;
-    final String? duration;
-    final String? highPriority;
-    final String? completed;
-    final String? taskId;
+class TaskDetailsScreen extends StatefulWidget {
+  final String? title;
+  final String? time;
+  final String? location;
+  final String? duration;
+  final String? highPriority;
+  final String? completed;
+  final String? taskId;
 
-    const TaskDetailsScreen({
-      super.key,
-      required this.title,
-      required this.time,
-      required this.location,
-      required this.duration,
-     required  this.highPriority,
-      required this.completed,
-      required this.taskId,
-    });
+  const TaskDetailsScreen({
+    super.key,
+    required this.title,
+    required this.time,
+    required this.location,
+    required this.duration,
+    required this.highPriority,
+    required this.completed,
+    required this.taskId,
+  });
 
-    @override
-    State<TaskDetailsScreen> createState() => _TaskDetailsScreenState();
-  }
+  @override
+  State<TaskDetailsScreen> createState() => _TaskDetailsScreenState();
+}
 
 class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   String selectedStatus = "Completed";
@@ -49,9 +49,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
   @override
   void initState() {
     super.initState();
-
-
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -73,8 +72,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           },
         ),
         title: const Text("Task Details",
-            style: TextStyle(
-                color: Colors.black, fontWeight: FontWeight.w500)),
+            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500)),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -84,11 +82,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             children: [
               const Text("Task",
                   style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontFamily: 'Poppins')),
+                      fontSize: 14, color: Colors.grey, fontFamily: 'Poppins')),
               const SizedBox(height: 4),
-               Text(widget.title!,
+              Text(widget.title!,
                   style: TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
@@ -98,13 +94,12 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               /// Status row
               const Text("Status",
                   style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                      fontFamily: 'Poppins')),
+                      fontSize: 14, color: Colors.grey, fontFamily: 'Poppins')),
               const SizedBox(height: 4),
               GestureDetector(
                 onTap: () async {
-                  final result = await _showStatusPopup(context, selectedStatus);
+                  final result =
+                      await _showStatusPopup(context, selectedStatus);
                   if (result != null) {
                     setState(() {
                       selectedStatus = result;
@@ -113,7 +108,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 },
                 child: Container(
                   padding:
-                  const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     border: Border.all(color: Colors.grey.shade300),
@@ -146,7 +141,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                           border: Border.all(color: Colors.grey.shade300)),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
-                        children:  [
+                        children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -193,7 +188,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               const SizedBox(height: 20),
 
               /// Start / End Time
-             /* Row(
+              /* Row(
                 children: [
                   Expanded(
                     child: Container(
@@ -291,7 +286,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                               color: Colors.black45,
                               shape: BoxShape.circle,
                             ),
-                            child: const Icon(Icons.close, color: Colors.white, size: 16),
+                            child: const Icon(Icons.close,
+                                color: Colors.white, size: 16),
                           ),
                         ),
                       )
@@ -313,11 +309,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: const BorderSide(color: Colors.green, width: 1.5),
+                    borderSide:
+                        const BorderSide(color: Colors.green, width: 1.5),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
+
               /// Add Attachment Button
               SizedBox(
                 width: double.infinity,
@@ -326,7 +324,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                     showModalBottomSheet(
                       context: context,
                       shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(20)),
                       ),
                       builder: (_) => Wrap(
                         children: [
@@ -335,8 +334,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                             title: const Text('Camera'),
                             onTap: () async {
                               Navigator.pop(context);
-                              final XFile? pickedFile =
-                              await _picker.pickImage(source: ImageSource.camera);
+                              final XFile? pickedFile = await _picker.pickImage(
+                                  source: ImageSource.camera);
                               if (pickedFile != null) {
                                 setState(() {
                                   images.add(File(pickedFile.path));
@@ -344,25 +343,24 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                               }
                             },
                           ),
-                          ListTile(
-                            leading: const Icon(Icons.photo),
-                            title: const Text('Gallery'),
-                            onTap: () async {
-                              Navigator.pop(context);
-                              final List<XFile> pickedFiles =
-                              await _picker.pickMultiImage(); // allows multiple images
-                              if (pickedFiles.isNotEmpty) {
-                                setState(() {
-                                  images.addAll(pickedFiles.map((x) => File(x.path)));
-                                });
-                              }
-                            },
-                          ),
+                          // ListTile(
+                          //   leading: const Icon(Icons.photo),
+                          //   title: const Text('Gallery'),
+                          //   onTap: () async {
+                          //     Navigator.pop(context);
+                          //     final List<XFile> pickedFiles =
+                          //     await _picker.pickMultiImage(); // allows multiple images
+                          //     if (pickedFiles.isNotEmpty) {
+                          //       setState(() {
+                          //         images.addAll(pickedFiles.map((x) => File(x.path)));
+                          //       });
+                          //     }
+                          //   },
+                          // ),
                         ],
                       ),
                     );
                   },
-
                   icon: const Icon(Icons.upload),
                   label: const Text("Add Attachment"),
                   style: OutlinedButton.styleFrom(
@@ -380,8 +378,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                   child: ElevatedButton(
                     onPressed: () {
                       // You can add any task completion logic here
-                      _handlePunchOut(context, widget.taskId!, images,remarkController);
-
+                      _handlePunchOut(
+                          context, widget.taskId!, images, remarkController);
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.green,
@@ -407,7 +405,6 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
     );
   }
 }
-
 
 /*
   Future<void> _handlePunchOut(
@@ -610,11 +607,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 // }
 
 Future<void> _handlePunchOut(
-    BuildContext context,
-    String taskId,
-    List<File> images,
-    TextEditingController controller,
-    ) async {
+  BuildContext context,
+  String taskId,
+  List<File> images,
+  TextEditingController controller,
+) async {
   try {
     if (images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -627,28 +624,31 @@ Future<void> _handlePunchOut(
     final token = prefs.getString('token');
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Authentication error. Please log in again.')),
+        const SnackBar(
+            content: Text('Authentication error. Please log in again.')),
       );
       return;
     }
-    
+
     // ✅ VALIDATION: Check if user is actually punched in to this task
     final punchedInTaskId = prefs.getString('punchedInTaskId');
     if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('⛔ Cannot punch out - You are not punched in to any task'),
+          content:
+              Text('⛔ Cannot punch out - You are not punched in to any task'),
           backgroundColor: Colors.orange,
         ),
       );
       return;
     }
-    
+
     // ✅ VALIDATION: Ensure punched-in task matches the current task
     if (punchedInTaskId != taskId) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('⛔ Cannot punch out - You are punched in to a different task'),
+          content: Text(
+              '⛔ Cannot punch out - You are punched in to a different task'),
           backgroundColor: Colors.orange,
         ),
       );
@@ -688,14 +688,14 @@ Future<void> _handlePunchOut(
     // ==================== OFFLINE MODE ====================
     if (connectivity == ConnectivityResult.none) {
       debugPrint("📴 Offline - Saving punch-out to DB");
-      
+
       final db = DBHelper();
-      
+
       // ✅ Save each image as a separate action (or just first image)
       // If you want to sync multiple images, you'll need to handle that
       await db.insertPunchAction({
         'task_id': taskId,
-        'type': 'punch-out',  // ✅ Fixed: was 'punch_out', should be 'punch-out'
+        'type': 'punch-out', // ✅ Fixed: was 'punch_out', should be 'punch-out'
         'lat': position.latitude.toStringAsFixed(4),
         'long': position.longitude.toStringAsFixed(4),
         'remark': controller.text.trim(),
@@ -706,7 +706,8 @@ Future<void> _handlePunchOut(
 
       // ✅ DEBUG: Check what was saved
       final allActions = await DBHelper().getPunchActions();
-      debugPrint("📊 Total offline actions after punch-out: ${allActions.length}");
+      debugPrint(
+          "📊 Total offline actions after punch-out: ${allActions.length}");
       for (var action in allActions) {
         debugPrint("   - ${action['type']} at ${action['timestamp']}");
       }
@@ -732,7 +733,7 @@ Future<void> _handlePunchOut(
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => MainApp()),
-            (route) => false,
+        (route) => false,
       );
 
       return; // ⛔ STOP HERE
@@ -763,7 +764,8 @@ Future<void> _handlePunchOut(
     final streamedResponse = await request.send();
     final response = await http.Response.fromStream(streamedResponse);
 
-    debugPrint("📡 Punch-out online response: ${response.statusCode} ${response.body}");
+    debugPrint(
+        "📡 Punch-out online response: ${response.statusCode} ${response.body}");
 
     // Dismiss loader
     Navigator.pop(context);
@@ -784,12 +786,11 @@ Future<void> _handlePunchOut(
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => MainApp()),
-            (route) => false,
+        (route) => false,
       );
     } else {
       throw Exception("Server error: ${response.statusCode}");
     }
-
   } catch (e) {
     // Dismiss loader in case of error
     if (Navigator.canPop(context)) {
@@ -801,7 +802,6 @@ Future<void> _handlePunchOut(
     );
   }
 }
-
 
 /// Bottom sheet popup
 Future<String?> _showStatusPopup(BuildContext context, String currentStatus) {
@@ -865,11 +865,8 @@ class _StatusPopupState extends State<StatusPopup> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: (){
-
-
+              onPressed: () {
                 Navigator.pop(context, selectedStatus);
-
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Color(0xff5F55F1),

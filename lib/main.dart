@@ -1,7 +1,9 @@
+import 'dart:ui'; // for PlatformDispatcher
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
 // import 'package:firebase_core/firebase_core.dart';
 // import 'package:firebase_messaging/firebase_messaging.dart';
@@ -22,7 +24,51 @@ FlutterLocalNotificationsPlugin();
 // }
 
 /// 🔥 MAIN
+/// 🔥 MAIN — wrapped with Sentry
 Future<void> main() async {
+  await SentryFlutter.init(
+    (options) {
+      options.dsn = 'https://0930f59c18a191fae440242e8c4ddb23@o4510623553290240.ingest.us.sentry.io/4511025259479040'; // 🔑 Replace with your DSN
+      options.tracesSampleRate = 1.0;        // 1.0 = 100% of transactions (lower in prod)
+      options.debug = true;                 // Set true temporarily to verify events
+      options.environment = 'production';    // or 'development', 'staging'
+      options.release = 'deineputzcrew@10.0.0+30'; // matches pubspec version
+    },
+    appRunner: () async {
+      WidgetsFlutterBinding.ensureInitialized();
+
+      // ✅ catches ALL uncaught errors
+      FlutterError.onError = (details) {
+        Sentry.captureException(details.exception, stackTrace: details.stack);
+      };
+
+      PlatformDispatcher.instance.onError = (error, stack) {
+        Sentry.captureException(error, stackTrace: stack);
+        return true;
+      };
+
+      await _initLocalNotifications();
+
+      try {
+        await NotificationService.initialize();
+        print('✅ NotificationService initialized in main()');
+      } catch (e) {
+        print('⚠️ NotificationService initialization failed: $e');
+      }
+
+      try {
+        await BackgroundTaskManager.initialize();
+        print('✅ BackgroundTaskManager initialized in main()');
+      } catch (e) {
+        print('⚠️ BackgroundTaskManager initialization failed: $e');
+      }
+
+      runApp(const MyApp());
+    },
+  );
+}
+
+/*Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   /// 🔔 Local notifications (legacy support)
@@ -45,7 +91,7 @@ Future<void> main() async {
   }
 
   runApp(const MyApp());
-}
+}*/
 
 /// 🔔 Local Notifications Init (SAFE)
 Future<void> _initLocalNotifications() async {
