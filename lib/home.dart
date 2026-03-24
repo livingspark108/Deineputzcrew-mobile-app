@@ -22,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'app_metadata.dart';
 import 'db_helper.dart';
+import 'front_camera_page.dart';
 import 'main.dart';
 import 'task_model.dart';
 import 'location_service.dart';
@@ -3704,16 +3705,13 @@ class _TaskCardState extends State<TaskCard> {
         }
       }
 
-      // Take photo FIRST (before showing loader) with front camera only
-      final picker = ImagePicker();
-      final XFile? image = await picker.pickImage(
-        source: ImageSource.camera,
-        preferredCameraDevice: CameraDevice.front,
+      // Take photo FIRST (before showing loader) — front camera only, no switch button
+      final imagePath = await Navigator.push<String>(
+        context,
+        MaterialPageRoute(builder: (_) => const FrontCameraPage()),
       );
-      if (image == null) {
-        // User cancelled camera, no dialog to dismiss
-        return;
-      }
+      if (imagePath == null) return;
+      final image = XFile(imagePath);
 
       // Show full-screen loader AFTER photo is taken
       showDialog(

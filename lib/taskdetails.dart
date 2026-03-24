@@ -12,6 +12,7 @@ import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 
+import 'back_camera_page.dart';
 import 'db_helper.dart';
 import 'home.dart';
 
@@ -334,11 +335,13 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                             title: const Text('Camera'),
                             onTap: () async {
                               Navigator.pop(context);
-                              final XFile? pickedFile = await _picker.pickImage(
-                                  source: ImageSource.camera);
-                              if (pickedFile != null) {
+                              final imagePath = await Navigator.push<String>(
+                                context,
+                                MaterialPageRoute(builder: (_) => const BackCameraPage()),
+                              );
+                              if (imagePath != null) {
                                 setState(() {
-                                  images.add(File(pickedFile.path));
+                                  images.add(File(imagePath));
                                 });
                               }
                             },
@@ -679,8 +682,9 @@ Future<void> _handlePunchOut(
       ),
     );
 
-    // Step 1: Get location
-    final position = await Geolocator.getCurrentPosition();
+    // Step 1: Get location (15s timeout to avoid hanging on iOS)
+    final position = await Geolocator.getCurrentPosition()
+        .timeout(const Duration(seconds: 15));
 
     // ✅ Step 2: Check connectivity FIRST
     final connectivity = await Connectivity().checkConnectivity();
@@ -761,7 +765,8 @@ Future<void> _handlePunchOut(
       ));
     }
 
-    final streamedResponse = await request.send();
+    final streamedResponse = await request.send()
+        .timeout(const Duration(seconds: 30));
     final response = await http.Response.fromStream(streamedResponse);
 
     debugPrint(
