@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:http/http.dart' as http;
 
 import 'changepassword.dart';
 import 'db_helper.dart';
@@ -33,6 +36,79 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _name = prefs.getString("username") ?? "User";
       _employeeInfo = prefs.getString("employee_info") ?? "EMPLOYEE";
     });
+  }
+
+  Future<void> _deleteAccount() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("Delete Account"),
+        content: const Text(
+          "Are you sure you want to permanently delete your account? This action cannot be undone.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text("Delete"),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString("token");
+
+    try {
+      final response = await http.post(
+        Uri.parse("https://admin.deineputzcrew.de/api/delete-account/"),
+        headers: {
+          "Authorization": "Token $token",
+          "Content-Type": "application/json",
+        },
+        body: jsonEncode({"reason": "No longer using the app"}),
+      );
+
+      if (response.statusCode == 201) {
+        await prefs.clear();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text("Account deletion request submitted successfully."),
+              backgroundColor: Colors.green,
+            ),
+          );
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => LoginScreen()),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text("Failed to delete account: ${response.body}"),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text("Error: $e"),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildListTile({
@@ -171,7 +247,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ],
                 ),
               ),
-            )
+            ),
+
+            const SizedBox(height: 12),
+
+            GestureDetector(
+              onTap: _deleteAccount,
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade900.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade900, width: 1),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.delete_forever, color: Colors.red.shade900),
+                    const SizedBox(width: 8),
+                    Text(
+                      "Delete Account",
+                      style: TextStyle(
+                        color: Colors.red.shade900,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),

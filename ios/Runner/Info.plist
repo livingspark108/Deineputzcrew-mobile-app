@@ -60,9 +60,7 @@
 	<string>This app needs access to save photos to your photo library.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs access to your photo library to select images.</string>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>This app would like to access your data to provide personalized experience.</string>
-	<key>UIApplicationSceneManifest</key>
+<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
