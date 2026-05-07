@@ -319,7 +319,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? "";
 
-    if (connectivityResult != ConnectivityResult.none) {
+    if (!connectivityResult.contains(ConnectivityResult.none)) {
       // ✅ Online
       final response = await http.post(
         Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
@@ -367,7 +367,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> syncOfflineActions() async {
     final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
+    if (connectivityResult.contains(ConnectivityResult.none)) {
       debugPrint("📴 No internet, skipping sync");
       return;
     }
@@ -593,7 +593,7 @@ print(response.body);
 
       final connectivityResult = await Connectivity().checkConnectivity();
 
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         // ❌ Offline → Save locally
         await DBHelper().insertPunchAction({
           'task_id': taskId,
@@ -662,7 +662,7 @@ print(response.body);
 
       final connectivityResult = await Connectivity().checkConnectivity();
 
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         // ❌ Offline → Save locally
         await DBHelper().insertPunchAction({
           'task_id': taskId,
@@ -1288,7 +1288,7 @@ class _TaskCardState extends State<TaskCard> {
       // Check internet
       final connectivityResult = await Connectivity().checkConnectivity();
 
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         // ❌ Offline → Save in SQLite
         await DBHelper().insertPunchAction({
           'task_id': widget.taskId,

@@ -36,7 +36,7 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
     final token = prefs.getString('token') ?? "";
     final userId = prefs.getInt('userid') ?? 0;
 
-    if (connectivityResult != ConnectivityResult.none) {
+    if (!connectivityResult.contains(ConnectivityResult.none)) {
       final response = await http.post(
         Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
         headers: {

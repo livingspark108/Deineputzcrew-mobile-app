@@ -167,7 +167,7 @@ class LocationService {
       
       // Check connectivity
       final connectivity = await Connectivity().checkConnectivity();
-      final isOffline = connectivity == ConnectivityResult.none;
+      final isOffline = connectivity.contains(ConnectivityResult.none);
       
       if (isOffline) {
         debugPrint("📴 Device is offline - checking for auto check-in/out");
@@ -276,7 +276,7 @@ class LocationService {
         );
         
         final connectivity = await Connectivity().checkConnectivity();
-        final isOffline = connectivity == ConnectivityResult.none;
+        final isOffline = connectivity.contains(ConnectivityResult.none);
         
         await _performAutoCheckIn(task, fakePosition, isOffline, timeOnlyMode: true);
         return; // Only check in to one task

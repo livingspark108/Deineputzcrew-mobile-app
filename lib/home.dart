@@ -345,7 +345,7 @@ class DashboardScreen extends StatefulWidget {
   //const DashboardScreen({super.key});
   DashboardScreen({super.key, this.onReloadCallback});
 
-  StreamSubscription<ConnectivityResult>? _connectivitySub;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -421,7 +421,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool _autoCheckoutLocked = false;
   bool _isSyncing = false;
 
-  StreamSubscription<ConnectivityResult>? _connectivitySub;
+  StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
   // ✅ Connectivity & Sync Status
   bool _isOnline = true;
@@ -571,7 +571,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     _connectivitySub =
         Connectivity().onConnectivityChanged.listen((result) async {
-      final isOnline = result != ConnectivityResult.none;
+      final isOnline = !result.contains(ConnectivityResult.none);
       setState(() {
         _isOnline = isOnline;
       });
@@ -664,7 +664,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final connectivity = await Connectivity().checkConnectivity();
       if (mounted) {
         setState(() {
-          _isOnline = connectivity != ConnectivityResult.none;
+          _isOnline = !connectivity.contains(ConnectivityResult.none);
         });
       }
 
@@ -913,7 +913,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final connectivity = await Connectivity().checkConnectivity();
     // OFFLINE → Save to SQLite
-    if (connectivity == ConnectivityResult.none) {
+    if (connectivity.contains(ConnectivityResult.none)) {
       debugPrint("📴 Offline - Saving punch-out to DB");
       // ✅ Limit to 4 decimal places to ensure max 9 total digits (e.g., "28.4930" = 6 digits)
       await DBHelper().insertPunchAction({
@@ -1383,12 +1383,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
 
     final connectivity = await Connectivity().checkConnectivity();
-    // if (connectivity == ConnectivityResult.none) {
+    // if (connectivity.contains(ConnectivityResult.none)) {
     //   print("📴 Offline — auto punch-in disabled");
     //   return;
     // }
     //final now = DateTime.now();
-    if (connectivity == ConnectivityResult.none) {
+    if (connectivity.contains(ConnectivityResult.none)) {
       // await DBHelper().insertPunchAction({
       //   'task_id': task.id,
       //   'type': 'punch-out',
@@ -1608,7 +1608,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final connectivity = await Connectivity().checkConnectivity();
 
       // OFFLINE → Save to SQLite
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         debugPrint("📴 Offline - Saving auto punch-in to DB");
         await DBHelper().insertPunchAction({
           'task_id': task.id,
@@ -1740,7 +1740,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token') ?? "";
 
-      if (connectivityResult != ConnectivityResult.none) {
+      if (!connectivityResult.contains(ConnectivityResult.none)) {
         // ✅ Online
         final response = await http
             .post(
@@ -1997,7 +1997,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
         });
 
         final connectivityResult = await Connectivity().checkConnectivity();
-        final isOnline = connectivityResult != ConnectivityResult.none;
+        final isOnline = !connectivityResult.contains(ConnectivityResult.none);
 
         setState(() {
           allTasks = parsed;
@@ -2044,7 +2044,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
     }
 
     final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult == ConnectivityResult.none) {
+    if (connectivityResult.contains(ConnectivityResult.none)) {
       debugPrint("📴 No internet, skipping sync");
       return;
     }
@@ -2415,7 +2415,7 @@ print(response.body);
       final connectivity = await Connectivity().checkConnectivity();
 
       // ================= OFFLINE =================
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         await DBHelper().insertPunchAction({
           'task_id': taskId,
           'type': 'break_in',
@@ -2482,7 +2482,7 @@ print(response.body);
 
       final connectivityResult = await Connectivity().checkConnectivity();
 
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         // ✅ FIXED: Now saving offline
         await DBHelper().insertPunchAction({
           'task_id': taskId,
@@ -3513,7 +3513,7 @@ class _TaskCardState extends State<TaskCard> {
       // Check internet
       final connectivityResult = await Connectivity().checkConnectivity();
 
-      if (connectivityResult == ConnectivityResult.none) {
+      if (connectivityResult.contains(ConnectivityResult.none)) {
         // ❌ Offline → Save in SQLite
         await DBHelper().insertPunchAction({
           'task_id': widget.taskId,
@@ -3743,7 +3743,7 @@ class _TaskCardState extends State<TaskCard> {
       // ==========================
       // 🔴 OFFLINE MODE
       // ==========================
-      if (connectivity == ConnectivityResult.none) {
+      if (connectivity.contains(ConnectivityResult.none)) {
         await DBHelper().insertPunchAction({
           'task_id': widget.taskId,
           'type': 'punch-in',
@@ -4204,7 +4204,7 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
     final token = prefs.getString('token') ?? "";
     userId = prefs.getInt('userid') ?? 0;
 
-    if (connectivityResult != ConnectivityResult.none) {
+    if (!connectivityResult.contains(ConnectivityResult.none)) {
       // ✅ Online
       final response = await http
           .post(

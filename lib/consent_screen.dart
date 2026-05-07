@@ -25,7 +25,6 @@ class _ConsentScreenState extends State<ConsentScreen> {
   bool get allAccepted =>
       ageConfirmed &&
       privacyAccepted &&
-      notificationAccepted &&
       locationDeviceIdAccepted;
 
   /// 🧾 SAVE CONSENT + AUDIT LOG + REQUEST NOTIFICATION PERMISSION
@@ -265,12 +264,13 @@ class _ConsentScreenState extends State<ConsentScreen> {
                         ],
                       ),
 
-                      /// 🔔 NOTIFICATIONS
+                      /// 🔔 NOTIFICATIONS (optional)
                       _consentCard(
-                        title: "Allow Notifications",
+                        title: "Allow Notifications (Optional)",
                         description:
-                            "Receive important updates and service alerts. "
-                            "You can disable notifications anytime in settings.",
+                            "Receive task updates and shift reminders. "
+                            "This is optional — the app works without notifications. "
+                            "You can change this anytime in device settings.",
                         value: notificationAccepted,
                         onChanged: (v) => setState(
                             () => notificationAccepted = v ?? false),

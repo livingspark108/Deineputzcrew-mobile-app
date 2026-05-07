@@ -90,7 +90,12 @@ class PrivacyPolicyScreen extends StatelessWidget {
                 "• Verifying employee presence via location check-in\n" +
                 "• Recording work time (clock-in / clock-out)\n" +
                 "• Uploading selfies and work photos for task verification\n\n" +
-                "The app is intended for professional use only."
+                "The app is intended for professional use only. Access is limited to authorized users whose accounts are provisioned by an administrator. Public self-registration is not available."
+              ),
+
+              _buildSection(
+                "1.1 Account Access",
+                "DeinePutzCrew accounts are created and managed by authorized administrators. The app is used only by approved staff and contractors performing assigned work through the DeinePutzCrew operational platform. The general public cannot create an account from within the app."
               ),
 
               _buildSection(

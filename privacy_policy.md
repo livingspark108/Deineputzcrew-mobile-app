@@ -6,6 +6,8 @@ This Privacy Policy describes how **LivingSpark Global Tech Pvt Ltd** ("we", "ou
 
 This app is a **workforce management and attendance monitoring application**. It allows administrators to create and assign tasks, and employees to check in at registered work locations, track working time, upload verification photos, and check out after task completion.
 
+Access to the app is restricted to **authorized users whose accounts are created by an administrator**. There is **no public self-service sign-up flow**.
+
 This policy is written to comply with **Apple App Store Review Guidelines**, **GDPR (EU)**, and **German data protection standards**.
 
 ---
@@ -20,6 +22,8 @@ The DeinePutzCrew iOS app is used exclusively for:
 • Uploading selfies and work photos for task verification
 
 The app is intended for **professional use only**.
+
+Accounts are provisioned only for approved staff and contractors who are assigned work through the DeinePutzCrew operational platform.
 
 ---
 

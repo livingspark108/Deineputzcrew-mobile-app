@@ -682,6 +682,27 @@ class _LoginScreenState extends State<LoginScreen> {
                 style: TextStyle(color: Colors.black54, fontSize: 16),
               ),
 
+              const SizedBox(height: 16),
+
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: const Text(
+                  'Access is limited to authorized staff and approved contractors. Accounts are created by an administrator. Public sign-up is not available.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.black87,
+                    fontSize: 13,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+
               const SizedBox(height: 32),
 
               // 📧 EMAIL

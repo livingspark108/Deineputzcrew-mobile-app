@@ -690,7 +690,7 @@ Future<void> _handlePunchOut(
     final connectivity = await Connectivity().checkConnectivity();
 
     // ==================== OFFLINE MODE ====================
-    if (connectivity == ConnectivityResult.none) {
+    if (connectivity.contains(ConnectivityResult.none)) {
       debugPrint("📴 Offline - Saving punch-out to DB");
 
       final db = DBHelper();
