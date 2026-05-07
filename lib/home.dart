@@ -2190,6 +2190,19 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
             }
           }
 
+          // Print curl equivalent for debugging
+          {
+            final curlFields = request.fields.entries
+                .map((e) => "-F '${e.key}=${e.value}'")
+                .join(' ');
+            final curlFiles = request.files
+                .map((f) => "-F 'images=@${f.filename}'")
+                .join(' ');
+            final curlAuth = token != null ? "-H 'Authorization: token $token'" : "";
+            debugPrint(
+                "🔁 CURL [$type]:\ncurl -X POST '${uri.toString()}' $curlAuth $curlFields $curlFiles");
+          }
+
           // Send to API
           final response = await request.send();
           final resBody = await http.Response.fromStream(response);
