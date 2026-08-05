@@ -348,6 +348,7 @@ import 'privacypolicy.dart';
 import 'terms.dart';
 import 'forgetpasswordscreen.dart';
 import 'notification_service.dart';
+import 'security_code_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -505,7 +506,6 @@ class _LoginScreenState extends State<LoginScreen> {
     try {
       /// 🔑 Device info
       String deviceId = await getDeviceId();
-      final prefs = await SharedPreferences.getInstance();
 
       /// 🔔 Get FCM token from NotificationService
       String? fcmToken = await NotificationService.getToken();
@@ -519,7 +519,7 @@ class _LoginScreenState extends State<LoginScreen> {
         debugPrint("⚠️ FCM token not available, using device UDID: $deviceId");
       }
 
-      final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/");
+      final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/v2/login/");
 
       // Prepare request body
       Map<String, dynamic> requestBody = {
@@ -554,28 +554,23 @@ class _LoginScreenState extends State<LoginScreen> {
       debugPrint("Parsed Data: $data");
 
       if (response.statusCode == 200 && (data['success'] == true || data['success'] == "true" || data['status'] == "success")) {
-        final token = data['token'];
-        final userid = data['data']['id'];
-        final username =
-            "${data['data']['first_name']} ${data['data']['last_name']}";
-
-        /// 💾 Save locally
-        await prefs.setString('token', token);
-        await prefs.setInt('userid', userid);
-        await prefs.setString('username', username);
-        await prefs.setString('saved_email', email);
-        await prefs.setString('saved_password', password);
-
-        /// 🧾 SEND CONSENT AUDIT (NON-BLOCKING)
-        //sendConsentAuditToServer(token);
+        final String pendingToken = data['pending_token'];
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? "Login successful")),
+          SnackBar(
+              content: Text(data['message'] ??
+                  "Credentials verified. Enter the security code shown on the admin dashboard to complete login.")),
         );
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => MainApp()),
+          MaterialPageRoute(
+            builder: (_) => SecurityCodeScreen(
+              pendingToken: pendingToken,
+              email: email,
+              password: password,
+            ),
+          ),
         );
       } else if (response.statusCode == 401 || response.statusCode == 400) {
 

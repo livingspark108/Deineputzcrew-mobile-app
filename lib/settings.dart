@@ -38,6 +38,118 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  Future<void> _logout() async {
+    final codeController = TextEditingController();
+    String? errorText;
+    bool isSubmitting = false;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: !isSubmitting,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setDialogState) {
+            Future<void> submit() async {
+              final code = codeController.text.trim();
+              if (code.length != 6 || int.tryParse(code) == null) {
+                setDialogState(() => errorText = "Enter the 6-digit security code");
+                return;
+              }
+
+              setDialogState(() {
+                isSubmitting = true;
+                errorText = null;
+              });
+
+              final prefs = await SharedPreferences.getInstance();
+              final token = prefs.getString("token");
+
+              try {
+                final response = await http.post(
+                  Uri.parse("https://admin.deineputzcrew.de/api/v2/logout/"),
+                  headers: {
+                    "Authorization": "Token $token",
+                    "Content-Type": "application/json",
+                  },
+                  body: jsonEncode({"security_code": code}),
+                );
+
+                final data = jsonDecode(response.body);
+
+                if (response.statusCode == 200 && data['success'] == true) {
+                  await prefs.clear();
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (mounted) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  }
+                } else {
+                  setDialogState(() {
+                    isSubmitting = false;
+                    errorText = (data['message'] ?? "Invalid security code.").toString();
+                  });
+                }
+              } catch (e) {
+                setDialogState(() {
+                  isSubmitting = false;
+                  errorText = "Something went wrong. Please try again.";
+                });
+              }
+            }
+
+            return AlertDialog(
+              title: const Text("Enter Security Code"),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "Ask your admin for the 6-digit security code shown on their dashboard.",
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: codeController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 6,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 20, letterSpacing: 6),
+                    decoration: InputDecoration(
+                      counterText: '',
+                      hintText: '000000',
+                      errorText: errorText,
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
+                  child: const Text("Cancel"),
+                ),
+                TextButton(
+                  onPressed: isSubmitting ? null : submit,
+                  style: TextButton.styleFrom(foregroundColor: Colors.red),
+                  child: isSubmitting
+                      ? const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text("Logout"),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Future<void> _deleteAccount() async {
     final confirmed = await showDialog<bool>(
       context: context,
@@ -210,14 +322,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
             // Logout Button
             GestureDetector(
-              onTap: () async {
-                final prefs = await SharedPreferences.getInstance();
-                prefs.clear();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (context) => LoginScreen()),
-                );
-              },
+              onTap: _logout,
               child: Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
