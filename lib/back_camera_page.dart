@@ -2,6 +2,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import 'image_utils.dart';
+
 /// A full-screen camera page locked to the back-facing camera.
 /// Returns the image file path (String) via Navigator.pop, or null if cancelled.
 class BackCameraPage extends StatefulWidget {
@@ -85,7 +87,8 @@ class _BackCameraPageState extends State<BackCameraPage> {
     setState(() => _isCapturing = true);
     try {
       final file = await _controller!.takePicture();
-      if (mounted) Navigator.of(context).pop(file.path);
+      final compressedPath = await compressCapturedImage(file.path);
+      if (mounted) Navigator.of(context).pop(compressedPath);
     } catch (e) {
       if (mounted) setState(() => _isCapturing = false);
     }

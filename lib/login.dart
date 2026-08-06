@@ -343,6 +343,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_metadata.dart';
+import 'app_update_checker.dart';
+import 'force_update_screen.dart';
 import 'home.dart';
 import 'privacypolicy.dart';
 import 'terms.dart';
@@ -364,6 +366,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   String? _emailError;
   String? _passwordError;
+
+  // ✅ Forced update, checked as soon as the login screen loads — so an
+  // outdated app is blocked before the user can even attempt to log in.
+  AppUpdateInfo? _updateInfo;
 
   void showError({
     String? emailError,
@@ -397,6 +403,15 @@ class _LoginScreenState extends State<LoginScreen> {
     passwordController.addListener(() {
       if (_passwordError != null) setState(() => _passwordError = null);
     });
+
+    _checkForForcedUpdate();
+  }
+
+  Future<void> _checkForForcedUpdate() async {
+    final info = await checkAppUpdateRequired();
+    if (mounted && info != null && info.updateRequired) {
+      setState(() => _updateInfo = info);
+    }
   }
 
   @override
@@ -642,6 +657,14 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    if (_updateInfo != null && _updateInfo!.updateRequired) {
+      return ForceUpdateScreen(
+        androidDownloadLink: _updateInfo!.androidDownloadLink,
+        iosTestflightLink: _updateInfo!.iosTestflightLink,
+        iosDiawiLink: _updateInfo!.iosDiawiLink,
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -650,7 +673,7 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              
+
               const SizedBox(height: 50),
 
               //LOGO

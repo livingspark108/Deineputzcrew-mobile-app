@@ -22,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'app_metadata.dart';
 import 'db_helper.dart';
+import 'force_update_screen.dart';
 import 'front_camera_page.dart';
 import 'main.dart';
 import 'task_model.dart';
@@ -37,15 +38,31 @@ class MainApp extends StatefulWidget {
   State<MainApp> createState() => _MainAppState();
 }
 
-class _UpdateOption {
-  final String label;
-  final String url;
-
-  const _UpdateOption(this.label, this.url);
-}
-
 class _MainAppState extends State<MainApp> {
   late int _selectedIndex;
+
+  // ✅ Force update — set by DashboardScreen.fetchTasks() via ancestor lookup.
+  // When true, the whole app (including bottom nav) is replaced by a
+  // non-dismissible "Update Required" screen until the user updates.
+  bool _updateRequired = false;
+  String? _iosTestflightLink;
+  String? _iosDiawiLink;
+  String? _androidDownloadLink;
+
+  void _applyUpdateStatus({
+    required bool required,
+    String? iosTestflightLink,
+    String? iosDiawiLink,
+    String? androidDownloadLink,
+  }) {
+    if (!mounted) return;
+    setState(() {
+      _updateRequired = required;
+      _iosTestflightLink = iosTestflightLink;
+      _iosDiawiLink = iosDiawiLink;
+      _androidDownloadLink = androidDownloadLink;
+    });
+  }
 
   @override
   void initState() {
@@ -320,6 +337,15 @@ class _MainAppState extends State<MainApp> {
 
   @override
   Widget build(BuildContext context) {
+    if (_updateRequired) {
+      // 🚫 Forced update: no bottom nav, no way to reach the rest of the app.
+      return ForceUpdateScreen(
+        androidDownloadLink: _androidDownloadLink,
+        iosTestflightLink: _iosTestflightLink,
+        iosDiawiLink: _iosDiawiLink,
+      );
+    }
+
     return Scaffold(
       body: _getPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
@@ -439,11 +465,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   String? _error; // Add error state
   //bool _initialized = false; // Add initialization flag
   String? punchedInTaskId;
-
-  bool _updateRequired = false;
-  String? _iosTestflightLink;
-  String? _iosDiawiLink;
-  String? _androidDownloadLink;
 
   int userId = 0;
   String? token;
@@ -1792,18 +1813,20 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
               : null;
 
           if (mounted) {
-            setState(() {
-              _updateRequired = updateRequired;
-              _iosTestflightLink = iosTestflightLink;
-              _iosDiawiLink = iosDiawiLink;
-              _androidDownloadLink = androidDownloadLink;
-            });
+            // ✅ Forward to _MainAppState so the forced update screen can
+            // replace the entire app (including bottom nav), not just this tab.
+            context.findAncestorStateOfType<_MainAppState>()?._applyUpdateStatus(
+                  required: updateRequired,
+                  iosTestflightLink: iosTestflightLink,
+                  iosDiawiLink: iosDiawiLink,
+                  androidDownloadLink: androidDownloadLink,
+                );
 
             // Debug print
-            print('📱 Update Required: $_updateRequired');
-            print('🍎 iOS TestFlight: $_iosTestflightLink');
-            print('🍎 iOS Diawi: $_iosDiawiLink');
-            print('🤖 Android Download: $_androidDownloadLink');
+            print('📱 Update Required: $updateRequired');
+            print('🍎 iOS TestFlight: $iosTestflightLink');
+            print('🍎 iOS Diawi: $iosDiawiLink');
+            print('🤖 Android Download: $androidDownloadLink');
           }
 
           // ✅ Check for remote data clear flag
@@ -2978,8 +3001,6 @@ print(response.body);
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_updateRequired) _buildUpdateBanner(),
-            if (_updateRequired) const SizedBox(height: 12),
             // ✅ Connectivity & Sync Status Banner
             if (!_isOnline || _pendingSyncCount > 0) _buildStatusBanner(),
             if (!_isOnline || _pendingSyncCount > 0) const SizedBox(height: 12),
@@ -3016,162 +3037,6 @@ print(response.body);
         ),
       ),
     );
-  }
-
-  Widget _buildUpdateBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.orange.shade50,
-        border: Border.all(color: Colors.orange.shade200),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(Icons.system_update, color: Colors.orange.shade700),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Update available. Please update to continue.',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          ElevatedButton(
-            onPressed: _handleUpdateButtonPressed,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange.shade600,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            child: const Text('Update'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleUpdateButtonPressed() {
-    if (AppMetadata.isIOS) {
-      _showIosUpdateOptions();
-      return;
-    }
-
-    _launchUpdateUrl(_androidDownloadLink);
-  }
-
-  void _showIosUpdateOptions() {
-    final List<_UpdateOption> options = [];
-
-    if (_iosTestflightLink != null && _iosTestflightLink!.trim().isNotEmpty) {
-      options.add(_UpdateOption('TestFlight', _iosTestflightLink!));
-    }
-
-    if (_iosDiawiLink != null && _iosDiawiLink!.trim().isNotEmpty) {
-      options.add(_UpdateOption('Diawi', _iosDiawiLink!));
-    }
-
-    if (options.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Update link is not available.')),
-      );
-      return;
-    }
-
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 8),
-              const Text(
-                'Choose update source',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-              ),
-              const SizedBox(height: 12),
-              ...options.map(
-                (option) => ListTile(
-                  leading: const Icon(Icons.open_in_new),
-                  title: Text(option.label),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _launchUpdateUrl(option.url);
-                  },
-                ),
-              ),
-              const SizedBox(height: 8),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _launchUpdateUrl(String? url) async {
-    if (url == null || url.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Update link is not available.')),
-      );
-      return;
-    }
-
-    try {
-      Uri uri = Uri.tryParse(url) ?? Uri();
-      if (uri.toString().isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid update link.')),
-        );
-        return;
-      }
-
-      // For Play Store links, try both https and market schemes
-      if (url.contains('play.google.com')) {
-        // Try market:// scheme first (native Play Store app)
-        final marketUri = Uri.parse('market://details?id=com.diveinpuits');
-
-        try {
-          if (await canLaunchUrl(marketUri)) {
-            await launchUrl(marketUri, mode: LaunchMode.externalApplication);
-            return;
-          }
-        } catch (e) {
-          print('🔗 Market URI failed: $e');
-        }
-      }
-
-      // Try launching the URL as-is
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri, mode: LaunchMode.externalApplication);
-      } else {
-        // If canLaunchUrl fails, still try launching it
-        // Some URLs might still work even if canLaunchUrl returns false
-        try {
-          await launchUrl(uri, mode: LaunchMode.externalApplication);
-        } catch (e) {
-          print('🔗 Launch URL failed: $e');
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                  content: Text('Unable to open update link: ${e.toString()}')),
-            );
-          }
-        }
-      }
-    } catch (e) {
-      print('🔗 Update URL error: $e');
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening update link: ${e.toString()}')),
-        );
-      }
-    }
   }
 
   final TextEditingController _searchController = TextEditingController();
