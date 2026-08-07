@@ -1,7 +1,7 @@
 import 'dart:io';
 
 class AppMetadata {
-  static const String appVersion = '3.0';
+  static const String appVersion = '3.1';
 
   static String get mobileType => Platform.isIOS ? 'ios' : 'android';
 
