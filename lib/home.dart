@@ -24,6 +24,7 @@ import 'app_metadata.dart';
 import 'db_helper.dart';
 import 'force_update_screen.dart';
 import 'front_camera_page.dart';
+import 'punch_timezone.dart';
 import 'main.dart';
 import 'task_model.dart';
 import 'location_service.dart';
@@ -930,7 +931,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final blankImage = await generateBlankImage();
 
     //final now = DateTime.now().toIso8601String();
-    final DateTime now = DateTime.now();
+    final DateTime now = punchTimeNow(); // 🌍 punch timestamp uses the account's API-configured timezone
 
     final connectivity = await Connectivity().checkConnectivity();
     // OFFLINE → Save to SQLite
@@ -1623,7 +1624,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final File emptyImage = File('${tempDir.path}/auto_check_in.jpeg');
       await emptyImage.writeAsBytes(imageData.buffer.asUint8List());
 
+      // 🕒 `now` drives on-device elapsed-time math (_punchInTime), so it
+      // must stay device-local; the punch `timestamp` sent/stored must be
+      // Germany time regardless of the device's own timezone.
       final DateTime now = DateTime.now();
+      final DateTime punchTimestamp = punchTimeNow();
 
       // ✅ CHECK CONNECTIVITY FIRST
       final connectivity = await Connectivity().checkConnectivity();
@@ -1637,7 +1642,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'lat': _toFourDecimals(position.latitude).toString(),
           'long': _toFourDecimals(position.longitude).toString(),
           'image_path': emptyImage.path,
-          'timestamp': now.toIso8601String(),
+          'timestamp': punchTimestamp.toIso8601String(),
           'remark': 'Auto Punch-in',
           'synced': 0,
         });
@@ -1796,6 +1801,10 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
         print('🔗 CURL Command:\n$curlCommand');
         print("📡 Fetch Tasks Response: ${response.body}");
         if (data['success']) {
+          // 🌍 Use whatever timezone the backend reports for this account
+          // for punch/break timestamps — never hardcoded.
+          await applyTimezoneFromApiResponse(data);
+
           // ✅ Check for app_update object (new API format)
           final appUpdate = data['app_update'];
 
@@ -2458,7 +2467,7 @@ print(response.body);
           'lat': position.latitude.toStringAsFixed(4),
           'long': position.longitude.toStringAsFixed(4),
           'image_path': '',
-          'timestamp': DateTime.now().toIso8601String(),
+          'timestamp': punchTimeNow().toIso8601String(),
           'remark': 'Break In (Offline)',
           'synced': 0,
         });
@@ -2483,7 +2492,7 @@ print(response.body);
           "task_id": taskId,
           "lat": position.latitude.toStringAsFixed(4),
           "long": position.longitude.toStringAsFixed(4),
-          "timestamp": DateTime.now().toIso8601String(),
+          "timestamp": punchTimeNow().toIso8601String(),
         }),
       );
 
@@ -2526,7 +2535,7 @@ print(response.body);
           'lat': position.latitude.toStringAsFixed(4),
           'long': position.longitude.toStringAsFixed(4),
           'image_path': '',
-          'timestamp': DateTime.now().toIso8601String(),
+          'timestamp': punchTimeNow().toIso8601String(),
           'remark': 'Break Out (Offline)',
           'synced': 0,
         });
@@ -2551,7 +2560,7 @@ print(response.body);
           "task_id": taskId,
           "lat": position.latitude.toStringAsFixed(4),
           "long": position.longitude.toStringAsFixed(4),
-          "timestamp": DateTime.now().toIso8601String(),
+          "timestamp": punchTimeNow().toIso8601String(),
         }),
       );
 
@@ -3628,7 +3637,7 @@ class _TaskCardState extends State<TaskCard> {
           'lat': position.latitude.toStringAsFixed(4),
           'long': position.longitude.toStringAsFixed(4),
           'image_path': image.path,
-          'timestamp': DateTime.now().toIso8601String(),
+          'timestamp': punchTimeNow().toIso8601String(),
           'remark': 'Offline Punch-In',
           'synced': 0,
         });
@@ -3668,8 +3677,9 @@ class _TaskCardState extends State<TaskCard> {
       request.fields['lat'] = position.latitude.toStringAsFixed(4);
       request.fields['long'] = position.longitude.toStringAsFixed(4);
 
-      // 🔑 Add timestamp parameter
-      request.fields['timestamp'] = DateTime.now().toIso8601String();
+      // 🔑 Add timestamp parameter (Germany time, not device timezone)
+      final String punchInTimestamp = punchTimeNow().toIso8601String();
+      request.fields['timestamp'] = punchInTimestamp;
 
       // 📊 DEBUG: Print all API parameters
       print('🚀 PUNCH-IN API CALL:');
@@ -3679,7 +3689,7 @@ class _TaskCardState extends State<TaskCard> {
       print('   - task_id: ${widget.taskId}');
       print('   - lat: ${position.latitude.toStringAsFixed(4)}');
       print('   - long: ${position.longitude.toStringAsFixed(4)}');
-      print('   - timestamp: ${DateTime.now().toIso8601String()}');
+      print('   - timestamp: $punchInTimestamp');
       print('🖼️ Image: ${image.path}');
       print('─────────────────────────────────────');
 
@@ -4102,6 +4112,10 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
       final data = jsonDecode(response.body);
 
       if (data['success']) {
+        // 🌍 Use whatever timezone the backend reports for this account
+        // for punch/break timestamps — never hardcoded.
+        await applyTimezoneFromApiResponse(data);
+
         final List<dynamic> taskByDate = data['task_by_date'] ?? [];
 
         final List<Task> parsed = taskByDate.expand((dayData) {

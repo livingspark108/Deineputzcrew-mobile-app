@@ -14,6 +14,7 @@ import 'dart:convert';
 
 import 'back_camera_page.dart';
 import 'db_helper.dart';
+import 'punch_timezone.dart';
 import 'home.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
@@ -704,7 +705,7 @@ Future<void> _handlePunchOut(
         'long': position.longitude.toStringAsFixed(4),
         'remark': controller.text.trim(),
         'image_path': images.first.path, // First image
-        'timestamp': DateTime.now().toIso8601String(),
+        'timestamp': punchTimeNow().toIso8601String(),
         'synced': 0,
       });
 
@@ -753,7 +754,7 @@ Future<void> _handlePunchOut(
       'lat': position.latitude.toStringAsFixed(4),
       'long': position.longitude.toStringAsFixed(4),
       'remark': controller.text.trim(),
-      'timestamp': DateTime.now().toIso8601String(), // ✅ Added timestamp
+      'timestamp': punchTimeNow().toIso8601String(), // 🌍 account's API-configured timezone, not device timezone
     });
 
     // Attach all images

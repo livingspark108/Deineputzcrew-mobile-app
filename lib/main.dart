@@ -10,6 +10,7 @@ import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'home.dart';
 import 'consent_screen.dart';
+import 'punch_timezone.dart';
 import 'login.dart';
 import 'notification_service.dart';
 import 'background_task_manager.dart';
@@ -36,6 +37,7 @@ Future<void> main() async {
     },
     appRunner: () async {
       WidgetsFlutterBinding.ensureInitialized();
+      await initPunchTimeZone();
 
       // ✅ catches ALL uncaught errors
       FlutterError.onError = (details) {

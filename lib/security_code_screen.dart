@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'home.dart';
 import 'login.dart';
+import 'punch_timezone.dart';
 
 class SecurityCodeScreen extends StatefulWidget {
   final String pendingToken;
@@ -75,6 +76,10 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
         await prefs.setString('username', username);
         await prefs.setString('saved_email', widget.email);
         await prefs.setString('saved_password', widget.password);
+
+        // 🌍 Use whatever timezone the backend reports for this account for
+        // punch/break timestamps — never hardcoded.
+        await applyTimezoneFromApiResponse(data);
 
         if (!mounted) return;
 

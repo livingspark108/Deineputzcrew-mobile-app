@@ -10,6 +10,7 @@ import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:http/http.dart' as http;
 import 'db_helper.dart';
+import 'punch_timezone.dart';
 import 'task_model.dart';
 
 /// Background Location Service for Auto Check-in/Check-out
@@ -461,20 +462,24 @@ class LocationService {
       final File imageFile = File('${tempDir.path}/auto_check_in.jpeg');
       await imageFile.writeAsBytes(imageData.buffer.asUint8List());
 
+      // 🕒 `now` drives on-device duration tracking (punchInTime pref,
+      // callback), so it must stay device-local; the punch `timestamp`
+      // sent/stored must be Germany time regardless of device timezone.
       final DateTime now = DateTime.now();
+      final DateTime punchTimestamp = punchTimeNow();
 
       if (isOffline) {
         // Save to local database
         final mode = timeOnlyMode ? "(Time-based, No GPS)" : "(Location-based)";
         debugPrint("📴 Saving auto check-in offline for task: ${task.taskName} $mode");
-        debugPrint("📅 Exact arrival timestamp: ${now.toIso8601String()}");
+        debugPrint("📅 Exact arrival timestamp: ${punchTimestamp.toIso8601String()}");
         await DBHelper().insertPunchAction({
           'task_id': task.id,
           'type': 'punch-in',
           'lat': _toSixDecimals(position.latitude).toString(),
           'long': _toSixDecimals(position.longitude).toString(),
           'image_path': imageFile.path,
-          'timestamp': now.toIso8601String(),
+          'timestamp': punchTimestamp.toIso8601String(),
           'remark': timeOnlyMode ? 'Auto Check-in (Time-based, Offline)' : 'Auto Check-in (Offline)',
           'synced': 0,
         });
@@ -646,7 +651,7 @@ class LocationService {
         debugPrint('✅ Created auto_check_in.jpeg at ${imageFile.path}');
       }
 
-      final DateTime now = DateTime.now();
+      final DateTime punchTimestamp = punchTimeNow();
 
       if (isOffline) {
         // Save to local database
@@ -657,7 +662,7 @@ class LocationService {
           'lat': position.latitude.toStringAsFixed(4),
           'long': position.longitude.toStringAsFixed(4),
           'image_path': imageFile.path,
-          'timestamp': now.toIso8601String(),
+          'timestamp': punchTimestamp.toIso8601String(),
           'remark': 'Auto Check-out (Offline) - $reason',
           'synced': 0,
         });
@@ -728,7 +733,7 @@ class LocationService {
       request.fields['lat'] = lat;
       request.fields['long'] = lng;
       request.fields['auto_checkin'] = 'true';
-      request.fields['timestamp'] = DateTime.now().toIso8601String();
+      request.fields['timestamp'] = punchTimeNow().toIso8601String();
       
       // Attach image file
       request.files.add(await http.MultipartFile.fromPath(

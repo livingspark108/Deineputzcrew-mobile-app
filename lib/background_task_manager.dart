@@ -13,6 +13,7 @@ import 'package:workmanager/workmanager.dart';
 import 'app_metadata.dart';
 import 'task_model.dart';
 import 'db_helper.dart';
+import 'punch_timezone.dart';
 import 'location_service.dart';
 
 class BackgroundTaskManager {
@@ -553,7 +554,7 @@ class BackgroundTaskManager {
       request.fields['lat'] = lat;
       request.fields['long'] = lng;
       request.fields['auto_checkin'] = 'true';
-      request.fields['timestamp'] = DateTime.now().toIso8601String();
+      request.fields['timestamp'] = punchTimeNow().toIso8601String();
       
       // Attach image file
       request.files.add(await http.MultipartFile.fromPath(
@@ -667,7 +668,7 @@ class BackgroundTaskManager {
         'lat': lat,
         'long': lng,
         'auto_checkin': 'true',
-        'timestamp': DateTime.now().toIso8601String(),
+        'timestamp': punchTimeNow().toIso8601String(),
         'type': 'punch-in',
       };
       
