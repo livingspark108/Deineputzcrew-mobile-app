@@ -14,6 +14,7 @@ import 'dart:convert';
 
 import 'back_camera_page.dart';
 import 'db_helper.dart';
+import 'live_location_tracker.dart';
 import 'punch_timezone.dart';
 import 'home.dart';
 
@@ -725,6 +726,9 @@ Future<void> _handlePunchOut(
       await prefs.remove('breakDuration');
       await prefs.remove('breakStartTime');
 
+      // ✅ Stop live location tracking now that the user is punched out
+      await LiveLocationTracker.stop();
+
       // Dismiss loader
       Navigator.pop(context);
 
@@ -784,6 +788,9 @@ Future<void> _handlePunchOut(
       await prefs.remove('pausedDuration');
       await prefs.remove('breakDuration');
       await prefs.remove('breakStartTime');
+
+      // ✅ Stop live location tracking now that the user is punched out
+      await LiveLocationTracker.stop();
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('✅ Punch-out successful')),
