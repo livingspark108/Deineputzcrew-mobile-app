@@ -7,7 +7,12 @@ import 'image_utils.dart';
 /// A full-screen camera page locked to the back-facing camera.
 /// Returns the image file path (String) via Navigator.pop, or null if cancelled.
 class BackCameraPage extends StatefulWidget {
-  const BackCameraPage({super.key});
+  /// Called once, either when the camera preview becomes ready or when
+  /// initialization fails — lets a caller dismiss a loading overlay it
+  /// showed while this page was opening.
+  final VoidCallback? onReady;
+
+  const BackCameraPage({super.key, this.onReady});
 
   @override
   State<BackCameraPage> createState() => _BackCameraPageState();
@@ -22,11 +27,18 @@ class _BackCameraPageState extends State<BackCameraPage> {
   bool _isCapturing = false;
   String? _errorMessage;
   bool _isPermissionError = false;
+  bool _didSignalReady = false;
 
   @override
   void initState() {
     super.initState();
     _initCamera();
+  }
+
+  void _signalReady() {
+    if (_didSignalReady) return;
+    _didSignalReady = true;
+    widget.onReady?.call();
   }
 
   Future<void> _initCamera() async {
@@ -35,6 +47,7 @@ class _BackCameraPageState extends State<BackCameraPage> {
       final cameras = _cachedCameras!;
       if (cameras.isEmpty) {
         if (mounted) setState(() => _errorMessage = 'No cameras found on this device.');
+        _signalReady();
         return;
       }
 
@@ -48,6 +61,7 @@ class _BackCameraPageState extends State<BackCameraPage> {
 
       if (backCamera == null) {
         if (mounted) setState(() => _errorMessage = 'No back camera found on this device.');
+        _signalReady();
         return;
       }
 
@@ -58,6 +72,7 @@ class _BackCameraPageState extends State<BackCameraPage> {
       );
       await _controller!.initialize();
       if (mounted) setState(() => _isReady = true);
+      _signalReady();
     } on CameraException catch (e) {
       if (mounted) {
         final isPermission = e.code == 'CameraAccessDenied' ||
@@ -71,8 +86,10 @@ class _BackCameraPageState extends State<BackCameraPage> {
               : 'Camera error: ${e.description}';
         });
       }
+      _signalReady();
     } catch (e) {
       if (mounted) setState(() => _errorMessage = 'Failed to open camera: $e');
+      _signalReady();
     }
   }
 

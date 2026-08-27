@@ -16,6 +16,7 @@ import 'back_camera_page.dart';
 import 'db_helper.dart';
 import 'live_location_tracker.dart';
 import 'punch_timezone.dart';
+import 'widgets/full_screen_loader.dart';
 import 'home.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
@@ -337,10 +338,16 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                             title: const Text('Camera'),
                             onTap: () async {
                               Navigator.pop(context);
+                              FullScreenLoader.show(context, 'Opening camera...');
                               final imagePath = await Navigator.push<String>(
                                 context,
-                                MaterialPageRoute(builder: (_) => const BackCameraPage()),
+                                MaterialPageRoute(
+                                  builder: (_) => BackCameraPage(
+                                    onReady: () => FullScreenLoader.hide(),
+                                  ),
+                                ),
                               );
+                              FullScreenLoader.hide();
                               if (imagePath != null) {
                                 setState(() {
                                   images.add(File(imagePath));
@@ -661,32 +668,13 @@ Future<void> _handlePunchOut(
     }
 
     // Show full-screen loader
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => Container(
-        color: Colors.black54,
-        child: const Center(
-          child: Card(
-            child: Padding(
-              padding: EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  CircularProgressIndicator(),
-                  SizedBox(height: 16),
-                  Text('Punching out...', style: TextStyle(fontSize: 16)),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
+    FullScreenLoader.show(context, 'Getting your location...');
 
     // Step 1: Get location (15s timeout to avoid hanging on iOS)
     final position = await Geolocator.getCurrentPosition()
         .timeout(const Duration(seconds: 15));
+
+    FullScreenLoader.updateMessage('Punching out...');
 
     // ✅ Step 2: Check connectivity FIRST
     final connectivity = await Connectivity().checkConnectivity();
@@ -730,7 +718,7 @@ Future<void> _handlePunchOut(
       await LiveLocationTracker.stop();
 
       // Dismiss loader
-      Navigator.pop(context);
+      FullScreenLoader.hide(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -778,7 +766,7 @@ Future<void> _handlePunchOut(
         "📡 Punch-out online response: ${response.statusCode} ${response.body}");
 
     // Dismiss loader
-    Navigator.pop(context);
+    FullScreenLoader.hide(context);
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       // ✅ Success → clear prefs
@@ -806,9 +794,7 @@ Future<void> _handlePunchOut(
     }
   } catch (e) {
     // Dismiss loader in case of error
-    if (Navigator.canPop(context)) {
-      Navigator.pop(context);
-    }
+    FullScreenLoader.hide(context);
     debugPrint('❌ Punch-out exception: $e');
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Error: $e')),

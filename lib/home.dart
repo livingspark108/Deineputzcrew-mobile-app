@@ -31,6 +31,7 @@ import 'task_model.dart';
 import 'location_service.dart';
 import 'background_task_manager.dart';
 import 'notification_service.dart';
+import 'widgets/full_screen_loader.dart';
 
 class MainApp extends StatefulWidget {
   final int initialIndex;
@@ -2808,15 +2809,19 @@ print(response.body);
 
                       if (_onBreak) {
                         // ✅ Break OUT
+                        FullScreenLoader.show(context, 'Ending break...');
                         bool success =
                             await callBreakOutApi(selectedTaskId!, context);
+                        FullScreenLoader.hide(context);
                         if (success) {
                           resumeDashboardWorkTimer();
                         }
                       } else {
                         // ✅ Break IN
+                        FullScreenLoader.show(context, 'Starting break...');
                         bool success =
                             await callBreakInApi(selectedTaskId!, context);
+                        FullScreenLoader.hide(context);
                         if (success) {
                           pauseDashboardWorkTimer();
                           await prefs.setBool('onBreak', true);
@@ -2858,6 +2863,18 @@ print(response.body);
                 Expanded(
                   child: ElevatedButton(
                     onPressed: () async {
+                      // ✅ VALIDATION: Must end break before clocking out
+                      if (_onBreak) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text(
+                                "⛔ You're on a break. Please end your break before clocking out."),
+                            backgroundColor: Colors.orange,
+                          ),
+                        );
+                        return;
+                      }
+
                       // ✅ VALIDATION: Check if user is actually punched in
                       if (selectedTaskId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -2909,7 +2926,8 @@ print(response.body);
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
+                      backgroundColor:
+                          _onBreak ? Colors.grey.shade400 : Colors.red,
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -3496,6 +3514,10 @@ class _TaskCardState extends State<TaskCard> {
 
       widget.onPunchStart();
 
+      // Block interaction from the moment the task is tapped, all the way
+      // through location/time validation, until the camera screen opens.
+      FullScreenLoader.show(context, 'Checking your location...');
+
       // Get location first to validate
       Position? position;
       try {
@@ -3504,6 +3526,7 @@ class _TaskCardState extends State<TaskCard> {
             "📍 Got user location: ${position.latitude}, ${position.longitude}");
       } catch (e) {
         debugPrint("❌ Location error: $e");
+        FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text(
@@ -3529,6 +3552,7 @@ class _TaskCardState extends State<TaskCard> {
 
       if (distance > task.radius) {
         debugPrint("⛔ Location validation failed");
+        FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('⛔ You are not on location'),
@@ -3549,6 +3573,7 @@ class _TaskCardState extends State<TaskCard> {
       try {
         taskDate = DateTime.parse(task.date);
       } catch (e) {
+        FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text("⛔ Invalid task date format"),
@@ -3570,6 +3595,7 @@ class _TaskCardState extends State<TaskCard> {
         final hoursUntil = timeUntilStart.inHours;
         final minutesUntil = timeUntilStart.inMinutes % 60;
 
+        FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
@@ -3590,6 +3616,7 @@ class _TaskCardState extends State<TaskCard> {
         }
 
         if (now.isAfter(effectiveEnd)) {
+          FullScreenLoader.hide(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('⛔ Task ended at ${task.endTime} on ${task.date}'),
@@ -3600,37 +3627,23 @@ class _TaskCardState extends State<TaskCard> {
         }
       }
 
-      // Take photo FIRST (before showing loader) — front camera only, no switch button
+      // Camera is about to open — keep the loader up until the camera
+      // preview is actually ready, then let it go so the preview shows.
+      FullScreenLoader.updateMessage('Opening camera...');
       final imagePath = await Navigator.push<String>(
         context,
-        MaterialPageRoute(builder: (_) => const FrontCameraPage()),
-      );
-      if (imagePath == null) return;
-      final image = XFile(imagePath);
-
-      // Show full-screen loader AFTER photo is taken
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => Container(
-          color: Colors.black54,
-          child: const Center(
-            child: Card(
-              child: Padding(
-                padding: EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    CircularProgressIndicator(),
-                    SizedBox(height: 16),
-                    Text('Punching in...', style: TextStyle(fontSize: 16)),
-                  ],
-                ),
-              ),
-            ),
+        MaterialPageRoute(
+          builder: (_) => FrontCameraPage(
+            onReady: () => FullScreenLoader.hide(),
           ),
         ),
       );
+      FullScreenLoader.hide(context);
+      if (imagePath == null) return;
+      final image = XFile(imagePath);
+
+      // Show full-screen loader again while the punch-in is submitted
+      FullScreenLoader.show(context, 'Punching in...');
 
       // Check internet FIRST
       final connectivity = await Connectivity().checkConnectivity();
@@ -3654,7 +3667,7 @@ class _TaskCardState extends State<TaskCard> {
         await prefs.setString('punchedInTaskId', widget.taskId);
         LiveLocationTracker.start(widget.taskId);
 
-        Navigator.pop(context); // close loader
+        FullScreenLoader.hide(context); // close loader
 
         // UI updates
         widget.onPunchIn();
@@ -3716,7 +3729,7 @@ class _TaskCardState extends State<TaskCard> {
       print('📄 Response Body: ${body.body}');
       print('─────────────────────────────────────');
 
-      Navigator.pop(context); // close loader
+      FullScreenLoader.hide(context); // close loader
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setString('punchedInTaskId', widget.taskId);
@@ -3735,9 +3748,7 @@ class _TaskCardState extends State<TaskCard> {
         throw Exception(body.body);
       }
     } catch (e) {
-      if (Navigator.canPop(context)) {
-        Navigator.pop(context);
-      }
+      FullScreenLoader.hide(context);
       debugPrint('Punch-in failed: $e');
 
       ScaffoldMessenger.of(context).showSnackBar(
