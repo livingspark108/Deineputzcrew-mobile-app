@@ -22,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'app_metadata.dart';
 import 'db_helper.dart';
+import 'live_location_tracker.dart';
 import 'force_update_screen.dart';
 import 'front_camera_page.dart';
 import 'punch_timezone.dart';
@@ -1004,6 +1005,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final prefs = await SharedPreferences.getInstance();
 
     await prefs.remove('punchedInTaskId');
+    LiveLocationTracker.stop();
     await prefs.remove('punchInStartTime');
     await prefs.remove('pausedDuration');
     await prefs.remove('breakDuration');
@@ -1158,6 +1160,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         // Save to SharedPreferences for next session
         await prefs.setString('punchedInTaskId', punchedInTask.id);
+        LiveLocationTracker.start(punchedInTask.id);
         await prefs.setString(
             'punchInStartTime', punchInTime.toIso8601String());
         await prefs.setInt('pausedDuration', 0);
@@ -1649,6 +1652,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         // Update local state
         await prefs.setString('punchedInTaskId', task.id);
+        LiveLocationTracker.start(task.id);
 
         // ✅ Update UI state immediately
         if (mounted) {
@@ -1701,6 +1705,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setString('punchedInTaskId', task.id);
+        LiveLocationTracker.start(task.id);
 
         // ✅ Update UI state immediately
         if (mounted) {
@@ -1847,6 +1852,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
             await db.clearTasks();
             await db.clearPendingPunchActions();
             await prefs.remove('punchedInTaskId');
+            LiveLocationTracker.stop();
             await prefs.remove('punchInStartTime');
             await prefs.remove('pausedDuration');
             await prefs.remove('breakDuration');
@@ -3417,6 +3423,7 @@ class _TaskCardState extends State<TaskCard> {
         );
 
          widget.onPunchIn();
+        LiveLocationTracker.start(widget.taskId);
         setState(() {
           widget.punchedInTaskId = widget.taskId;
           widget.onTaskSelected(widget.taskId);
@@ -3459,6 +3466,7 @@ class _TaskCardState extends State<TaskCard> {
           const SnackBar(content: Text('Punch-in successful')),
         );
         widget.onPunchIn();
+        LiveLocationTracker.start(widget.taskId);
       } else {
         throw Exception("Server error: ${responseBody.body}");
       }
@@ -3644,6 +3652,7 @@ class _TaskCardState extends State<TaskCard> {
 
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('punchedInTaskId', widget.taskId);
+        LiveLocationTracker.start(widget.taskId);
 
         Navigator.pop(context); // close loader
 
@@ -3711,6 +3720,7 @@ class _TaskCardState extends State<TaskCard> {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setString('punchedInTaskId', widget.taskId);
+        LiveLocationTracker.start(widget.taskId);
 
         debugPrint("✅ Punch-in API success, calling onPunchIn()");
         widget.onPunchIn();
@@ -3779,6 +3789,7 @@ class _TaskCardState extends State<TaskCard> {
           // If this completed task is the one currently punched in, reset storedPunchedInTaskId
           if (isCurrentPunchedIn) {
             await prefs.remove('punchedInTaskId');
+            LiveLocationTracker.stop();
             storedPunchedInTaskId = "";
           }
 

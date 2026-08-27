@@ -14,6 +14,7 @@ import 'punch_timezone.dart';
 import 'login.dart';
 import 'notification_service.dart';
 import 'background_task_manager.dart';
+import 'live_location_tracker.dart';
 
 /// 🔔 Local Notifications
 final FlutterLocalNotificationsPlugin notificationsPlugin =
@@ -63,6 +64,13 @@ Future<void> main() async {
         print('✅ BackgroundTaskManager initialized in main()');
       } catch (e) {
         print('⚠️ BackgroundTaskManager initialization failed: $e');
+      }
+
+      try {
+        LiveLocationTracker.init();
+        print('✅ LiveLocationTracker initialized in main()');
+      } catch (e) {
+        print('⚠️ LiveLocationTracker initialization failed: $e');
       }
 
       runApp(const MyApp());

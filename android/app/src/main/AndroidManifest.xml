@@ -53,24 +53,14 @@
             </intent-filter>
         </activity>
         
-        <!-- Foreground Service for background location tracking -->
+        <!-- flutter_foreground_task: backs the live location tracking foreground
+             service (30s pings while punched in). Warning: do not change this
+             service name — the plugin hardcodes it. -->
         <service
-            android:name="com.diveinpuits.BackgroundLocationService"
-            android:enabled="true"
-            android:exported="false"
-            android:foregroundServiceType="location" />
-            
-        <!-- Boot receiver to restart background service -->
-        <receiver
-            android:name="com.diveinpuits.BootReceiver"
-            android:enabled="true"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
-            </intent-filter>
-        </receiver>
-        
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="location"
+            android:exported="false" />
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
