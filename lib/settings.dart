@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:http/http.dart' as http;
 
+import 'availability_screen.dart';
 import 'changepassword.dart';
 import 'db_helper.dart';
 import 'login.dart';
@@ -313,6 +314,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const ChangePasswordScreen(),
+                  ),
+                );
+              },
+            ),
+            _buildListTile(
+              context: context,
+              icon: Icons.beach_access,
+              title: "Time off / Availability",
+              iconColor: Colors.black,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AvailabilityScreen(),
                   ),
                 );
               },

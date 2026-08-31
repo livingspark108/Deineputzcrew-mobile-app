@@ -19,6 +19,8 @@ class Task {
   final String totalWorkTime;
   final int radius;
   final List<Map<String, dynamic>> attendances;
+  final bool requiresAcceptance;
+  final String acceptanceStatus; // 'not_required' | 'pending' | 'accepted' | 'declined'
 
   Task({
     required this.id,
@@ -41,6 +43,8 @@ class Task {
     required this.totalWorkTime,
     required this.radius,
     this.attendances = const [],
+    this.requiresAcceptance = false,
+    this.acceptanceStatus = 'not_required',
   });
 
   /// ✅ From API JSON
@@ -74,6 +78,8 @@ class Task {
       totalWorkTime: json['total_work_time'] ?? "0h 0m",
       radius: json['radius'] ?? 300, // Default to 300m if not specified
       attendances: attendancesList,
+      requiresAcceptance: json['requires_acceptance'] == 1 || json['requires_acceptance'] == true,
+      acceptanceStatus: json['acceptance_status'] ?? 'not_required',
     );
   }
 
@@ -99,6 +105,8 @@ class Task {
       autoCheckout: map['auto_checkout'] == 1,       // ✅ NEW
       totalWorkTime: map['total_work_time'] ?? "0h 0m",
       radius: map['radius'] ?? 300, // Default to 300m if not specified
+      requiresAcceptance: map['requires_acceptance'] == 1,
+      acceptanceStatus: map['acceptance_status'] ?? 'not_required',
     );
   }
 
@@ -125,6 +133,8 @@ class Task {
       'auto_checkout': autoCheckout ? 1 : 0,         // ✅ NEW
       'total_work_time': totalWorkTime,
       'radius': radius,
+      'requires_acceptance': requiresAcceptance ? 1 : 0,
+      'acceptance_status': acceptanceStatus,
     };
   }
 
@@ -144,4 +154,7 @@ class Task {
   String get timeRange => "$startTime - $endTime";
   bool get isHighPriority => priority.toLowerCase() == 'high';
   bool get isCompleted => status.toLowerCase() == 'completed';
+
+  /// True while this shift still needs the employee's explicit acceptance.
+  bool get needsAcceptance => requiresAcceptance && acceptanceStatus == 'pending';
 }

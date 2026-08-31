@@ -3347,6 +3347,68 @@ class TaskCard extends StatefulWidget {
 
 class _TaskCardState extends State<TaskCard> {
   bool isSelected = false;
+  String? _localAcceptanceStatus;
+  bool _isRespondingToAcceptance = false;
+
+  Task? get _task {
+    for (final t in widget.taskList) {
+      if (t.id == widget.taskId) return t;
+    }
+    return null;
+  }
+
+  String get _acceptanceStatus =>
+      _localAcceptanceStatus ?? _task?.acceptanceStatus ?? 'not_required';
+
+  bool get _needsAcceptance =>
+      (_task?.requiresAcceptance ?? false) && _acceptanceStatus == 'pending';
+
+  Future<void> _respondToAcceptance(bool accept) async {
+    setState(() => _isRespondingToAcceptance = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+      final endpoint = accept ? 'accept-task' : 'reject-task';
+
+      final response = await http
+          .post(
+            Uri.parse('https://admin.deineputzcrew.de/api/$endpoint/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'token $token',
+            },
+            body: jsonEncode({'task_id': widget.taskId}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        setState(() => _localAcceptanceStatus = accept ? 'accepted' : 'declined');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(accept ? '✅ Shift accepted' : '🚫 Shift declined'),
+              backgroundColor: accept ? Colors.green : Colors.orange,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          final body = jsonDecode(response.body);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(body['error'] ?? 'Failed to respond to shift')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isRespondingToAcceptance = false);
+    }
+  }
 
   // Add this method to _TaskCardState class
   Future<bool> _hasOfflinePunchOut(String taskId) async {
@@ -4006,6 +4068,85 @@ class _TaskCardState extends State<TaskCard> {
                       ),
                     ],
                   ),
+                  if (_needsAcceptance) ...[
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: Colors.amber.shade200),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: const [
+                              Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                              SizedBox(width: 4),
+                              Text('This shift needs your response',
+                                  style: TextStyle(fontSize: 12, fontFamily: 'Poppins')),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          _isRespondingToAcceptance
+                              ? const Center(
+                                  child: SizedBox(
+                                    height: 18, width: 18,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                )
+                              : Row(
+                                  children: [
+                                    Expanded(
+                                      child: ElevatedButton(
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.green,
+                                          padding: const EdgeInsets.symmetric(vertical: 6),
+                                        ),
+                                        onPressed: () => _respondToAcceptance(true),
+                                        child: const Text('Accept', style: TextStyle(fontSize: 12)),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: OutlinedButton(
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(vertical: 6),
+                                          side: const BorderSide(color: Colors.red),
+                                        ),
+                                        onPressed: () => _respondToAcceptance(false),
+                                        child: const Text('Decline',
+                                            style: TextStyle(fontSize: 12, color: Colors.red)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                        ],
+                      ),
+                    ),
+                  ] else if ((_task?.requiresAcceptance ?? false) && _acceptanceStatus != 'not_required') ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: _acceptanceStatus == 'accepted'
+                            ? Colors.green.shade50
+                            : Colors.grey.shade200,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        _acceptanceStatus == 'accepted' ? '✅ Accepted' : '🚫 Declined',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontFamily: 'Poppins',
+                          color: _acceptanceStatus == 'accepted'
+                              ? Colors.green.shade700
+                              : Colors.grey.shade700,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
