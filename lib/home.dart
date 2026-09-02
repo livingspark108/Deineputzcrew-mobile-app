@@ -449,6 +449,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Timer? _autoCheckoutTimer;
   bool _autoCheckoutLocked = false;
   bool _isSyncing = false;
+  DateTime? _syncStartedAt;
+  Timer? _connectivityDebounce;
 
   StreamSubscription<List<ConnectivityResult>>? _connectivitySub;
 
@@ -594,21 +596,36 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
 
     _connectivitySub =
-        Connectivity().onConnectivityChanged.listen((result) async {
+        Connectivity().onConnectivityChanged.listen((result) {
+      // Keep the "Online"/"Offline" pill reacting instantly — only the
+      // sync attempt itself gets debounced below.
       final isOnline = !result.contains(ConnectivityResult.none);
-      setState(() {
-        _isOnline = isOnline;
-      });
+      if (mounted) {
+        setState(() {
+          _isOnline = isOnline;
+        });
+      }
 
-      if (isOnline) {
-        debugPrint("🌐 Internet restored → syncing offline data");
+      // ✅ Debounce: rapid on/off/on/off flapping fires this listener many
+      // times back-to-back. Wait for connectivity to hold steady for a
+      // couple of seconds, then re-check the *current* status (not the
+      // possibly-already-stale event that scheduled this timer) before
+      // actually attempting a sync — avoids piling up sync attempts on a
+      // flaky connection.
+      _connectivityDebounce?.cancel();
+      _connectivityDebounce = Timer(const Duration(seconds: 2), () async {
+        final current = await Connectivity().checkConnectivity();
+        final stillOnline = !current.contains(ConnectivityResult.none);
+        if (!stillOnline || !mounted) return;
+
+        debugPrint("🌐 Internet stable → syncing offline data");
         await syncOfflineActions();
         await _updatePendingSyncCount();
         // 🔄 Reload dashboard after successful sync
         if (mounted) {
           await fetchTasks(); // reloads tasks & applies auto-hide logic
         }
-      }
+      });
     });
 
     // Timer.periodic(const Duration(seconds: 30), (_) {
@@ -619,6 +636,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _connectivitySub?.cancel();
+    _connectivityDebounce?.cancel();
     _syncStatusTimer?.cancel();
     _autoCheckInTimer?.cancel(); // ✅ Stop auto check-in timer
     _locationService.stopMonitoring();
@@ -1030,6 +1048,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  /// Called right after an offline-queued action finishes syncing (or is
+  /// discarded as already-applied by the server). A background sync never
+  /// runs through the real-time punch-out/break screens, so it wouldn't
+  /// otherwise clear `selectedTaskId`/timers/prefs the way those screens
+  /// do on success — leaving the dashboard showing stale "Clock Out"/"Go
+  /// for Break" buttons for a task that's actually already closed. This
+  /// reconciles local UI state with what the server now has, for the
+  /// currently-displayed task only (never touches a different task).
+  Future<void> _reconcileStateAfterSync(String? type, String? taskId) async {
+    if (taskId == null || taskId.isEmpty || taskId != selectedTaskId) return;
+
+    final normalizedType = type?.replaceAll('-', '_');
+    if (normalizedType == 'punch_out') {
+      debugPrint(
+          '🧹 Synced punch-out for currently-selected task $taskId — clearing local punch state');
+      await _clearPunchPrefs();
+    } else if (normalizedType == 'break_out') {
+      debugPrint(
+          '🧹 Synced break-out for currently-selected task $taskId — clearing local break state');
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('onBreak', false);
+      _breakTimer?.cancel();
+      _breakTimer = null;
+      if (mounted) {
+        setState(() => _onBreak = false);
+      }
+    } else if (normalizedType == 'break_in') {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool('onBreak', true);
+      if (mounted && !_onBreak) {
+        setState(() => _onBreak = true);
+      }
+    }
+  }
+
   // =========================
   // RESTORE TIMER STATE
   // =========================
@@ -1042,8 +1095,54 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final onBreak = prefs.getBool('onBreak') ?? false;
     final breakStartStr = prefs.getString('breakStartTime');
 
+    // ✅ Cross-check the stored punchedInTaskId against the freshly fetched
+    // server data: if the server now shows this task's punch-in already
+    // closed by a punch-out, the stored prefs are stale (e.g. an offline
+    // punch-out synced in the background without this device having
+    // rebuilt from a real-time success path) — don't trust them blindly.
+    bool storedTaskClosedOnServer = false;
+    if (storedTaskId != null && storedTaskId.isNotEmpty) {
+      Task? matchingTask;
+      for (var t in allTasks) {
+        if (t.id == storedTaskId) {
+          matchingTask = t;
+          break;
+        }
+      }
+      if (matchingTask != null && matchingTask.attendances.isNotEmpty) {
+        Map<String, dynamic>? latestPunchIn;
+        for (var attendance in matchingTask.attendances) {
+          if (attendance['punch_type'] == 'punch_in') {
+            latestPunchIn = attendance;
+            break;
+          }
+        }
+        if (latestPunchIn != null) {
+          for (var attendance in matchingTask.attendances) {
+            if (attendance['punch_type'] == 'punch_out') {
+              try {
+                final punchOutTime = DateTime.parse(attendance['timestamp']);
+                final punchInTimeTemp =
+                    DateTime.parse(latestPunchIn['timestamp']);
+                if (punchOutTime.isAfter(punchInTimeTemp)) {
+                  storedTaskClosedOnServer = true;
+                  break;
+                }
+              } catch (_) {}
+            }
+          }
+        }
+      }
+    }
+    if (storedTaskClosedOnServer) {
+      debugPrint(
+          '🧹 Stored punchedInTaskId=$storedTaskId is already closed on server — clearing stale local state');
+      await _clearPunchPrefs();
+    }
+
     // ✅ FIRST: Check SharedPreferences for stored timer state
-    if (storedTaskId != null &&
+    if (!storedTaskClosedOnServer &&
+        storedTaskId != null &&
         storedTaskId.isNotEmpty &&
         startTimeStr != null &&
         startTimeStr.isNotEmpty) {
@@ -1199,6 +1298,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
           isClockedIn = false;
           isClockedOut = true;
         });
+        // ✅ Make sure no stale punch prefs linger for next app load.
+        await prefs.remove('punchedInTaskId');
+        await prefs.remove('punchInStartTime');
+        await prefs.remove('pausedDuration');
+        await prefs.remove('breakDuration');
+        await prefs.remove('onBreak');
+        await prefs.remove('breakStartTime');
       }
     }
   }
@@ -2078,20 +2184,36 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
 
   Future<void> syncOfflineActions() async {
     if (_isSyncing) {
-      debugPrint("⏸ Sync already in progress, skipping...");
-      return;
+      // 🛡️ Watchdog: a sync should never legitimately run longer than this.
+      // If it has, an earlier call got stuck (e.g. a hung network request)
+      // and left the lock held forever — force-release it so the app can
+      // always recover on its own instead of needing a restart.
+      final stuckFor = _syncStartedAt == null
+          ? Duration.zero
+          : DateTime.now().difference(_syncStartedAt!);
+      if (stuckFor > const Duration(seconds: 90)) {
+        debugPrint(
+            "⚠️ Sync watchdog: previous sync stuck for ${stuckFor.inSeconds}s — force-releasing lock");
+        _isSyncing = false;
+      } else {
+        debugPrint("⏸ Sync already in progress, skipping...");
+        return;
+      }
     }
 
-    final connectivityResult = await Connectivity().checkConnectivity();
-    if (connectivityResult.contains(ConnectivityResult.none)) {
-      debugPrint("📴 No internet, skipping sync");
-      return;
-    }
-
-    // ✅ FLAG
+    // ✅ FLAG — set synchronously, with no `await` between the check above
+    // and this line, so two overlapping triggers (e.g. connectivity
+    // flapping on/off/on rapidly) can never both slip past the guard.
     _isSyncing = true;
+    _syncStartedAt = DateTime.now();
 
     try {
+      final connectivityResult = await Connectivity().checkConnectivity();
+      if (connectivityResult.contains(ConnectivityResult.none)) {
+        debugPrint("📴 No internet, skipping sync");
+        return;
+      }
+
       final duplicateCount = await DBHelper().pruneDuplicatePunchActions();
       if (duplicateCount > 0) {
         debugPrint("🧹 Removed duplicate offline actions: $duplicateCount");
@@ -2242,9 +2364,15 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
                 "🔁 CURL [$type]:\ncurl -X POST '${uri.toString()}' $curlAuth $curlFields $curlFiles");
           }
 
-          // Send to API
-          final response = await request.send();
-          final resBody = await http.Response.fromStream(response);
+          // Send to API — hard timeout so a mid-request connectivity drop
+          // (exactly the flapping on/off/on scenario) always fails fast
+          // and lets this action retry on the next sync pass, instead of
+          // hanging forever and leaving the sync lock stuck.
+          final response = await request
+              .send()
+              .timeout(const Duration(seconds: 20));
+          final resBody = await http.Response.fromStream(response)
+              .timeout(const Duration(seconds: 20));
           debugPrint(
               "📡 Sync response ($type): ${resBody.statusCode} ${resBody.body}");
 
@@ -2252,6 +2380,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
             await DBHelper().deletePunchAction(action["id"]);
             syncedCount++;
             debugPrint("✅ Synced action ${action['id']}");
+            await _reconcileStateAfterSync(type, action['task_id']);
           } else if (response.statusCode == 400) {
             try {
               final errorBody = jsonDecode(resBody.body);
@@ -2281,6 +2410,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
                 await DBHelper().deletePunchAction(action["id"]);
                 debugPrint(
                     "🗑 Deleted invalid action: ${errorBody.toString()}");
+                await _reconcileStateAfterSync(type, action['task_id']);
               } else {
                 debugPrint("⏳ Temporary error, will retry: $errorMsg");
               }
@@ -2687,8 +2817,17 @@ print(response.body);
       ),
     );
 
+    // Whether `selectedTaskId` actually points at a task that still exists
+    // in the freshly-fetched task list. Used instead of a bare
+    // `selectedTaskId.isNotEmpty` check below so that if `selectedTaskId`
+    // is ever left stale (e.g. pointing at a task that's since been
+    // completed/synced and dropped from today's list), the Clock
+    // Out/Break buttons and timer correctly hide themselves rather than
+    // staying visible for a task that's effectively gone.
+    final bool hasSelectedTask = selectedTask.id != 'N/A';
+
     // Reset timer if no task selected
-    if (selectedTask.id == 'N/A') {
+    if (!hasSelectedTask) {
       setState(() {
         _timer?.cancel();
         _workingDuration = Duration.zero;
@@ -2730,7 +2869,7 @@ print(response.body);
           const SizedBox(height: 6), // Reduced from 16 to 10
 
           // Timer Row - Only show when task is selected and timer running
-          if (selectedTaskId.isNotEmpty &&
+          if (hasSelectedTask &&
               (currentDuration.inSeconds > 0 || _timer != null))
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -2761,7 +2900,7 @@ print(response.body);
           const SizedBox(height: 16),
 
           // Task info - Only show when task is selected
-          if (selectedTaskId.isNotEmpty)
+          if (hasSelectedTask)
             ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(
@@ -2772,7 +2911,7 @@ print(response.body);
                   fontFamily: 'Poppins',
                 ),
               ),
-              subtitle: selectedTaskId.isNotEmpty
+              subtitle: hasSelectedTask
                   ? Text(
                       selectedTask.locationName.isNotEmpty
                           ? selectedTask.locationName
@@ -2787,7 +2926,7 @@ print(response.body);
           // Clock In / Clock Out Buttons
 
           // Break + Clock Out Row - Only show when task is selected
-          if (selectedTaskId.isNotEmpty)
+          if (hasSelectedTask)
             Row(
               children: [
                 // Break button

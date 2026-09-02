@@ -31,10 +31,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   bool _isLoadingRequests = true;
   List<dynamic> _requests = [];
 
+  // Leave proposals an admin created for this employee, awaiting their
+  // approve/reject response.
+  bool _isLoadingAdminRequests = true;
+  List<dynamic> _adminRequests = [];
+  final Set<dynamic> _respondingIds = {};
+
   @override
   void initState() {
     super.initState();
     _loadRequests();
+    _loadAdminRequests();
   }
 
   @override
@@ -67,6 +74,118 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       // Silent — the form above still works even if history fails to load.
     } finally {
       if (mounted) setState(() => _isLoadingRequests = false);
+    }
+  }
+
+  Future<void> _loadAdminRequests() async {
+    setState(() => _isLoadingAdminRequests = true);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.get(
+        Uri.parse(
+            'https://admin.deineputzcrew.de/api/availability/admin-requests/?status=pending'),
+        headers: {'Authorization': 'token $token'},
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['success'] == true) {
+          setState(() => _adminRequests = data['requests'] ?? []);
+        }
+      }
+    } catch (_) {
+      // Silent — same as _loadRequests, the rest of the screen still works.
+    } finally {
+      if (mounted) setState(() => _isLoadingAdminRequests = false);
+    }
+  }
+
+  Future<void> _respondAdminRequest(dynamic id, String action,
+      {String note = ''}) async {
+    setState(() => _respondingIds.add(id));
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http
+          .post(
+            Uri.parse(
+                'https://admin.deineputzcrew.de/api/availability/admin-requests/$id/respond/'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'token $token',
+            },
+            body: jsonEncode({'action': action, 'note': note}),
+          )
+          .timeout(const Duration(seconds: 15));
+
+      final data = jsonDecode(response.body);
+
+      if (response.statusCode == 200 && data['success'] == true) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(action == 'approve'
+                  ? '✅ Request approved'
+                  : '❌ Request rejected'),
+              backgroundColor:
+                  action == 'approve' ? Colors.green : Colors.red,
+            ),
+          );
+        }
+        await Future.wait([_loadAdminRequests(), _loadRequests()]);
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content:
+                    Text(data['error'] ?? 'Failed to respond to request')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _respondingIds.remove(id));
+    }
+  }
+
+  Future<void> _confirmRejectAdminRequest(dynamic id) async {
+    final noteController = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Reject request'),
+        content: TextField(
+          controller: noteController,
+          maxLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Note for admin (optional)',
+            border: OutlineInputBorder(),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await _respondAdminRequest(id, 'reject', note: noteController.text.trim());
     }
   }
 
@@ -187,6 +306,81 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
     );
   }
 
+  Widget _buildAdminRequestCard(dynamic r) {
+    final id = r['id'];
+    final isResponding = _respondingIds.contains(id);
+    final requestedBy = (r['requested_by_name'] ?? '').toString();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('${r['start_date']} → ${r['end_date']}',
+                  style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+              _statusBadge(r['status'] ?? 'pending'),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(_reasons[r['reason']] ?? r['reason'] ?? '',
+              style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          if (requestedBy.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text('Requested by: $requestedBy',
+                style: const TextStyle(fontSize: 12, color: Colors.black54)),
+          ],
+          if ((r['note'] ?? '').toString().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(r['note'], style: const TextStyle(fontSize: 12)),
+          ],
+          const SizedBox(height: 10),
+          if (isResponding)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 4),
+                child: SizedBox(
+                  height: 20, width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => _confirmRejectAdminRequest(id),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                    ),
+                    child: const Text('Reject'),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _respondAdminRequest(id, 'approve'),
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                    child: const Text('Approve', style: TextStyle(color: Colors.white)),
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -199,10 +393,30 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
       ),
       body: RefreshIndicator(
-        onRefresh: _loadRequests,
+        onRefresh: () => Future.wait([_loadRequests(), _loadAdminRequests()]),
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
+            if (_isLoadingAdminRequests)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_adminRequests.isNotEmpty) ...[
+              const Text('Requests from your admin',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              const Text(
+                'Your admin proposed time off for you. Review and respond below.',
+                style: TextStyle(fontSize: 12, color: Colors.black54),
+              ),
+              const SizedBox(height: 12),
+              ..._adminRequests.map((r) => _buildAdminRequestCard(r)),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 16),
+            ],
+
             const Text('Request time off',
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
@@ -308,6 +522,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         const SizedBox(height: 4),
                         Text(_reasons[r['reason']] ?? r['reason'] ?? '',
                             style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                        if (r['is_admin_initiated'] == true) ...[
+                          const SizedBox(height: 4),
+                          Text(
+                            'Requested by: ${r['requested_by_name'] ?? 'your admin'}',
+                            style: const TextStyle(fontSize: 11, color: Colors.blue, fontStyle: FontStyle.italic),
+                          ),
+                        ],
                         if ((r['note'] ?? '').toString().isNotEmpty) ...[
                           const SizedBox(height: 4),
                           Text(r['note'], style: const TextStyle(fontSize: 12)),
