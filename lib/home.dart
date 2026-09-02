@@ -947,7 +947,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'long': position.longitude.toStringAsFixed(4),
         'image_path': blankImage.path,
         'timestamp': now.toIso8601String(),
-        'remark': 'Auto Punch-out',
+        'remark': '[OFFLINE] Auto Punch-out',
         'synced': 0,
       });
 
@@ -1647,7 +1647,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           'long': _toFourDecimals(position.longitude).toString(),
           'image_path': emptyImage.path,
           'timestamp': punchTimestamp.toIso8601String(),
-          'remark': 'Auto Punch-in',
+          'remark': '[OFFLINE] Auto Punch-in',
           'synced': 0,
         });
 
@@ -2475,7 +2475,7 @@ print(response.body);
           'long': position.longitude.toStringAsFixed(4),
           'image_path': '',
           'timestamp': punchTimeNow().toIso8601String(),
-          'remark': 'Break In (Offline)',
+          'remark': '[OFFLINE] Break In',
           'synced': 0,
         });
 
@@ -2543,7 +2543,7 @@ print(response.body);
           'long': position.longitude.toStringAsFixed(4),
           'image_path': '',
           'timestamp': punchTimeNow().toIso8601String(),
-          'remark': 'Break Out (Offline)',
+          'remark': '[OFFLINE] Break Out',
           'synced': 0,
         });
 
@@ -3495,6 +3495,7 @@ class _TaskCardState extends State<TaskCard> {
           'long': position.longitude.toStringAsFixed(4),
           'image_path': image.path,
           'timestamp': DateTime.now().toIso8601String(),
+          'remark': '[OFFLINE] Punch In',
         });
 
         Navigator.pop(context);
@@ -3721,7 +3722,7 @@ class _TaskCardState extends State<TaskCard> {
           'long': position.longitude.toStringAsFixed(4),
           'image_path': image.path,
           'timestamp': punchTimeNow().toIso8601String(),
-          'remark': 'Offline Punch-In',
+          'remark': '[OFFLINE] Punch In',
           'synced': 0,
         });
 
