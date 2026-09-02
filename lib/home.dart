@@ -3034,19 +3034,17 @@ print(response.body);
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ✅ Always-visible internet status pill (top of dashboard)
+            Align(
+              alignment: Alignment.centerRight,
+              child: _buildConnectivityStatusPill(),
+            ),
+            const SizedBox(height: 10),
+
             // ✅ Connectivity & Sync Status Banner
             if (!_isOnline || _pendingSyncCount > 0) _buildStatusBanner(),
             if (!_isOnline || _pendingSyncCount > 0) const SizedBox(height: 12),
 
-            const Text(
-              '',
-              style: TextStyle(
-                fontSize: 26,
-                fontWeight: FontWeight.bold,
-                fontFamily: 'Poppins',
-              ),
-            ),
-            const SizedBox(height: 14),
             _buildSearchBar(),
             const SizedBox(height: 10),
 
@@ -3102,6 +3100,47 @@ print(response.body);
         prefixIcon: const Icon(Icons.search),
         contentPadding: const EdgeInsets.symmetric(vertical: 0),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  /// Small always-visible pill at the top of the dashboard showing the
+  /// device's current internet connectivity — "Online" (green) or
+  /// "Offline" (red) — driven by the same [_isOnline] flag every punch
+  /// in/out and break in/out flow already uses to decide online vs.
+  /// offline mode, so this indicator always matches actual app behavior.
+  Widget _buildConnectivityStatusPill() {
+    final color = _isOnline ? Colors.green : Colors.red;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withOpacity(0.4), width: 1),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 8,
+            height: 8,
+            decoration: BoxDecoration(
+              color: color,
+              shape: BoxShape.circle,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Text(
+            _isOnline ? 'Online' : 'Offline',
+            style: TextStyle(
+              fontFamily: 'Poppins',
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: color.shade800,
+            ),
+          ),
+        ],
       ),
     );
   }
