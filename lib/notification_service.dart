@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'firebase_options.dart';
+import 'locale_controller.dart';
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _localNotifications = 
@@ -341,23 +342,25 @@ class NotificationService {
   }
 
   static Future<void> _createNotificationChannel() async {
+    final l10n = await LocaleController.currentStrings();
+
     // High importance channel for general notifications
-    const channel = AndroidNotificationChannel(
+    final channel = AndroidNotificationChannel(
       'high_importance_channel',
-      'High Importance Notifications',
-      description: 'This channel is used for important notifications.',
+      l10n.channelNameGeneral,
+      description: l10n.channelDescriptionGeneral,
       importance: Importance.high,
     );
 
     // Auto check-in channel with sound enabled
-    const autoCheckinChannel = AndroidNotificationChannel(
+    final autoCheckinChannel = AndroidNotificationChannel(
       'auto_checkin_channel',
-      'Auto Check-in Notifications',
-      description: 'Critical notifications for automatic task check-ins with sound.',
+      l10n.channelNameAutoCheckIn,
+      description: l10n.channelDescriptionAutoCheckInCreationTime,
       importance: Importance.max,
       enableVibration: false,
       playSound: true,
-      sound: RawResourceAndroidNotificationSound('swiggy_new_order'),
+      sound: const RawResourceAndroidNotificationSound('swiggy_new_order'),
     );
 
     final androidPlugin = _localNotifications
@@ -432,9 +435,10 @@ class NotificationService {
     }
     
     // Show local notification when app is in foreground
+    final l10n = await LocaleController.currentStrings();
     await _showLocalNotification(
-      title: message.notification?.title ?? 'New Message',
-      body: message.notification?.body ?? 'You have a new notification',
+      title: message.notification?.title ?? l10n.fallbackPushTitle,
+      body: message.notification?.body ?? l10n.fallbackPushBody,
       payload: message.data.toString(),
       withSound: true, // Enable sound for all notifications
     );
@@ -490,10 +494,11 @@ class NotificationService {
     print('🔊 With Sound: $withSound');
     print('📋 Payload: $payload');
     
+    final l10n = await LocaleController.currentStrings();
     final androidDetails = AndroidNotificationDetails(
       'high_importance_channel',
-      'High Importance Notifications',
-      channelDescription: 'This channel is used for important notifications.',
+      l10n.channelNameGeneral,
+      channelDescription: l10n.channelDescriptionGeneral,
       importance: Importance.max,
       priority: Priority.high,
       enableVibration: false,
@@ -754,21 +759,22 @@ class NotificationService {
       await _startContinuousSound();
       
       // Show local notification
-      const androidDetails = AndroidNotificationDetails(
+      final l10n = await LocaleController.currentStrings();
+      final androidDetails = AndroidNotificationDetails(
         'auto_checkin_channel',
-        'Auto Check-in Notifications',
-        channelDescription: 'Critical notifications for automatic task check-ins',
+        l10n.channelNameAutoCheckIn,
+        channelDescription: l10n.channelDescriptionAutoCheckInPerNotification,
         importance: Importance.max,
         priority: Priority.high,
         enableVibration: true,
         playSound: true, // Enable system sound + manual sound
-        sound: RawResourceAndroidNotificationSound('swiggy_new_order'),
+        sound: const RawResourceAndroidNotificationSound('swiggy_new_order'),
         ongoing: true, // Makes notification persistent
         autoCancel: false,
         fullScreenIntent: true,
         category: AndroidNotificationCategory.alarm,
       );
-      
+
       const iosDetails = DarwinNotificationDetails(
         presentAlert: true,
         presentBadge: true,
@@ -777,19 +783,19 @@ class NotificationService {
         interruptionLevel: InterruptionLevel.critical,
         categoryIdentifier: 'AUTO_CHECKIN',
       );
-      
-      const notificationDetails = NotificationDetails(
+
+      final notificationDetails = NotificationDetails(
         android: androidDetails,
         iOS: iosDetails,
       );
-      
-      final body = location != null 
-          ? '🎯 Time to check in at $location\nTask starts at $startTime'
-          : '🎯 Time to check in for your task\nTask starts at $startTime';
-      
+
+      final body = location != null
+          ? l10n.autoCheckInAlertBodyWithLocation(location, startTime)
+          : l10n.autoCheckInAlertBodyNoLocation(startTime);
+
       await _localNotifications.show(
         taskId.hashCode,
-        '🚨 Auto Check-in Required',
+        l10n.autoCheckInAlertTitle,
         body,
         notificationDetails,
         payload: json.encode({
@@ -1045,10 +1051,11 @@ class NotificationService {
       }
       
       // For iOS, use simpler notification settings that work better
+      final l10n = await LocaleController.currentStrings();
       final androidDetails = AndroidNotificationDetails(
         'auto_checkin_channel',
-        'Auto Check-in Notifications',
-        channelDescription: 'Test notification with sound',
+        l10n.channelNameAutoCheckIn,
+        channelDescription: l10n.debugTestNotificationChannelDescription,
         importance: Importance.max,
         priority: Priority.high,
         enableVibration: true,
@@ -1082,8 +1089,8 @@ class NotificationService {
       
       await _localNotifications.show(
         notificationId,
-        '🔔 Sound Test #$notificationId',
-        'Testing system default notification sound',
+        l10n.debugTestNotificationTitle(notificationId.toString()),
+        l10n.debugTestNotificationBody,
         notificationDetails,
       );
       

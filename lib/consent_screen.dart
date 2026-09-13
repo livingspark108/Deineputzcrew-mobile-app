@@ -8,6 +8,7 @@ import 'login.dart';
 import 'privacypolicy.dart';
 import 'terms.dart';
 import 'notification_service.dart';
+import 'l10n/app_localizations.dart';
 
 class ConsentScreen extends StatefulWidget {
   const ConsentScreen({super.key});
@@ -82,9 +83,10 @@ class _ConsentScreenState extends State<ConsentScreen> {
     required Function(bool) onChanged,
     List<InlineSpan>? links,
   }) {
+    final l10n = AppLocalizations.of(context);
     return Semantics(
       label: title,
-      hint: "Double tap to ${value ? 'disable' : 'enable'}",
+      hint: value ? l10n.accessibilityHintToggleOff : l10n.accessibilityHintToggleOn,
       checked: value,
       button: true,
       child: GestureDetector(
@@ -167,6 +169,7 @@ class _ConsentScreenState extends State<ConsentScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return WillPopScope(
       /// Prevent back button bypass
       onWillPop: () async => false,
@@ -183,9 +186,9 @@ class _ConsentScreenState extends State<ConsentScreen> {
                     children: [
                       const SizedBox(height: 10),
 
-                      const Text(
-                        "Before You Continue",
-                        style: TextStyle(
+                      Text(
+                        l10n.heading,
+                        style: const TextStyle(
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
                         ),
@@ -193,10 +196,10 @@ class _ConsentScreenState extends State<ConsentScreen> {
 
                       const SizedBox(height: 8),
 
-                      const Text(
-                        "Please review and confirm the following to use this app.",
+                      Text(
+                        l10n.subheading3,
                         textAlign: TextAlign.center,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 15,
                           color: Colors.black54,
                         ),
@@ -206,9 +209,8 @@ class _ConsentScreenState extends State<ConsentScreen> {
 
                       /// 🔞 AGE CONFIRMATION
                       _consentCard(
-                        title: "Age Confirmation",
-                        description:
-                            "You must be at least 18 years old to use this app.",
+                        title: l10n.cardTitle,
+                        description: l10n.cardDescription,
                         value: ageConfirmed,
                         onChanged: (v) =>
                             setState(() => ageConfirmed = v ?? false),
@@ -216,15 +218,14 @@ class _ConsentScreenState extends State<ConsentScreen> {
 
                       /// 🔐 PRIVACY + TERMS
                       _consentCard(
-                        title: "Your Privacy Matters",
-                        description:
-                            "We only collect data required to provide our services. ",
+                        title: l10n.cardTitle2,
+                        description: "${l10n.cardDescription2} ",
                         value: privacyAccepted,
                         onChanged: (v) =>
                             setState(() => privacyAccepted = v ?? false),
                         links: [
                           TextSpan(
-                            text: "Privacy Policy",
+                            text: l10n.cardLink,
                             style: const TextStyle(
                               decoration: TextDecoration.underline,
                               fontWeight: FontWeight.w600,
@@ -241,9 +242,9 @@ class _ConsentScreenState extends State<ConsentScreen> {
                                 );
                               },
                           ),
-                          const TextSpan(text: " and "),
+                          TextSpan(text: " ${l10n.consentConnectorWord} "),
                           TextSpan(
-                            text: "Terms & Conditions",
+                            text: l10n.termsLink,
                             style: const TextStyle(
                               decoration: TextDecoration.underline,
                               fontWeight: FontWeight.w600,
@@ -266,11 +267,8 @@ class _ConsentScreenState extends State<ConsentScreen> {
 
                       /// 🔔 NOTIFICATIONS (optional)
                       _consentCard(
-                        title: "Allow Notifications (Optional)",
-                        description:
-                            "Receive task updates and shift reminders. "
-                            "This is optional — the app works without notifications. "
-                            "You can change this anytime in device settings.",
+                        title: l10n.cardTitle3,
+                        description: l10n.cardDescription3,
                         value: notificationAccepted,
                         onChanged: (v) => setState(
                             () => notificationAccepted = v ?? false),
@@ -278,14 +276,8 @@ class _ConsentScreenState extends State<ConsentScreen> {
 
                       /// 📍 LOCATION + DEVICE ID
                       _consentCard(
-                        title: "Location & Device Information",
-                        description:
-                            "We collect your device identifier and, if you allow, "
-                            "your approximate location to improve security, "
-                            "prevent fraud, and deliver location-based services.\n\n"
-                            "Your location is not tracked continuously and is "
-                            "never shared or sold. You can change this permission "
-                            "anytime in your device settings.",
+                        title: l10n.cardTitle4,
+                        description: l10n.cardDescription4,
                         value: locationDeviceIdAccepted,
                         onChanged: (v) => setState(
                             () => locationDeviceIdAccepted = v ?? false),
@@ -311,9 +303,9 @@ class _ConsentScreenState extends State<ConsentScreen> {
                         borderRadius: BorderRadius.circular(14),
                       ),
                     ),
-                    child: const Text(
-                      "Continue",
-                      style: TextStyle(
+                    child: Text(
+                      l10n.continueButton,
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
                         color: Colors.white,

@@ -351,6 +351,7 @@ import 'terms.dart';
 import 'forgetpasswordscreen.dart';
 import 'notification_service.dart';
 import 'security_code_screen.dart';
+import 'l10n/app_localizations.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -499,20 +500,22 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordError = null;
     });
 
+    final l10n = AppLocalizations.of(context);
+
     // Inline validation
     if (email.isEmpty) {
-      setState(() => _emailError = "Email is required");
+      setState(() => _emailError = l10n.emailEmptyInlineError);
       return;
     }
 
     final emailRegex = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
     if (!emailRegex.hasMatch(email)) {
-      setState(() => _emailError = "Enter a valid email");
+      setState(() => _emailError = l10n.invalidEmailInlineError);
       return;
     }
 
     if (password.isEmpty) {
-      setState(() => _passwordError = "Password is required");
+      setState(() => _passwordError = l10n.passwordEmptyInlineError);
       return;
     }
 
@@ -574,7 +577,7 @@ class _LoginScreenState extends State<LoginScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text(data['message'] ??
-                  "Credentials verified. Enter the security code shown on the admin dashboard to complete login.")),
+                  l10n.loginSuccessFallbackMessage)),
         );
 
         Navigator.pushReplacement(
@@ -595,36 +598,35 @@ class _LoginScreenState extends State<LoginScreen> {
         // 🔍 EMAIL NOT FOUND
         if (backendMessage.contains("email")) {
           showError(
-            emailError: "We couldn't find an account with this email.",
-            snackMessage: "Please check your email and try again.",
+            emailError: l10n.emailNotFoundInlineError,
+            snackMessage: l10n.emailNotFoundSnackbar,
           );
         }
 
         // 🔐 PASSWORD INCORRECT
         else if (backendMessage.contains("password")) {
           showError(
-            passwordError: "The password you entered is incorrect.",
-            snackMessage: "Please check your password and try again.",
+            passwordError: l10n.passwordIncorrectInlineError,
+            snackMessage: l10n.passwordIncorrectSnackbar,
           );
         }
 
         // ❌ BOTH INVALID (GENERIC – APPLE RECOMMENDED)
         else {
           showError(
-            passwordError: "The email or password you entered is incorrect.",
-            snackMessage: "Unable to sign in. Please try again.",
+            passwordError: l10n.genericInvalidCredentialsInlineError,
+            snackMessage: l10n.genericInvalidCredentialsSnackbar,
           );
         }
-      } 
+      }
       else if (response.statusCode == 403) {
         showError(
-          snackMessage: "This account is not currently available.",
+          snackMessage: l10n.accountDisabledSnackbar,
         );
-      } 
+      }
       else {
         showError(
-          snackMessage:
-              "Unable to sign in at the moment. Please try again later.",
+          snackMessage: l10n.genericFailureSnackbar,
         );
       }
     } catch (e) {
@@ -642,12 +644,12 @@ class _LoginScreenState extends State<LoginScreen> {
           MaterialPageRoute(builder: (_) => MainApp()),
         );
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Offline Login Successful")),
+          SnackBar(content: Text(l10n.offlineLoginSuccessSnackbar)),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text("Login failed: ${e.toString()}")),
+              content: Text(l10n.loginExceptionSnackbar(e.toString()))),
         );
       }
     } finally {
@@ -657,6 +659,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     if (_updateInfo != null && _updateInfo!.updateRequired) {
       return ForceUpdateScreen(
         androidDownloadLink: _updateInfo!.androidDownloadLink,
@@ -684,9 +687,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 20),
 
-              const Text(
-                'Log in',
-                style: TextStyle(
+              Text(
+                l10n.screenHeadingButtonLabel,
+                style: const TextStyle(
                   fontSize: 26,
                   fontWeight: FontWeight.bold,
                 ),
@@ -694,10 +697,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
               const SizedBox(height: 8),
 
-              const Text(
-                'Please enter your credentials to continue',
+              Text(
+                l10n.subheading,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54, fontSize: 16),
+                style: const TextStyle(color: Colors.black54, fontSize: 16),
               ),
 
               const SizedBox(height: 16),
@@ -710,8 +713,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: Colors.grey.shade300),
                 ),
-                child: const Text(
-                  'Access is limited to authorized staff and approved contractors. Accounts are created by an administrator. Public sign-up is not available.',
+                child: Text(
+                  l10n.accessRestrictionNotice,
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: Colors.black87,
@@ -728,7 +731,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  hintText: 'Email',
+                  hintText: l10n.emailFieldHint,
                   errorText: _emailError,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -743,7 +746,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 controller: passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  hintText: 'Password',
+                  hintText: l10n.passwordFieldHint,
                   errorText: _passwordError,
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -779,9 +782,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   onPressed: isLoading ? null : loginUser,
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Log in',
-                          style: TextStyle(
+                      : Text(
+                          l10n.screenHeadingButtonLabel,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -803,9 +806,9 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     );
                   },
-                  child: const Text(
-                    'Forgot Password?',
-                    style: TextStyle(
+                  child: Text(
+                    l10n.forgotPasswordLink,
+                    style: const TextStyle(
                       decoration: TextDecoration.underline,
                       fontWeight: FontWeight.w500,
                     ),
@@ -819,11 +822,11 @@ class _LoginScreenState extends State<LoginScreen> {
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
-                  text: 'By logging in, you agree to our ',
+                  text: '${l10n.consentTextBeforeTermsLink} ',
                   style: const TextStyle(color: Colors.black87),
                   children: [
                     TextSpan(
-                      text: 'Terms & Conditions',
+                      text: l10n.termsLink,
                       style: const TextStyle(
                         decoration: TextDecoration.underline,
                         fontWeight: FontWeight.w600,
@@ -837,9 +840,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         },
                     ),
-                    const TextSpan(text: ' and '),
+                    TextSpan(text: ' ${l10n.consentConnectorWord} '),
                     TextSpan(
-                      text: 'Privacy Policy',
+                      text: l10n.cardLink,
                       style: const TextStyle(
                         decoration: TextDecoration.underline,
                         fontWeight: FontWeight.w600,
@@ -861,7 +864,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // 📌 VERSION
               Text(
-                'V'+AppMetadata.appVersion,
+                l10n.versionLabelPrefix+AppMetadata.appVersion,
                 style: const TextStyle(
                   color: Colors.black54,
                   fontSize: 14,

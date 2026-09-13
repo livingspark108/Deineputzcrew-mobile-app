@@ -22,6 +22,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import 'app_metadata.dart';
 import 'db_helper.dart';
+import 'l10n/app_localizations.dart';
 import 'live_location_tracker.dart';
 import 'force_update_screen.dart';
 import 'front_camera_page.dart';
@@ -232,21 +233,25 @@ class _MainAppState extends State<MainApp> {
     // Check if any notification sound is playing
     if (NotificationService.isPlayingAutoCheckInSound) {
       final taskId = NotificationService.currentAutoCheckInTaskId;
+      final l10n = AppLocalizations.of(context);
 
       // Show dialog to acknowledge any notification
       showDialog(
         context: context,
         barrierDismissible: false,
         builder: (context) => AlertDialog(
-          title: const Row(
+          title: Row(
             children: [
-              Icon(Icons.notifications_active, color: Colors.orange, size: 28),
-              SizedBox(width: 10),
-              Text('🔔 Notification Alert'),
+              const Icon(Icons.notifications_active,
+                  color: Colors.orange, size: 28),
+              const SizedBox(width: 10),
+              Text(l10n.notificationAlertDialogTitle),
             ],
           ),
           content: Text(
-            'You have an active notification.\n\n${taskId != null ? "Task ID: $taskId\n\n" : ""}Please acknowledge to continue.',
+            taskId != null
+                ? l10n.notificationAlertBodyWithTask(taskId)
+                : l10n.notificationAlertBodyNoTask,
             style: const TextStyle(fontSize: 16),
           ),
           actions: [
@@ -259,7 +264,8 @@ class _MainAppState extends State<MainApp> {
                 // Check if user is logged in and reload home page
                 await _reloadHomePageIfLoggedIn();
               },
-              child: const Text('Acknowledge', style: TextStyle(fontSize: 16)),
+              child: Text(l10n.notificationAlertAcknowledgeButton,
+                  style: const TextStyle(fontSize: 16)),
             ),
           ],
         ),
@@ -281,9 +287,9 @@ class _MainAppState extends State<MainApp> {
         // Show loading indicator briefly
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('🔄 Refreshing data...'),
-              duration: Duration(seconds: 1),
+            SnackBar(
+              content: Text(AppLocalizations.of(context).manualRefreshSnackbar),
+              duration: const Duration(seconds: 1),
             ),
           );
         }
@@ -307,7 +313,8 @@ class _MainAppState extends State<MainApp> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('⚠️ Failed to refresh: $e'),
+            content: Text(
+                AppLocalizations.of(context).refreshFailureSnackbar(e.toString())),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -349,6 +356,7 @@ class _MainAppState extends State<MainApp> {
       );
     }
 
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       body: _getPage(_selectedIndex),
       bottomNavigationBar: BottomNavigationBar(
@@ -357,11 +365,13 @@ class _MainAppState extends State<MainApp> {
         selectedItemColor: Colors.black,
         unselectedItemColor: Colors.grey,
         showUnselectedLabels: true,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.list), label: 'Tasks'),
+        items: [
           BottomNavigationBarItem(
-              icon: Icon(Icons.settings), label: 'Settings'),
+              icon: const Icon(Icons.home), label: l10n.bottomNavLabel),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.list), label: l10n.bottomNavLabel2),
+          BottomNavigationBarItem(
+              icon: const Icon(Icons.settings), label: l10n.bottomNavLabel3),
         ],
       ),
     );
@@ -787,7 +797,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // Show notification
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('✅ Auto Check-in completed (offline)'),
+          content: Text(AppLocalizations.of(context).autoCheckInOfflineSnackbar),
           backgroundColor: Colors.orange,
           duration: const Duration(seconds: 3),
         ),
@@ -981,10 +991,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
+          SnackBar(
             content:
-                Text('📴 Auto Check-out saved offline. Will sync when online.'),
-            duration: Duration(seconds: 3),
+                Text(AppLocalizations.of(context).autoCheckOutOfflineSnackbar),
+            duration: const Duration(seconds: 3),
           ),
         );
       }
@@ -1776,10 +1786,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  '📴 Auto Check-in saved offline. Will sync when online.'),
-              duration: Duration(seconds: 3),
+            SnackBar(
+              content: Text(AppLocalizations.of(context)
+                  .autoCheckInOfflineSnackbarVariant),
+              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -1827,7 +1837,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('✅ Auto Check-in successful for ${task.taskName}'),
+              content: Text(AppLocalizations.of(context)
+                  .autoCheckInSuccessSnackbar(task.taskName)),
               backgroundColor: Colors.green,
               duration: const Duration(seconds: 2),
             ),
@@ -1981,9 +1992,9 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
               });
 
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('🧹 Local data cleared by server'),
-                  duration: Duration(seconds: 3),
+                SnackBar(
+                  content: Text(AppLocalizations.of(context).remoteWipeSnackbar),
+                  duration: const Duration(seconds: 3),
                 ),
               );
             }
@@ -2251,7 +2262,8 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('📤 Syncing ${pending.length} offline actions...'),
+            content: Text(AppLocalizations.of(context)
+                .offlineSyncProgressSnackbar(pending.length.toString())),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -2429,7 +2441,8 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
       if (mounted && syncedCount > 0) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('✅ Synced $syncedCount actions successfully!'),
+            content: Text(AppLocalizations.of(context)
+                .offlineSyncSuccessSnackbar(syncedCount.toString())),
             backgroundColor: Colors.green,
             duration: const Duration(seconds: 2),
           ),
@@ -2589,6 +2602,7 @@ print(response.body);
     }// Or false if failed
   }*/
   Future<bool> callBreakInApi(String taskId, BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     try {
       final position = await _getCurrentLocation();
       final prefs = await SharedPreferences.getInstance();
@@ -2612,7 +2626,7 @@ print(response.body);
         await prefs.setBool('onBreak', true);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("⏸ Break-In saved offline")),
+          SnackBar(content: Text(l10n.breakInOfflineSnackbar)),
         );
 
         return true;
@@ -2639,7 +2653,9 @@ print(response.body);
       }
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("❌ Break-In failed (${response.statusCode})")),
+        SnackBar(
+            content:
+                Text(l10n.breakInFailureSnackbar(response.statusCode.toString()))),
       );
       return false;
     } catch (e) {
@@ -2649,6 +2665,7 @@ print(response.body);
   }
 
   Future<bool> callBreakOutApi(String taskId, BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     try {
       final position = await _getCurrentLocation();
       final prefs = await SharedPreferences.getInstance();
@@ -2656,8 +2673,7 @@ print(response.body);
 
       if (token == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("Authentication error. Please log in again.")),
+          SnackBar(content: Text(l10n.breakOutAuthErrorSnackbar)),
         );
         return false;
       }
@@ -2680,8 +2696,7 @@ print(response.body);
         await prefs.setBool('onBreak', false);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text("▶️ Break-Out saved offline. Will sync later.")),
+          SnackBar(content: Text(l10n.breakOutOfflineSnackbar)),
         );
         return true;
       }
@@ -2704,27 +2719,28 @@ print(response.body);
       if (response.statusCode == 200 || response.statusCode == 201) {
         await prefs.setBool('onBreak', false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("✅ Break-Out successful.")),
+          SnackBar(content: Text(l10n.breakOutSuccessSnackbar)),
         );
         return true;
       } else {
         print('Break-out failed: ${response.statusCode} ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text("❌ Break-Out failed (${response.statusCode}).")),
+              content: Text(
+                  l10n.breakOutFailureSnackbar(response.statusCode.toString()))),
         );
         return false;
       }
     } catch (e) {
       print("Break-out error: $e");
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
       );
       return false;
     }
   }
 
-  Widget _priorityChip(String label) {
+  Widget _priorityChip(String label, [String? displayLabel]) {
     final bool isSelected = selectedPriority == label.toLowerCase();
 
     Color chipColor;
@@ -2743,7 +2759,7 @@ print(response.body);
     }
 
     return ChoiceChip(
-      label: Text(label),
+      label: Text(displayLabel ?? label),
       selected: isSelected,
       selectedColor: chipColor,
       labelStyle: TextStyle(
@@ -2788,6 +2804,7 @@ print(response.body);
   }
 
   Widget buildTimerCard(BuildContext context, String date) {
+    final l10n = AppLocalizations.of(context);
     // Get selected task safely from allTasks
     final Duration currentDuration =
         _onBreak ? _breakDuration : _workingDuration;
@@ -2935,9 +2952,9 @@ print(response.body);
                     onPressed: () async {
                       if (selectedTaskId == null || selectedTaskId!.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                'Please select a task before starting a break.'),
+                          SnackBar(
+                            content:
+                                Text(l10n.breakSelectTaskFirstSnackbar),
                           ),
                         );
                         return;
@@ -2948,7 +2965,7 @@ print(response.body);
 
                       if (_onBreak) {
                         // ✅ Break OUT
-                        FullScreenLoader.show(context, 'Ending break...');
+                        FullScreenLoader.show(context, l10n.loaderTextEndingBreak);
                         bool success =
                             await callBreakOutApi(selectedTaskId!, context);
                         FullScreenLoader.hide(context);
@@ -2957,7 +2974,8 @@ print(response.body);
                         }
                       } else {
                         // ✅ Break IN
-                        FullScreenLoader.show(context, 'Starting break...');
+                        FullScreenLoader.show(
+                            context, l10n.loaderTextStartingBreak);
                         bool success =
                             await callBreakInApi(selectedTaskId!, context);
                         FullScreenLoader.hide(context);
@@ -2980,7 +2998,9 @@ print(response.body);
                             color: _onBreak ? Colors.green : Colors.orange,
                           ),
                     label: Text(
-                      _onBreak ? 'End Break' : 'Go for Break',
+                      _onBreak
+                          ? l10n.breakButtonLabelOnBreak
+                          : l10n.breakButtonLabelNotOnBreak,
                       style: TextStyle(
                         fontFamily: 'Poppins',
                         color: _onBreak ? Colors.green : Colors.orange,
@@ -3005,9 +3025,9 @@ print(response.body);
                       // ✅ VALIDATION: Must end break before clocking out
                       if (_onBreak) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                "⛔ You're on a break. Please end your break before clocking out."),
+                          SnackBar(
+                            content:
+                                Text(l10n.clockOutBlockedByBreakSnackbar),
                             backgroundColor: Colors.orange,
                           ),
                         );
@@ -3017,9 +3037,9 @@ print(response.body);
                       // ✅ VALIDATION: Check if user is actually punched in
                       if (selectedTaskId.isEmpty) {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text(
-                                "⛔ Cannot clock out - You are not clocked in to any task"),
+                          SnackBar(
+                            content:
+                                Text(l10n.clockOutNotClockedInSnackbar),
                             backgroundColor: Colors.orange,
                           ),
                         );
@@ -3059,8 +3079,8 @@ print(response.body);
                         }
                       } else {
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text("No punched-in task found.")),
+                          SnackBar(
+                              content: Text(l10n.clockOutNoTaskFoundSnackbar)),
                         );
                       }
                     },
@@ -3071,10 +3091,10 @@ print(response.body);
                           borderRadius: BorderRadius.circular(12)),
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
-                    child: const Text(
-                      'Clock Out',
-                      style:
-                          TextStyle(color: Colors.white, fontFamily: 'Poppins'),
+                    child: Text(
+                      l10n.clockOutButton,
+                      style: const TextStyle(
+                          color: Colors.white, fontFamily: 'Poppins'),
                     ),
                   ),
                 ),
@@ -3100,6 +3120,7 @@ print(response.body);
   }
 
   Widget _buildMainContent() {
+    final l10n = AppLocalizations.of(context);
     // Show error state first
     if (_error != null) {
       return Center(
@@ -3108,11 +3129,12 @@ print(response.body);
           children: [
             Icon(Icons.error_outline, size: 64, color: Colors.red),
             SizedBox(height: 16),
-            Text('Error: $_error', textAlign: TextAlign.center),
+            Text(l10n.exceptionSnackbar(_error.toString()),
+                textAlign: TextAlign.center),
             SizedBox(height: 16),
             ElevatedButton(
               onPressed: () => _initializeApp(),
-              child: Text('Retry'),
+              child: Text(l10n.dashboardRetryButton),
             ),
           ],
         ),
@@ -3133,13 +3155,13 @@ print(response.body);
     //   );
     // }
     if (_isLoading) {
-      return const Center(
+      return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            CircularProgressIndicator(),
-            SizedBox(height: 16),
-            Text('Loading dashboard...'),
+            const CircularProgressIndicator(),
+            const SizedBox(height: 16),
+            Text(l10n.dashboardLoadingText),
           ],
         ),
       );
@@ -3190,10 +3212,10 @@ print(response.body);
             Wrap(
               spacing: 10,
               children: [
-                _priorityChip("All"),
-                _priorityChip("Low"),
-                _priorityChip("Medium"),
-                _priorityChip("High"),
+                _priorityChip("All", l10n.priorityFilterChip),
+                _priorityChip("Low", l10n.priorityFilterChip2),
+                _priorityChip("Medium", l10n.priorityFilterChip3),
+                _priorityChip("High", l10n.priorityFilterChip4),
               ],
             ),
             const SizedBox(height: 10),
@@ -3235,7 +3257,7 @@ print(response.body);
       controller: _searchController,
       onChanged: _filterTasks,
       decoration: InputDecoration(
-        hintText: 'Search tasks...',
+        hintText: AppLocalizations.of(context).taskSearchFieldHint,
         prefixIcon: const Icon(Icons.search),
         contentPadding: const EdgeInsets.symmetric(vertical: 0),
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
@@ -3286,6 +3308,7 @@ print(response.body);
 
   /// Status banner showing offline/sync status
   Widget _buildStatusBanner() {
+    final l10n = AppLocalizations.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -3309,7 +3332,7 @@ print(response.body);
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  !_isOnline ? '📴 Offline Mode' : '📤 Syncing Data',
+                  !_isOnline ? l10n.offlineBannerHeading : l10n.syncingBannerHeading,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
@@ -3321,8 +3344,9 @@ print(response.body);
                 const SizedBox(height: 2),
                 Text(
                   !_isOnline
-                      ? 'Check-ins/outs will be saved and synced when online'
-                      : '$_pendingSyncCount action${_pendingSyncCount == 1 ? '' : 's'} pending sync',
+                      ? l10n.offlineBannerSubtext
+                      : l10n.syncPendingBannerSubtext(
+                          _pendingSyncCount.toString()),
                   style: TextStyle(
                     fontSize: 12,
                     color: !_isOnline
@@ -3340,7 +3364,7 @@ print(response.body);
                 await syncOfflineActions();
                 await _updatePendingSyncCount();
               },
-              tooltip: 'Sync now',
+              tooltip: l10n.syncNowTooltip,
             ),
         ],
       ),
@@ -3348,11 +3372,12 @@ print(response.body);
   }
 
   Widget _buildTaskHeader(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        const Text('Today\'s Tasks',
-            style: TextStyle(
+        Text(l10n.taskListSectionTitle,
+            style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 18,
                 fontFamily: 'Poppins')),
@@ -3363,8 +3388,8 @@ print(response.body);
               MaterialPageRoute(builder: (context) => AllTasksScreen2()),
             );
           },
-          child: const Text('View all',
-              style: TextStyle(fontFamily: 'Poppins', color: Colors.blue)),
+          child: Text(l10n.viewAllTasksLink,
+              style: const TextStyle(fontFamily: 'Poppins', color: Colors.blue)),
         )
       ],
     );
@@ -3374,9 +3399,9 @@ print(response.body);
 
   Widget _buildTaskList() {
     if (taskList.isEmpty) {
-      return const Center(
-        child:
-            Text("No tasks available", style: TextStyle(fontFamily: 'Poppins')),
+      return Center(
+        child: Text(AppLocalizations.of(context).emptyTaskListText,
+            style: const TextStyle(fontFamily: 'Poppins')),
       );
     }
 
@@ -3562,9 +3587,10 @@ class _TaskCardState extends State<TaskCard> {
       if (response.statusCode == 200) {
         setState(() => _localAcceptanceStatus = accept ? 'accepted' : 'declined');
         if (mounted) {
+          final l10n = AppLocalizations.of(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(accept ? '✅ Shift accepted' : '🚫 Shift declined'),
+              content: Text(accept ? l10n.shiftResponseSnackbarAccepted : l10n.shiftResponseSnackbarDeclined),
               backgroundColor: accept ? Colors.green : Colors.orange,
             ),
           );
@@ -3573,14 +3599,14 @@ class _TaskCardState extends State<TaskCard> {
         if (mounted) {
           final body = jsonDecode(response.body);
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(body['error'] ?? 'Failed to respond to shift')),
+            SnackBar(content: Text(body['error'] ?? AppLocalizations.of(context).shiftResponseFallbackErrorSnackbar)),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).exceptionSnackbar(e.toString()))),
         );
       }
     } finally {
@@ -3738,16 +3764,16 @@ class _TaskCardState extends State<TaskCard> {
   }*/
 
   Future<void> _handlePunchIn(BuildContext context) async {
+    final l10n = AppLocalizations.of(context);
     try {
       // ✅ CHECK IF ALREADY PUNCHED OUT OFFLINE
       final hasPunchOut = await _hasOfflinePunchOut(widget.taskId);
       if (hasPunchOut) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                '⛔ You already punched out from this task (offline). Cannot punch in again.'),
+          SnackBar(
+            content: Text(l10n.punchInAlreadyPunchedOutOfflineSnackbar),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
         return;
@@ -3757,7 +3783,7 @@ class _TaskCardState extends State<TaskCard> {
 
       // Block interaction from the moment the task is tapped, all the way
       // through location/time validation, until the camera screen opens.
-      FullScreenLoader.show(context, 'Checking your location...');
+      FullScreenLoader.show(context, l10n.loaderTextCheckingLocation);
 
       // Get location first to validate
       Position? position;
@@ -3769,11 +3795,10 @@ class _TaskCardState extends State<TaskCard> {
         debugPrint("❌ Location error: $e");
         FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-                '⛔ Unable to get your location. Please enable location services.'),
+          SnackBar(
+            content: Text(l10n.punchInLocationErrorSnackbar),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
         return;
@@ -3795,10 +3820,10 @@ class _TaskCardState extends State<TaskCard> {
         debugPrint("⛔ Location validation failed");
         FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('⛔ You are not on location'),
+          SnackBar(
+            content: Text(l10n.punchInNotOnLocationSnackbar),
             backgroundColor: Colors.red,
-            duration: Duration(seconds: 3),
+            duration: const Duration(seconds: 3),
           ),
         );
         return;
@@ -3816,8 +3841,8 @@ class _TaskCardState extends State<TaskCard> {
       } catch (e) {
         FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("⛔ Invalid task date format"),
+          SnackBar(
+            content: Text(l10n.punchInInvalidTaskDateSnackbar),
             backgroundColor: Colors.red,
           ),
         );
@@ -3839,9 +3864,12 @@ class _TaskCardState extends State<TaskCard> {
         FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              "⛔ Too early! Task starts at ${task.startTime} on ${task.date} (in ${hoursUntil}h ${minutesUntil}m)",
-            ),
+            content: Text(l10n.punchInTooEarly(
+              task.date,
+              hoursUntil.toString(),
+              minutesUntil.toString(),
+              task.startTime,
+            )),
             backgroundColor: Colors.orange,
           ),
         );
@@ -3860,7 +3888,8 @@ class _TaskCardState extends State<TaskCard> {
           FullScreenLoader.hide(context);
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('⛔ Task ended at ${task.endTime} on ${task.date}'),
+              content: Text(
+                  l10n.punchInTaskEndedSnackbar(task.date, task.endTime)),
               backgroundColor: Colors.red,
             ),
           );
@@ -3870,7 +3899,7 @@ class _TaskCardState extends State<TaskCard> {
 
       // Camera is about to open — keep the loader up until the camera
       // preview is actually ready, then let it go so the preview shows.
-      FullScreenLoader.updateMessage('Opening camera...');
+      FullScreenLoader.updateMessage(l10n.loaderTextOpeningCamera);
       final imagePath = await Navigator.push<String>(
         context,
         MaterialPageRoute(
@@ -3884,7 +3913,7 @@ class _TaskCardState extends State<TaskCard> {
       final image = XFile(imagePath);
 
       // Show full-screen loader again while the punch-in is submitted
-      FullScreenLoader.show(context, 'Punching in...');
+      FullScreenLoader.show(context, l10n.loaderTextPunchingIn);
 
       // Check internet FIRST
       final connectivity = await Connectivity().checkConnectivity();
@@ -3915,9 +3944,8 @@ class _TaskCardState extends State<TaskCard> {
         widget.onTaskSelected(widget.taskId);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('📴 Punch-in saved offline. Will sync automatically.'),
+          SnackBar(
+            content: Text(l10n.punchInOfflineSnackbar),
           ),
         );
 
@@ -3983,7 +4011,7 @@ class _TaskCardState extends State<TaskCard> {
         widget.onTaskSelected(widget.taskId);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('✅ Punch-in successful')),
+          SnackBar(content: Text(l10n.punchInSuccessSnackbar)),
         );
       } else {
         throw Exception(body.body);
@@ -3993,7 +4021,7 @@ class _TaskCardState extends State<TaskCard> {
       debugPrint('Punch-in failed: $e');
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
       );
     }
   }
@@ -4010,6 +4038,7 @@ class _TaskCardState extends State<TaskCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final bool isHigh = widget.highPriority.toLowerCase() == "high";
     final bool isCompleted = widget.completed.toLowerCase() == "completed";
     final bool isSelected = widget.selectedTaskId == widget.taskId;
@@ -4027,9 +4056,8 @@ class _TaskCardState extends State<TaskCard> {
         final hasPunchOut = await _hasOfflinePunchOut(widget.taskId);
         if (hasPunchOut && !isCurrentPunchedIn) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  '⛔ This task already has an offline punch-out. Cannot punch in again.'),
+            SnackBar(
+              content: Text(l10n.punchInOfflinePunchoutBlockSnackbar),
               backgroundColor: Colors.orange,
             ),
           );
@@ -4046,7 +4074,7 @@ class _TaskCardState extends State<TaskCard> {
           }
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('This task is already completed.')),
+            SnackBar(content: Text(l10n.taskAlreadyCompletedSnackbar)),
           );
           return;
         } else {
@@ -4099,7 +4127,8 @@ class _TaskCardState extends State<TaskCard> {
 
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('You are already punched into "$taskName".'),
+              content:
+                  Text(l10n.alreadyPunchedIntoAnotherTaskSnackbar(taskName)),
             ),
           );
         }
@@ -4178,7 +4207,7 @@ class _TaskCardState extends State<TaskCard> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'High',
+                            l10n.priorityFilterChip4,
                             style: TextStyle(
                               color: Colors.red.shade600,
                               fontSize: 10,
@@ -4197,7 +4226,7 @@ class _TaskCardState extends State<TaskCard> {
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Text(
-                            'Punched In',
+                            l10n.taskCardStatusBadge,
                             style: TextStyle(
                               color: Colors.green.shade700,
                               fontSize: 10,
@@ -4260,11 +4289,11 @@ class _TaskCardState extends State<TaskCard> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
-                            children: const [
-                              Icon(Icons.info_outline, size: 14, color: Colors.orange),
-                              SizedBox(width: 4),
-                              Text('This shift needs your response',
-                                  style: TextStyle(fontSize: 12, fontFamily: 'Poppins')),
+                            children: [
+                              const Icon(Icons.info_outline, size: 14, color: Colors.orange),
+                              const SizedBox(width: 4),
+                              Text(l10n.needsResponseCardInfoLine,
+                                  style: const TextStyle(fontSize: 12, fontFamily: 'Poppins')),
                             ],
                           ),
                           const SizedBox(height: 6),
@@ -4284,7 +4313,7 @@ class _TaskCardState extends State<TaskCard> {
                                           padding: const EdgeInsets.symmetric(vertical: 6),
                                         ),
                                         onPressed: () => _respondToAcceptance(true),
-                                        child: const Text('Accept', style: TextStyle(fontSize: 12)),
+                                        child: Text(l10n.acceptButtonNeedsResponseCard, style: const TextStyle(fontSize: 12)),
                                       ),
                                     ),
                                     const SizedBox(width: 8),
@@ -4295,8 +4324,8 @@ class _TaskCardState extends State<TaskCard> {
                                           side: const BorderSide(color: Colors.red),
                                         ),
                                         onPressed: () => _respondToAcceptance(false),
-                                        child: const Text('Decline',
-                                            style: TextStyle(fontSize: 12, color: Colors.red)),
+                                        child: Text(l10n.declineButtonNeedsResponseCard,
+                                            style: const TextStyle(fontSize: 12, color: Colors.red)),
                                       ),
                                     ),
                                   ],
@@ -4315,7 +4344,7 @@ class _TaskCardState extends State<TaskCard> {
                         borderRadius: BorderRadius.circular(10),
                       ),
                       child: Text(
-                        _acceptanceStatus == 'accepted' ? '✅ Accepted' : '🚫 Declined',
+                        _acceptanceStatus == 'accepted' ? l10n.statusChipAfterRespondingAccepted : l10n.statusChipAfterRespondingDeclined,
                         style: TextStyle(
                           fontSize: 11,
                           fontFamily: 'Poppins',
@@ -4564,11 +4593,11 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
     return tasks.where((t) => t.priority.toLowerCase() == priority).length;
   }
 
-  Widget _priorityChip(String label) {
+  Widget _priorityChip(String label, [String? displayLabel]) {
     final isSelected = selectedPriority == label.toLowerCase();
 
     return ChoiceChip(
-      label: Text(label),
+      label: Text(displayLabel ?? label),
       selected: isSelected,
       selectedColor: Colors.black,
       labelStyle: TextStyle(
@@ -4623,14 +4652,20 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    final List<String> tabDisplayLabels = [
+      l10n.priorityFilterChip,
+      l10n.tabLabel,
+      l10n.tabLabel2,
+    ];
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: const Text(
-          "All Tasks",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+        title: Text(
+          l10n.appBarTitle,
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
         ),
       ),
       body: isLoading
@@ -4676,7 +4711,7 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
                           child: Row(
                             children: [
                               Text(
-                                tabs[index],
+                                tabDisplayLabels[index],
                                 style: TextStyle(
                                   fontWeight: isSelected
                                       ? FontWeight.bold
@@ -4712,10 +4747,10 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
                   Wrap(
                     spacing: 10,
                     children: [
-                      _priorityChip("All"),
-                      _priorityChip("Low"),
-                      _priorityChip("Medium"),
-                      _priorityChip("High"),
+                      _priorityChip("All", l10n.priorityFilterChip),
+                      _priorityChip("Low", l10n.priorityFilterChip2),
+                      _priorityChip("Medium", l10n.priorityFilterChip3),
+                      _priorityChip("High", l10n.priorityFilterChip4),
                     ],
                   ),
 
@@ -4738,9 +4773,9 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
                               .toList();
                         });
                       },
-                      decoration: const InputDecoration(
-                        icon: Icon(Icons.search, color: Colors.grey),
-                        hintText: "Search Task",
+                      decoration: InputDecoration(
+                        icon: const Icon(Icons.search, color: Colors.grey),
+                        hintText: l10n.searchFieldHint,
                         border: InputBorder.none,
                       ),
                     ),

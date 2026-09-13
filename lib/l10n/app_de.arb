@@ -1,0 +1,1089 @@
+{
+  "@@locale": "de",
+  "emailEmptyInlineError": "E-Mail ist erforderlich",
+  "@emailEmptyInlineError": {
+    "description": "Login - email empty inline error"
+  },
+  "invalidEmailInlineError": "Bitte eine gültige E-Mail-Adresse eingeben",
+  "@invalidEmailInlineError": {
+    "description": "Login - invalid email inline error"
+  },
+  "passwordEmptyInlineError": "Passwort ist erforderlich",
+  "@passwordEmptyInlineError": {
+    "description": "Login - password empty inline error"
+  },
+  "loginSuccessFallbackMessage": "Zugangsdaten bestätigt. Geben Sie den Sicherheitscode aus dem Admin-Dashboard ein, um die Anmeldung abzuschließen.",
+  "@loginSuccessFallbackMessage": {
+    "description": "Login - login success fallback message"
+  },
+  "emailNotFoundInlineError": "Wir konnten kein Konto mit dieser E-Mail-Adresse finden.",
+  "@emailNotFoundInlineError": {
+    "description": "Login - email not found inline error"
+  },
+  "emailNotFoundSnackbar": "Bitte überprüfen Sie Ihre E-Mail-Adresse und versuchen Sie es erneut.",
+  "@emailNotFoundSnackbar": {
+    "description": "Login - email not found snackbar"
+  },
+  "passwordIncorrectInlineError": "Das eingegebene Passwort ist falsch.",
+  "@passwordIncorrectInlineError": {
+    "description": "Login - password incorrect inline error"
+  },
+  "passwordIncorrectSnackbar": "Bitte überprüfen Sie Ihr Passwort und versuchen Sie es erneut.",
+  "@passwordIncorrectSnackbar": {
+    "description": "Login - password incorrect snackbar"
+  },
+  "genericInvalidCredentialsInlineError": "E-Mail-Adresse oder Passwort ist falsch.",
+  "@genericInvalidCredentialsInlineError": {
+    "description": "Login - generic invalid credentials inline error"
+  },
+  "genericInvalidCredentialsSnackbar": "Anmeldung nicht möglich. Bitte versuchen Sie es erneut.",
+  "@genericInvalidCredentialsSnackbar": {
+    "description": "Login - generic invalid credentials snackbar"
+  },
+  "accountDisabledSnackbar": "Dieses Konto ist derzeit nicht verfügbar.",
+  "@accountDisabledSnackbar": {
+    "description": "Login - account disabled snackbar"
+  },
+  "genericFailureSnackbar": "Anmeldung derzeit nicht möglich. Bitte versuchen Sie es später erneut.",
+  "@genericFailureSnackbar": {
+    "description": "Login - generic failure snackbar"
+  },
+  "offlineLoginSuccessSnackbar": "Offline-Anmeldung erfolgreich",
+  "@offlineLoginSuccessSnackbar": {
+    "description": "Login - offline login success snackbar"
+  },
+  "loginExceptionSnackbar": "Anmeldung fehlgeschlagen: {error}",
+  "@loginExceptionSnackbar": {
+    "description": "Login - login exception snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "screenHeadingButtonLabel": "Anmelden",
+  "@screenHeadingButtonLabel": {
+    "description": "Login - screen heading / button label"
+  },
+  "subheading": "Bitte geben Sie Ihre Zugangsdaten ein, um fortzufahren",
+  "@subheading": {
+    "description": "Login - subheading"
+  },
+  "accessRestrictionNotice": "Der Zugang ist auf autorisierte Mitarbeitende und freigegebene Auftragnehmer beschränkt. Konten werden von einem Administrator angelegt. Eine öffentliche Registrierung ist nicht möglich.",
+  "@accessRestrictionNotice": {
+    "description": "Login - access-restriction notice"
+  },
+  "emailFieldHint": "E-Mail",
+  "@emailFieldHint": {
+    "description": "Login - email field hint"
+  },
+  "passwordFieldHint": "Passwort",
+  "@passwordFieldHint": {
+    "description": "Login - password field hint"
+  },
+  "forgotPasswordLink": "Passwort vergessen?",
+  "@forgotPasswordLink": {
+    "description": "Login - forgot password link"
+  },
+  "consentTextBeforeTermsLink": "Mit der Anmeldung stimmen Sie unseren",
+  "@consentTextBeforeTermsLink": {
+    "description": "Login - consent text before terms link"
+  },
+  "termsLink": "Nutzungsbedingungen",
+  "@termsLink": {
+    "description": "Login - terms link"
+  },
+  "consentConnectorWord": "und",
+  "@consentConnectorWord": {
+    "description": "Login - consent connector word"
+  },
+  "versionLabelPrefix": "V",
+  "@versionLabelPrefix": {
+    "description": "Login - version label prefix"
+  },
+  "invalidCodeLengthInlineError": "Geben Sie den 6-stelligen Sicherheitscode ein",
+  "@invalidCodeLengthInlineError": {
+    "description": "Security Code - invalid code length inline error"
+  },
+  "verifySuccessFallback": "Anmeldung erfolgreich",
+  "@verifySuccessFallback": {
+    "description": "Security Code - verify success fallback"
+  },
+  "sessionExpiredFallback": "Anmeldesitzung abgelaufen oder ungültig. Bitte melden Sie sich erneut an.",
+  "@sessionExpiredFallback": {
+    "description": "Security Code - session expired fallback"
+  },
+  "invalidCodeFallback": "Ungültiger Sicherheitscode.",
+  "@invalidCodeFallback": {
+    "description": "Security Code - invalid code fallback"
+  },
+  "verificationExceptionSnackbar": "Verifizierung fehlgeschlagen: {error}",
+  "@verificationExceptionSnackbar": {
+    "description": "Security Code - verification exception snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "screenHeading": "Sicherheitscode eingeben",
+  "@screenHeading": {
+    "description": "Security Code - screen heading"
+  },
+  "subheading2": "Fragen Sie Ihren Admin nach dem 6-stelligen Sicherheitscode, der auf dem Dashboard angezeigt wird.",
+  "@subheading2": {
+    "description": "Security Code - subheading"
+  },
+  "codeFieldPlaceholder": "0.0",
+  "@codeFieldPlaceholder": {
+    "description": "Security Code - code field placeholder"
+  },
+  "verifyButton": "Bestätigen",
+  "@verifyButton": {
+    "description": "Security Code - verify button"
+  },
+  "backLink": "Zurück zur Anmeldung",
+  "@backLink": {
+    "description": "Security Code - back link"
+  },
+  "successFallback": "Erfolgreich",
+  "@successFallback": {
+    "description": "Forgot Password - success fallback"
+  },
+  "failureSnackbar": "Fehlgeschlagen: {statusCode}",
+  "@failureSnackbar": {
+    "description": "Forgot Password - failure snackbar",
+    "placeholders": {
+      "statusCode": {}
+    }
+  },
+  "exceptionSnackbar": "Fehler: {error}",
+  "@exceptionSnackbar": {
+    "description": "Forgot Password - exception snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "appbarTitle": "Passwort vergessen",
+  "@appbarTitle": {
+    "description": "Forgot Password - AppBar title"
+  },
+  "instructionText": "Geben Sie Ihre E-Mail-Adresse ein, um einen Link zum Zurücksetzen des Passworts zu erhalten.",
+  "@instructionText": {
+    "description": "Forgot Password - instruction text"
+  },
+  "emailFieldHint2": "name@beispiel.de",
+  "@emailFieldHint2": {
+    "description": "Forgot Password - email field hint"
+  },
+  "submitButton": "Link senden",
+  "@submitButton": {
+    "description": "Forgot Password - submit button"
+  },
+  "apiResultFallback": "Etwas ist schiefgelaufen",
+  "@apiResultFallback": {
+    "description": "Reset Password - api result fallback"
+  },
+  "appbarTitleButtonLabel": "Passwort zurücksetzen",
+  "@appbarTitleButtonLabel": {
+    "description": "Reset Password - AppBar title / button label"
+  },
+  "otpFieldLabel": "Einmalcode",
+  "@otpFieldLabel": {
+    "description": "Reset Password - OTP field label"
+  },
+  "otpFieldHint": "Einmalcode eingeben",
+  "@otpFieldHint": {
+    "description": "Reset Password - OTP field hint"
+  },
+  "otpRequiredValidation": "Einmalcode ist erforderlich",
+  "@otpRequiredValidation": {
+    "description": "Reset Password - OTP required validation"
+  },
+  "newPasswordFieldLabel": "Neues Passwort",
+  "@newPasswordFieldLabel": {
+    "description": "Reset Password - new password field label"
+  },
+  "newPasswordFieldHint": "Neues Passwort eingeben",
+  "@newPasswordFieldHint": {
+    "description": "Reset Password - new password field hint"
+  },
+  "passwordLengthValidation": "Das Passwort muss mindestens 8 Zeichen lang sein",
+  "@passwordLengthValidation": {
+    "description": "Reset Password - password length validation"
+  },
+  "confirmPasswordFieldLabel": "Passwort bestätigen",
+  "@confirmPasswordFieldLabel": {
+    "description": "Reset Password - confirm password field label"
+  },
+  "confirmPasswordFieldHint": "Passwort erneut eingeben",
+  "@confirmPasswordFieldHint": {
+    "description": "Reset Password - confirm password field hint"
+  },
+  "confirmPasswordRequiredValidation": "Passwortbestätigung ist erforderlich",
+  "@confirmPasswordRequiredValidation": {
+    "description": "Reset Password - confirm password required validation"
+  },
+  "passwordsMismatchValidation": "Die Passwörter stimmen nicht überein",
+  "@passwordsMismatchValidation": {
+    "description": "Reset Password - passwords mismatch validation"
+  },
+  "missingTokenSnackbar": "Kein Anmelde-Token gefunden. Bitte melden Sie sich erneut an.",
+  "@missingTokenSnackbar": {
+    "description": "Change Password - missing token snackbar"
+  },
+  "appbarTitleButtonLabel2": "Passwort ändern",
+  "@appbarTitleButtonLabel2": {
+    "description": "Change Password - AppBar title / button label"
+  },
+  "oldPasswordFieldLabel": "Altes Passwort",
+  "@oldPasswordFieldLabel": {
+    "description": "Change Password - old password field label"
+  },
+  "oldPasswordRequiredValidation": "Altes Passwort ist erforderlich",
+  "@oldPasswordRequiredValidation": {
+    "description": "Change Password - old password required validation"
+  },
+  "newPasswordRequiredValidation": "Neues Passwort ist erforderlich",
+  "@newPasswordRequiredValidation": {
+    "description": "Change Password - new password required validation"
+  },
+  "confirmPasswordFieldLabel2": "Neues Passwort bestätigen",
+  "@confirmPasswordFieldLabel2": {
+    "description": "Change Password - confirm password field label"
+  },
+  "accessibilityHintToggleOff": "Doppeltippen zum Deaktivieren",
+  "@accessibilityHintToggleOff": {
+    "description": "Consent Screen - accessibility hint (toggle off)"
+  },
+  "accessibilityHintToggleOn": "Doppeltippen zum Aktivieren",
+  "@accessibilityHintToggleOn": {
+    "description": "Consent Screen - accessibility hint (toggle on)"
+  },
+  "heading": "Bevor Sie fortfahren",
+  "@heading": {
+    "description": "Consent Screen - heading"
+  },
+  "subheading3": "Bitte lesen und bestätigen Sie Folgendes, um diese App zu nutzen.",
+  "@subheading3": {
+    "description": "Consent Screen - subheading"
+  },
+  "cardTitle": "Altersbestätigung",
+  "@cardTitle": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription": "Sie müssen mindestens 18 Jahre alt sein, um diese App zu nutzen.",
+  "@cardDescription": {
+    "description": "Consent Screen - card description"
+  },
+  "cardTitle2": "Ihre Privatsphäre ist uns wichtig",
+  "@cardTitle2": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription2": "Wir erheben nur die Daten, die zur Erbringung unserer Leistungen erforderlich sind.",
+  "@cardDescription2": {
+    "description": "Consent Screen - card description"
+  },
+  "cardLink": "Datenschutzerklärung",
+  "@cardLink": {
+    "description": "Consent Screen - card link"
+  },
+  "cardTitle3": "Benachrichtigungen erlauben (optional)",
+  "@cardTitle3": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription3": "Erhalten Sie Aufgaben-Updates und Schicht-Erinnerungen. Dies ist optional – die App funktioniert auch ohne Benachrichtigungen. Sie können dies jederzeit in den Geräteeinstellungen ändern.",
+  "@cardDescription3": {
+    "description": "Consent Screen - card description"
+  },
+  "cardTitle4": "Standort- & Geräteinformationen",
+  "@cardTitle4": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription4": "Wir erfassen Ihre Gerätekennung und – sofern Sie zustimmen – Ihren ungefähren Standort, um die Sicherheit zu verbessern, Betrug zu verhindern und standortbezogene Dienste bereitzustellen. Ihr Standort wird nicht dauerhaft erfasst und niemals weitergegeben oder verkauft. Sie können diese Berechtigung jederzeit in den Geräteeinstellungen ändern.",
+  "@cardDescription4": {
+    "description": "Consent Screen - card description"
+  },
+  "continueButton": "Weiter",
+  "@continueButton": {
+    "description": "Consent Screen - continue button"
+  },
+  "welcomeText": "Willkommen!",
+  "@welcomeText": {
+    "description": "Splash Screen - welcome text"
+  },
+  "missingUpdateLinkSnackbar": "Update-Link ist nicht verfügbar.",
+  "@missingUpdateLinkSnackbar": {
+    "description": "Force Update - missing update link snackbar"
+  },
+  "invalidLinkSnackbar": "Ungültiger Update-Link.",
+  "@invalidLinkSnackbar": {
+    "description": "Force Update - invalid link snackbar"
+  },
+  "launchFailureSnackbar": "Update-Link konnte nicht geöffnet werden: {error}",
+  "@launchFailureSnackbar": {
+    "description": "Force Update - launch failure snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "genericErrorSnackbar": "Fehler beim Öffnen des Update-Links: {error}",
+  "@genericErrorSnackbar": {
+    "description": "Force Update - generic error snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "heading2": "Update erforderlich",
+  "@heading2": {
+    "description": "Force Update - heading"
+  },
+  "bodyText": "Eine neuere Version von Deine Putzcrew ist verfügbar und erforderlich, um die App weiter zu nutzen.",
+  "@bodyText": {
+    "description": "Force Update - body text"
+  },
+  "reasonListItem": "Fehlerbehebungen und Stabilitätsverbesserungen",
+  "@reasonListItem": {
+    "description": "Force Update - reason list item"
+  },
+  "reasonListItem2": "Wichtige Sicherheitsupdates",
+  "@reasonListItem2": {
+    "description": "Force Update - reason list item"
+  },
+  "reasonListItem3": "Ein-/Ausstempeln bleibt deaktiviert, bis Sie das Update installieren",
+  "@reasonListItem3": {
+    "description": "Force Update - reason list item"
+  },
+  "updateButton": "Jetzt aktualisieren",
+  "@updateButton": {
+    "description": "Force Update - update button"
+  },
+  "footerNoteIos": "Sie werden zu TestFlight weitergeleitet, um das Update zu installieren.",
+  "@footerNoteIos": {
+    "description": "Force Update - footer note iOS"
+  },
+  "footerNoteAndroid": "Sie werden zum Play Store weitergeleitet, um das Update zu installieren.",
+  "@footerNoteAndroid": {
+    "description": "Force Update - footer note Android"
+  },
+  "pageTitleIos": "Datenschutzerklärung – iOS",
+  "@pageTitleIos": {
+    "description": "Privacy Policy - page title iOS"
+  },
+  "pageTitleAndroid": "Datenschutzerklärung – Android",
+  "@pageTitleAndroid": {
+    "description": "Privacy Policy - page title Android"
+  },
+  "effectiveDateLabel": "Gültig ab: {date}",
+  "@effectiveDateLabel": {
+    "description": "Privacy Policy - effective date label",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "introParagraph": "Diese Datenschutzerklärung erläutert, wie LivingSpark Global Tech Pvt Ltd („wir“, „uns“, „unser“), Entwickler und Betreiber von DeinePutzCrew, personenbezogene Daten erhebt, verwendet, speichert und schützt, wenn Sie die im Apple App Store/Google Play Store veröffentlichte DeinePutzCrew iOS-/Android-App sowie zugehörige Dienste über deineputzcrew.de nutzen.",
+  "@introParagraph": {
+    "description": "Privacy Policy - intro paragraph"
+  },
+  "sectionHeader": "1. Zweck der App",
+  "@sectionHeader": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader2": "1.1 Kontozugang",
+  "@sectionHeader2": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader3": "2. Erhobene Daten",
+  "@sectionHeader3": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader4": "3. Verwendung Ihrer Daten",
+  "@sectionHeader4": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader5": "4. Datenspeicherung & Sicherheit",
+  "@sectionHeader5": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader6": "5. Rechte der Nutzer (EU / DSGVO)",
+  "@sectionHeader6": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader7": "6. Kontakt",
+  "@sectionHeader7": {
+    "description": "Privacy Policy - section header"
+  },
+  "footer": "Zuletzt aktualisiert: {date}",
+  "@footer": {
+    "description": "Privacy Policy - footer",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "pageHeading": "Willkommen bei Deine Putzcrew!",
+  "@pageHeading": {
+    "description": "Terms & Conditions - page heading"
+  },
+  "introParagraph2": "Diese Nutzungsbedingungen regeln die Nutzung unserer App und Dienste. Durch den Zugriff auf oder die Nutzung unserer App erklären Sie sich mit diesen Bedingungen einverstanden.",
+  "@introParagraph2": {
+    "description": "Terms & Conditions - intro paragraph"
+  },
+  "sectionHeader8": "1. Verantwortung für das Konto",
+  "@sectionHeader8": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody": "Sie sind dafür verantwortlich, Ihre Zugangsdaten vertraulich zu behandeln. Sie verpflichten sich, uns unverzüglich über jede unbefugte Nutzung Ihres Kontos zu informieren.",
+  "@sectionBody": {
+    "description": "Terms & Conditions - section body"
+  },
+  "sectionHeader9": "2. Nutzung der Dienste",
+  "@sectionHeader9": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody2": "Sie verpflichten sich, unsere Dienste nicht zu missbrauchen, insbesondere keine betrügerischen, missbräuchlichen oder rechtswidrigen Handlungen innerhalb der App vorzunehmen.",
+  "@sectionBody2": {
+    "description": "Terms & Conditions - section body"
+  },
+  "sectionHeader10": "3. Haftungsbeschränkung",
+  "@sectionHeader10": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody3": "Wir haften nicht für indirekte, zufällige oder Folgeschäden, die aus der Nutzung unserer App entstehen.",
+  "@sectionBody3": {
+    "description": "Terms & Conditions - section body"
+  },
+  "sectionHeader11": "4. Änderungen der Bedingungen",
+  "@sectionHeader11": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody4": "Wir können diese Bedingungen von Zeit zu Zeit aktualisieren. Die weitere Nutzung der App nach einer Aktualisierung gilt als Zustimmung zu den neuen Bedingungen.",
+  "@sectionBody4": {
+    "description": "Terms & Conditions - section body"
+  },
+  "footer2": "Zuletzt aktualisiert: November 2025",
+  "@footer2": {
+    "description": "Terms & Conditions - footer"
+  },
+  "notificationAlertDialogTitle": "🔔 Benachrichtigung",
+  "@notificationAlertDialogTitle": {
+    "description": "Dashboard - notification alert dialog title"
+  },
+  "notificationAlertBodyWithTask": "Sie haben eine aktive Benachrichtigung.\n\nTask ID: {taskId}\n\nBitte bestätigen, um fortzufahren.",
+  "@notificationAlertBodyWithTask": {
+    "description": "Dashboard - notification alert dialog body",
+    "placeholders": {
+      "taskId": {}
+    }
+  },
+  "notificationAlertBodyNoTask": "Sie haben eine aktive Benachrichtigung.\n\nBitte bestätigen, um fortzufahren.",
+  "@notificationAlertBodyNoTask": {
+    "description": "Dashboard - notification alert dialog body"
+  },
+  "notificationAlertAcknowledgeButton": "Bestätigen",
+  "@notificationAlertAcknowledgeButton": {
+    "description": "Dashboard - notification alert acknowledge button"
+  },
+  "manualRefreshSnackbar": "🔄 Daten werden aktualisiert …",
+  "@manualRefreshSnackbar": {
+    "description": "Dashboard - manual refresh snackbar"
+  },
+  "refreshFailureSnackbar": "⚠️ Aktualisierung fehlgeschlagen: {error}",
+  "@refreshFailureSnackbar": {
+    "description": "Dashboard - refresh failure snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "bottomNavLabel": "Start",
+  "@bottomNavLabel": {
+    "description": "Dashboard - bottom nav label"
+  },
+  "bottomNavLabel2": "Aufgaben",
+  "@bottomNavLabel2": {
+    "description": "Dashboard - bottom nav label"
+  },
+  "bottomNavLabel3": "Einstellungen",
+  "@bottomNavLabel3": {
+    "description": "Dashboard - bottom nav label"
+  },
+  "autoCheckInOfflineSnackbar": "✅ Auto-Check-in abgeschlossen (offline)",
+  "@autoCheckInOfflineSnackbar": {
+    "description": "Dashboard - auto check-in offline snackbar"
+  },
+  "autoCheckOutOfflineSnackbar": "📴 Auto-Check-out offline gespeichert. Wird synchronisiert, sobald online.",
+  "@autoCheckOutOfflineSnackbar": {
+    "description": "Dashboard - auto check-out offline snackbar"
+  },
+  "autoCheckInOfflineSnackbarVariant": "📴 Auto-Check-in offline gespeichert. Wird synchronisiert, sobald online.",
+  "@autoCheckInOfflineSnackbarVariant": {
+    "description": "Dashboard - auto check-in offline snackbar (variant)"
+  },
+  "autoCheckInSuccessSnackbar": "✅ Auto-Check-in erfolgreich für {taskName}",
+  "@autoCheckInSuccessSnackbar": {
+    "description": "Dashboard - auto check-in success snackbar",
+    "placeholders": {
+      "taskName": {}
+    }
+  },
+  "remoteWipeSnackbar": "🧹 Lokale Daten vom Server gelöscht",
+  "@remoteWipeSnackbar": {
+    "description": "Dashboard - remote wipe snackbar"
+  },
+  "offlineSyncProgressSnackbar": "📤 {count} Offline-Aktionen werden synchronisiert …",
+  "@offlineSyncProgressSnackbar": {
+    "description": "Dashboard - offline sync progress snackbar",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "offlineSyncSuccessSnackbar": "✅ {count} Aktionen erfolgreich synchronisiert!",
+  "@offlineSyncSuccessSnackbar": {
+    "description": "Dashboard - offline sync success snackbar",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "breakInOfflineSnackbar": "⏸ Pausenbeginn offline gespeichert",
+  "@breakInOfflineSnackbar": {
+    "description": "Dashboard - break-in offline snackbar"
+  },
+  "breakInFailureSnackbar": "❌ Pausenbeginn fehlgeschlagen ({statusCode})",
+  "@breakInFailureSnackbar": {
+    "description": "Dashboard - break-in failure snackbar",
+    "placeholders": {
+      "statusCode": {}
+    }
+  },
+  "breakOutAuthErrorSnackbar": "Authentifizierungsfehler. Bitte melden Sie sich erneut an.",
+  "@breakOutAuthErrorSnackbar": {
+    "description": "Dashboard - break-out auth error snackbar"
+  },
+  "breakOutOfflineSnackbar": "▶️ Pausenende offline gespeichert. Wird später synchronisiert.",
+  "@breakOutOfflineSnackbar": {
+    "description": "Dashboard - break-out offline snackbar"
+  },
+  "breakOutSuccessSnackbar": "✅ Pause beendet.",
+  "@breakOutSuccessSnackbar": {
+    "description": "Dashboard - break-out success snackbar"
+  },
+  "breakOutFailureSnackbar": "❌ Pausenende fehlgeschlagen ({statusCode}).",
+  "@breakOutFailureSnackbar": {
+    "description": "Dashboard - break-out failure snackbar",
+    "placeholders": {
+      "statusCode": {}
+    }
+  },
+  "breakSelectTaskFirstSnackbar": "Bitte wählen Sie eine Aufgabe aus, bevor Sie eine Pause beginnen.",
+  "@breakSelectTaskFirstSnackbar": {
+    "description": "Dashboard - break select-task-first snackbar"
+  },
+  "breakButtonLabelOnBreak": "Pause beenden",
+  "@breakButtonLabelOnBreak": {
+    "description": "Dashboard - break button label (on break)"
+  },
+  "breakButtonLabelNotOnBreak": "Pause machen",
+  "@breakButtonLabelNotOnBreak": {
+    "description": "Dashboard - break button label (not on break)"
+  },
+  "clockOutBlockedByBreakSnackbar": "⛔ Sie sind in der Pause. Bitte beenden Sie die Pause, bevor Sie ausstempeln.",
+  "@clockOutBlockedByBreakSnackbar": {
+    "description": "Dashboard - clock-out blocked by break snackbar"
+  },
+  "clockOutNotClockedInSnackbar": "⛔ Ausstempeln nicht möglich – Sie sind bei keiner Aufgabe eingestempelt",
+  "@clockOutNotClockedInSnackbar": {
+    "description": "Dashboard - clock-out not-clocked-in snackbar"
+  },
+  "clockOutNoTaskFoundSnackbar": "Keine eingestempelte Aufgabe gefunden.",
+  "@clockOutNoTaskFoundSnackbar": {
+    "description": "Dashboard - clock-out no-task-found snackbar"
+  },
+  "clockOutButton": "Ausstempeln",
+  "@clockOutButton": {
+    "description": "Dashboard - clock out button"
+  },
+  "dashboardRetryButton": "Erneut versuchen",
+  "@dashboardRetryButton": {
+    "description": "Dashboard - dashboard retry button"
+  },
+  "dashboardLoadingText": "Dashboard wird geladen …",
+  "@dashboardLoadingText": {
+    "description": "Dashboard - dashboard loading text"
+  },
+  "taskSearchFieldHint": "Aufgaben suchen …",
+  "@taskSearchFieldHint": {
+    "description": "Dashboard - task search field hint"
+  },
+  "offlineBannerHeading": "📴 Offline-Modus",
+  "@offlineBannerHeading": {
+    "description": "Dashboard - offline banner heading"
+  },
+  "syncingBannerHeading": "📤 Daten werden synchronisiert",
+  "@syncingBannerHeading": {
+    "description": "Dashboard - syncing banner heading"
+  },
+  "offlineBannerSubtext": "Check-ins/-outs werden gespeichert und synchronisiert, sobald online",
+  "@offlineBannerSubtext": {
+    "description": "Dashboard - offline banner subtext"
+  },
+  "syncPendingBannerSubtext": "{count} Aktion(en) warten auf Synchronisierung",
+  "@syncPendingBannerSubtext": {
+    "description": "Dashboard - sync pending banner subtext",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "syncNowTooltip": "Jetzt synchronisieren",
+  "@syncNowTooltip": {
+    "description": "Dashboard - sync now tooltip"
+  },
+  "taskListSectionTitle": "Heutige Aufgaben",
+  "@taskListSectionTitle": {
+    "description": "Dashboard - task list section title"
+  },
+  "viewAllTasksLink": "Alle anzeigen",
+  "@viewAllTasksLink": {
+    "description": "Dashboard - view all tasks link"
+  },
+  "emptyTaskListText": "Keine Aufgaben vorhanden",
+  "@emptyTaskListText": {
+    "description": "Dashboard - empty task list text"
+  },
+  "priorityFilterChip": "Alle",
+  "@priorityFilterChip": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "priorityFilterChip2": "Niedrig",
+  "@priorityFilterChip2": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "priorityFilterChip3": "Mittel",
+  "@priorityFilterChip3": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "priorityFilterChip4": "Hoch",
+  "@priorityFilterChip4": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "taskCardStatusBadge": "Eingestempelt",
+  "@taskCardStatusBadge": {
+    "description": "Dashboard - task card status badge"
+  },
+  "punchInAlreadyPunchedOutOfflineSnackbar": "⛔ Sie haben sich bei dieser Aufgabe bereits ausgestempelt (offline). Erneutes Einstempeln nicht möglich.",
+  "@punchInAlreadyPunchedOutOfflineSnackbar": {
+    "description": "Dashboard - punch-in already-punched-out-offline snackbar"
+  },
+  "punchInLocationErrorSnackbar": "⛔ Standort konnte nicht ermittelt werden. Bitte aktivieren Sie die Standortdienste.",
+  "@punchInLocationErrorSnackbar": {
+    "description": "Dashboard - punch-in location error snackbar"
+  },
+  "punchInNotOnLocationSnackbar": "⛔ Sie befinden sich nicht vor Ort",
+  "@punchInNotOnLocationSnackbar": {
+    "description": "Dashboard - punch-in not-on-location snackbar"
+  },
+  "punchInInvalidTaskDateSnackbar": "⛔ Ungültiges Datumsformat der Aufgabe",
+  "@punchInInvalidTaskDateSnackbar": {
+    "description": "Dashboard - punch-in invalid task date snackbar"
+  },
+  "punchInTooEarly": "⛔ Zu früh! Die Aufgabe beginnt am {date} um {time} (in {hours} Std. {minutes} Min.)",
+  "@punchInTooEarly": {
+    "description": "Dashboard - punch-in too-early snackbar",
+    "placeholders": {
+      "date": {},
+      "hours": {},
+      "minutes": {},
+      "time": {}
+    }
+  },
+  "punchInTaskEndedSnackbar": "⛔ Die Aufgabe endete am {date} um {time}",
+  "@punchInTaskEndedSnackbar": {
+    "description": "Dashboard - punch-in task-ended snackbar",
+    "placeholders": {
+      "date": {},
+      "time": {}
+    }
+  },
+  "punchInOfflineSnackbar": "📴 Einstempeln offline gespeichert. Wird automatisch synchronisiert.",
+  "@punchInOfflineSnackbar": {
+    "description": "Dashboard - punch-in offline snackbar"
+  },
+  "punchInSuccessSnackbar": "✅ Einstempeln erfolgreich",
+  "@punchInSuccessSnackbar": {
+    "description": "Dashboard - punch-in success snackbar"
+  },
+  "punchInOfflinePunchoutBlockSnackbar": "⛔ Für diese Aufgabe liegt bereits ein Offline-Ausstempeln vor. Erneutes Einstempeln nicht möglich.",
+  "@punchInOfflinePunchoutBlockSnackbar": {
+    "description": "Dashboard - punch-in offline-punchout-block snackbar"
+  },
+  "taskAlreadyCompletedSnackbar": "Diese Aufgabe ist bereits abgeschlossen.",
+  "@taskAlreadyCompletedSnackbar": {
+    "description": "Dashboard - task already completed snackbar"
+  },
+  "alreadyPunchedIntoAnotherTaskSnackbar": "Sie sind bereits bei „{taskName}“ eingestempelt.",
+  "@alreadyPunchedIntoAnotherTaskSnackbar": {
+    "description": "Dashboard - already punched into another task snackbar",
+    "placeholders": {
+      "taskName": {}
+    }
+  },
+  "loaderTextCheckingLocation": "Standort wird geprüft …",
+  "@loaderTextCheckingLocation": {
+    "description": "Dashboard - loader text - checking location"
+  },
+  "loaderTextOpeningCamera": "Kamera wird geöffnet …",
+  "@loaderTextOpeningCamera": {
+    "description": "Dashboard - loader text - opening camera"
+  },
+  "loaderTextPunchingIn": "Einstempeln …",
+  "@loaderTextPunchingIn": {
+    "description": "Dashboard - loader text - punching in"
+  },
+  "loaderTextStartingBreak": "Pause wird gestartet …",
+  "@loaderTextStartingBreak": {
+    "description": "Dashboard - loader text - starting break"
+  },
+  "loaderTextEndingBreak": "Pause wird beendet …",
+  "@loaderTextEndingBreak": {
+    "description": "Dashboard - loader text - ending break"
+  },
+  "appBarTitle": "Alle Aufgaben",
+  "@appBarTitle": {
+    "description": "All Tasks - app bar title"
+  },
+  "tabLabel": "Offen",
+  "@tabLabel": {
+    "description": "All Tasks - tab label"
+  },
+  "tabLabel2": "Abgeschlossen",
+  "@tabLabel2": {
+    "description": "All Tasks - tab label"
+  },
+  "searchFieldHint": "Aufgabe suchen",
+  "@searchFieldHint": {
+    "description": "All Tasks - search field hint"
+  },
+  "appBarTitle2": "Aufgabendetails",
+  "@appBarTitle2": {
+    "description": "Task Details - app bar title"
+  },
+  "taskLabel": "Aufgabe",
+  "@taskLabel": {
+    "description": "Task Details - task label"
+  },
+  "statusFieldLabel": "Status",
+  "@statusFieldLabel": {
+    "description": "Task Details - status field label"
+  },
+  "loggedTimeLabel": "Erfasst:",
+  "@loggedTimeLabel": {
+    "description": "Task Details - logged time label"
+  },
+  "attachmentsSectionTitle": "Anhänge",
+  "@attachmentsSectionTitle": {
+    "description": "Task Details - attachments section title"
+  },
+  "remarksFieldLabel": "Bemerkungen",
+  "@remarksFieldLabel": {
+    "description": "Task Details - remarks field label"
+  },
+  "remarksFieldHint": "Bemerkung eingeben",
+  "@remarksFieldHint": {
+    "description": "Task Details - remarks field hint"
+  },
+  "addAttachmentSheetOption": "Kamera",
+  "@addAttachmentSheetOption": {
+    "description": "Task Details - add attachment sheet option"
+  },
+  "addAttachmentButton": "Anhang hinzufügen",
+  "@addAttachmentButton": {
+    "description": "Task Details - add attachment button"
+  },
+  "markAsCompletedButton": "Als abgeschlossen markieren",
+  "@markAsCompletedButton": {
+    "description": "Task Details - mark as completed button"
+  },
+  "punchOutMissingImageSnackbar": "Bitte wählen Sie mindestens ein Bild aus",
+  "@punchOutMissingImageSnackbar": {
+    "description": "Task Details - punch-out missing image snackbar"
+  },
+  "punchOutNotPunchedInSnackbar": "⛔ Ausstempeln nicht möglich – Sie sind bei keiner Aufgabe eingestempelt",
+  "@punchOutNotPunchedInSnackbar": {
+    "description": "Task Details - punch-out not-punched-in snackbar"
+  },
+  "punchOutTaskMismatchSnackbar": "⛔ Ausstempeln nicht möglich – Sie sind bei einer anderen Aufgabe eingestempelt",
+  "@punchOutTaskMismatchSnackbar": {
+    "description": "Task Details - punch-out task-mismatch snackbar"
+  },
+  "loaderTextGettingLocation": "Standort wird ermittelt …",
+  "@loaderTextGettingLocation": {
+    "description": "Task Details - loader text - getting location"
+  },
+  "loaderTextPunchingOut": "Ausstempeln …",
+  "@loaderTextPunchingOut": {
+    "description": "Task Details - loader text - punching out"
+  },
+  "punchOutOfflineSnackbar": "📴 Ausstempeln offline gespeichert. Wird synchronisiert, sobald online.",
+  "@punchOutOfflineSnackbar": {
+    "description": "Task Details - punch-out offline snackbar"
+  },
+  "punchOutSuccessSnackbar": "✅ Ausstempeln erfolgreich",
+  "@punchOutSuccessSnackbar": {
+    "description": "Task Details - punch-out success snackbar"
+  },
+  "changeStatusPopupTitle": "Status ändern",
+  "@changeStatusPopupTitle": {
+    "description": "Task Details - change status popup title"
+  },
+  "statusOption": "In Bearbeitung",
+  "@statusOption": {
+    "description": "Task Details - status option"
+  },
+  "statusPopupSelectButton": "Auswählen",
+  "@statusPopupSelectButton": {
+    "description": "Task Details - status popup select button"
+  },
+  "staticSubtextUnderEveryLoaderMessage": "Bitte warten, App nicht schließen",
+  "@staticSubtextUnderEveryLoaderMessage": {
+    "description": "Full-Screen Loader - static subtext under every loader message"
+  },
+  "genericErrorFallback": "Etwas ist schiefgelaufen. Bitte versuchen Sie es erneut.",
+  "@genericErrorFallback": {
+    "description": "Settings - generic error fallback"
+  },
+  "dialogCancelButton": "Abbrechen",
+  "@dialogCancelButton": {
+    "description": "Settings - dialog cancel button"
+  },
+  "logoutConfirmButton": "Abmelden",
+  "@logoutConfirmButton": {
+    "description": "Settings - logout confirm button"
+  },
+  "deleteAccountDialogTitle": "Konto löschen",
+  "@deleteAccountDialogTitle": {
+    "description": "Settings - delete account dialog title"
+  },
+  "deleteAccountDialogBody": "Möchten Sie Ihr Konto wirklich dauerhaft löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+  "@deleteAccountDialogBody": {
+    "description": "Settings - delete account dialog body"
+  },
+  "deleteAccountConfirmButton": "Löschen",
+  "@deleteAccountConfirmButton": {
+    "description": "Settings - delete account confirm button"
+  },
+  "deleteAccountSuccessSnackbar": "Antrag auf Kontolöschung erfolgreich übermittelt.",
+  "@deleteAccountSuccessSnackbar": {
+    "description": "Settings - delete account success snackbar"
+  },
+  "deleteAccountFailureSnackbar": "Konto konnte nicht gelöscht werden: {details}",
+  "@deleteAccountFailureSnackbar": {
+    "description": "Settings - delete account failure snackbar",
+    "placeholders": {
+      "details": {}
+    }
+  },
+  "sectionHeader12": "Allgemein",
+  "@sectionHeader12": {
+    "description": "Settings - section header"
+  },
+  "listItemChangePassword": "Passwort ändern",
+  "@listItemChangePassword": {
+    "description": "Settings - list item - change password"
+  },
+  "noCamerasFoundError": "Auf diesem Gerät wurde keine Kamera gefunden.",
+  "@noCamerasFoundError": {
+    "description": "Camera (Front/Back - shared text) - no cameras found error"
+  },
+  "noFrontCameraFound": "Keine Front-Kamera auf diesem Gerät gefunden.",
+  "@noFrontCameraFound": {
+    "description": "Camera (Front/Back - shared text) - no matching camera found error"
+  },
+  "noBackCameraFound": "Keine Rück-Kamera auf diesem Gerät gefunden.",
+  "@noBackCameraFound": {
+    "description": "Camera (Front/Back - shared text) - no matching camera found error"
+  },
+  "cameraPermissionDeniedError": "Kamerazugriff verweigert. Bitte aktivieren Sie ihn in den Geräteeinstellungen.",
+  "@cameraPermissionDeniedError": {
+    "description": "Camera (Front/Back - shared text) - camera permission denied error"
+  },
+  "genericCameraExceptionError": "Kamerafehler: {details}",
+  "@genericCameraExceptionError": {
+    "description": "Camera (Front/Back - shared text) - generic camera exception error",
+    "placeholders": {
+      "details": {}
+    }
+  },
+  "cameraInitFailureError": "Kamera konnte nicht geöffnet werden: {error}",
+  "@cameraInitFailureError": {
+    "description": "Camera (Front/Back - shared text) - camera init failure error",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "openSettingsButton": "Einstellungen öffnen",
+  "@openSettingsButton": {
+    "description": "Camera (Front/Back - shared text) - open settings button"
+  },
+  "goBackButton": "Zurück",
+  "@goBackButton": {
+    "description": "Camera (Front/Back - shared text) - go back button"
+  },
+  "appBarTitle3": "Aufgabe abschließen",
+  "@appBarTitle3": {
+    "description": "Complete Task (legacy/placeholder screen) - app bar title"
+  },
+  "instructionText2": "Bitte fügen Sie eine Bemerkung und Fotos hinzu, um die Aufgabe als abgeschlossen zu markieren.",
+  "@instructionText2": {
+    "description": "Complete Task (legacy/placeholder screen) - instruction text"
+  },
+  "remarksFieldHint2": "Bemerkung eingeben",
+  "@remarksFieldHint2": {
+    "description": "Complete Task (legacy/placeholder screen) - remarks field hint"
+  },
+  "attachmentsHeader": "Anhänge ({count})",
+  "@attachmentsHeader": {
+    "description": "Complete Task (legacy/placeholder screen) - attachments header",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "submitSuccessSnackbar": "Aufgabe abgeschlossen mit Bemerkung: {remark} und {count} Bildern",
+  "@submitSuccessSnackbar": {
+    "description": "Complete Task (legacy/placeholder screen) - submit success snackbar",
+    "placeholders": {
+      "count": {},
+      "remark": {}
+    }
+  },
+  "submitButton2": "Als abgeschlossen markieren",
+  "@submitButton2": {
+    "description": "Complete Task (legacy/placeholder screen) - submit button"
+  },
+  "channelNameGeneral": "Wichtige Benachrichtigungen",
+  "@channelNameGeneral": {
+    "description": "System Notifications - channel name - general"
+  },
+  "channelDescriptionGeneral": "Dieser Kanal wird für wichtige Benachrichtigungen verwendet.",
+  "@channelDescriptionGeneral": {
+    "description": "System Notifications - channel description - general"
+  },
+  "channelNameAutoCheckIn": "Auto-Check-in-Benachrichtigungen",
+  "@channelNameAutoCheckIn": {
+    "description": "System Notifications - channel name - auto check-in"
+  },
+  "channelDescriptionAutoCheckInCreationTime": "Kritische Benachrichtigungen für automatische Aufgaben-Check-ins mit Ton.",
+  "@channelDescriptionAutoCheckInCreationTime": {
+    "description": "System Notifications - channel description - auto check-in (creation time)"
+  },
+  "channelDescriptionAutoCheckInPerNotification": "Kritische Benachrichtigungen für automatische Aufgaben-Check-ins",
+  "@channelDescriptionAutoCheckInPerNotification": {
+    "description": "System Notifications - channel description - auto check-in (per-notification)"
+  },
+  "fallbackPushTitle": "Neue Nachricht",
+  "@fallbackPushTitle": {
+    "description": "System Notifications - fallback push title"
+  },
+  "fallbackPushBody": "Sie haben eine neue Benachrichtigung",
+  "@fallbackPushBody": {
+    "description": "System Notifications - fallback push body"
+  },
+  "autoCheckInAlertTitle": "🚨 Auto-Check-in erforderlich",
+  "@autoCheckInAlertTitle": {
+    "description": "System Notifications - auto check-in alert title"
+  },
+  "autoCheckInAlertBodyWithLocation": "🎯 Zeit zum Einchecken bei {location} Aufgabe beginnt um {time}",
+  "@autoCheckInAlertBodyWithLocation": {
+    "description": "System Notifications - auto check-in alert body (with location)",
+    "placeholders": {
+      "location": {},
+      "time": {}
+    }
+  },
+  "autoCheckInAlertBodyNoLocation": "🎯 Zeit zum Einchecken für Ihre Aufgabe Aufgabe beginnt um {time}",
+  "@autoCheckInAlertBodyNoLocation": {
+    "description": "System Notifications - auto check-in alert body (no location)",
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "liveTrackingChannelName": "Live-Standortverfolgung",
+  "@liveTrackingChannelName": {
+    "description": "System Notifications - live tracking channel name"
+  },
+  "liveTrackingChannelDescription": "Wird angezeigt, solange Sie eingestempelt sind, damit Ihr Standort zur Anwesenheitserfassung verfolgt werden kann.",
+  "@liveTrackingChannelDescription": {
+    "description": "System Notifications - live tracking channel description"
+  },
+  "liveTrackingPersistentNotificationTitle": "Deineputzcrew — Eingestempelt",
+  "@liveTrackingPersistentNotificationTitle": {
+    "description": "System Notifications - live tracking persistent notification title"
+  },
+  "liveTrackingPersistentNotificationBody": "Ihr Standort wird während Ihrer Schicht erfasst.",
+  "@liveTrackingPersistentNotificationBody": {
+    "description": "System Notifications - live tracking persistent notification body"
+  },
+  "taskChannelName": "Aufgaben-Benachrichtigungen",
+  "@taskChannelName": {
+    "description": "System Notifications - task channel name"
+  },
+  "taskChannelDescription": "Automatische Aufgaben-Check-in-Benachrichtigungen",
+  "@taskChannelDescription": {
+    "description": "System Notifications - task channel description"
+  },
+  "autoCheckInSuccessNotificationTitleOnline": "✅ Auto-Check-in erfolgreich",
+  "@autoCheckInSuccessNotificationTitleOnline": {
+    "description": "System Notifications - auto check-in success notification title (online)"
+  },
+  "autoCheckInSuccessNotificationTitleOffline": "✅ Auto-Check-in (offline)",
+  "@autoCheckInSuccessNotificationTitleOffline": {
+    "description": "System Notifications - auto check-in success notification title (offline)"
+  },
+  "autoCheckInNotificationBody": "Aufgabe: {taskName} Uhrzeit: {time}",
+  "@autoCheckInNotificationBody": {
+    "description": "System Notifications - auto check-in notification body",
+    "placeholders": {
+      "taskName": {},
+      "time": {}
+    }
+  },
+  "reasonDropdownValue": "Urlaub",
+  "reasonDropdownValue2": "Erholung / Privat",
+  "reasonDropdownValue3": "Krank",
+  "reasonDropdownValue4": "Sonstiges",
+  "appbarTitle2": "Abwesenheit / Verfügbarkeit",
+  "adminProposalsSectionHeading": "Anfragen von deinem Admin",
+  "adminProposalsSubheading": "Dein Admin hat eine Abwesenheit für dich vorgeschlagen. Prüfe sie und antworte unten.",
+  "adminRequestCardRequestedByLine": "Angefragt von: {name}",
+  "adminRequestCardDefaultAdminNameFallback": "dein Admin",
+  "adminRequestCardAdminNotePrefix": "Hinweis vom Admin: {note}",
+  "adminRequestCardRejectButton": "Ablehnen",
+  "adminRequestCardApproveButton": "Genehmigen",
+  "rejectRequestDialogTitle": "Anfrage ablehnen",
+  "rejectRequestDialogNoteFieldLabel": "Hinweis für den Admin (optional)",
+  "snackbarAfterApprove": "✅ Anfrage genehmigt",
+  "snackbarAfterReject": "❌ Anfrage abgelehnt",
+  "fallbackErrorRespondingToAdminRequest": "Antwort auf die Anfrage fehlgeschlagen",
+  "requestTimeOffSectionHeading": "Abwesenheit beantragen",
+  "subheadingUnderRequestTimeOff": "Teile deinem Admin mit, dass du im Urlaub bist, dich erholst oder anderweitig nicht verfügbar bist. Die Anfrage wird geprüft und genehmigt.",
+  "startDateButtonPlaceholder": "Startdatum",
+  "endDateButtonPlaceholder": "Enddatum",
+  "reasonDropdownFieldLabel": "Grund",
+  "noteFieldLabel": "Notiz (optional)",
+  "validationSnackbarMissingDates": "Bitte wähle Start- und Enddatum aus",
+  "submitButton3": "Anfrage senden",
+  "submitSuccessSnackbar2": "✅ Abwesenheit beantragt — wartet auf Genehmigung durch den Admin",
+  "submitFailureFallbackSnackbar": "Anfrage konnte nicht gesendet werden",
+  "yourRequestsSectionHeading": "Deine Anfragen",
+  "emptyStateText": "Noch keine Anfragen.",
+  "statusBadge": "Genehmigt",
+  "statusBadge2": "Abgelehnt",
+  "languageRowLabel": "Sprache",
+  "languageDropdownOption": "Englisch",
+  "languageDropdownOption2": "Deutsch",
+  "listItemNavigatesToTimeOffScreen": "Abwesenheit / Verfügbarkeit",
+  "shiftResponseSnackbarAccepted": "✅ Schicht angenommen",
+  "shiftResponseSnackbarDeclined": "🚫 Schicht abgelehnt",
+  "shiftResponseFallbackErrorSnackbar": "Antwort auf die Schicht fehlgeschlagen",
+  "needsResponseCardInfoLine": "Diese Schicht wartet auf deine Antwort",
+  "acceptButtonNeedsResponseCard": "Annehmen",
+  "declineButtonNeedsResponseCard": "Ablehnen",
+  "statusChipAfterRespondingAccepted": "✅ Angenommen",
+  "statusChipAfterRespondingDeclined": "🚫 Abgelehnt",
+  "debugTestNotificationChannelDescription": "Testbenachrichtigung mit Ton",
+  "debugTestNotificationTitle": "🔔 Tontest #{number}",
+  "debugTestNotificationBody": "Test des Standard-Benachrichtigungstons des Systems"
+}

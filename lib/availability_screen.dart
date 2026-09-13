@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'l10n/app_localizations.dart';
+
 /// Lets an employee request time off (holiday / rest / sick / other) and see
 /// the status of their past requests. Submitted requests start 'pending' and
 /// need an admin to approve/reject them — this screen doesn't decide that.
@@ -52,6 +54,24 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
   String _fmt(DateTime d) =>
       "${d.year.toString().padLeft(4, '0')}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}";
+
+  /// Display label for a reason key ('holiday'/'rest'/'sick'/'other') — the
+  /// key itself is what's sent to the API and stays unchanged regardless of
+  /// language; only what the user sees is localized.
+  String _reasonLabel(AppLocalizations l10n, String key) {
+    switch (key) {
+      case 'holiday':
+        return l10n.reasonDropdownValue;
+      case 'rest':
+        return l10n.reasonDropdownValue2;
+      case 'sick':
+        return l10n.reasonDropdownValue3;
+      case 'other':
+        return l10n.reasonDropdownValue4;
+      default:
+        return _reasons[key] ?? key;
+    }
+  }
 
   Future<void> _loadRequests() async {
     setState(() => _isLoadingRequests = true);
@@ -123,13 +143,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
       final data = jsonDecode(response.body);
 
+      final l10n = AppLocalizations.of(context);
       if (response.statusCode == 200 && data['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text(action == 'approve'
-                  ? '✅ Request approved'
-                  : '❌ Request rejected'),
+                  ? l10n.snackbarAfterApprove
+                  : l10n.snackbarAfterReject),
               backgroundColor:
                   action == 'approve' ? Colors.green : Colors.red,
             ),
@@ -140,15 +161,15 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-                content:
-                    Text(data['error'] ?? 'Failed to respond to request')),
+                content: Text(
+                    data['error'] ?? l10n.fallbackErrorRespondingToAdminRequest)),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).exceptionSnackbar(e.toString()))),
         );
       }
     } finally {
@@ -157,29 +178,30 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   Future<void> _confirmRejectAdminRequest(dynamic id) async {
+    final l10n = AppLocalizations.of(context);
     final noteController = TextEditingController();
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Reject request'),
+        title: Text(l10n.rejectRequestDialogTitle),
         content: TextField(
           controller: noteController,
           maxLines: 3,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Note for admin (optional)',
-            border: OutlineInputBorder(),
+          decoration: InputDecoration(
+            labelText: l10n.rejectRequestDialogNoteFieldLabel,
+            border: const OutlineInputBorder(),
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(l10n.dialogCancelButton),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Reject', style: TextStyle(color: Colors.white)),
+            child: Text(l10n.adminRequestCardRejectButton, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -215,9 +237,10 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
     if (_startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select both a start and end date')),
+        SnackBar(content: Text(l10n.validationSnackbarMissingDates)),
       );
       return;
     }
@@ -248,8 +271,8 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       if (response.statusCode == 201 && data['success'] == true) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('✅ Time off requested — awaiting admin approval'),
+            SnackBar(
+              content: Text(l10n.submitSuccessSnackbar2),
               backgroundColor: Colors.green,
             ),
           );
@@ -264,14 +287,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(data['error'] ?? 'Failed to submit request')),
+            SnackBar(content: Text(data['error'] ?? l10n.submitFailureFallbackSnackbar)),
           );
         }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
+          SnackBar(content: Text(AppLocalizations.of(context).exceptionSnackbar(e.toString()))),
         );
       }
     } finally {
@@ -280,6 +303,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   Widget _statusBadge(String status) {
+    final l10n = AppLocalizations.of(context);
     Color bg;
     Color fg;
     String label;
@@ -287,17 +311,17 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       case 'approved':
         bg = Colors.green.shade50;
         fg = Colors.green.shade700;
-        label = 'Approved';
+        label = l10n.statusBadge;
         break;
       case 'rejected':
         bg = Colors.red.shade50;
         fg = Colors.red.shade700;
-        label = 'Rejected';
+        label = l10n.statusBadge2;
         break;
       default:
         bg = Colors.amber.shade50;
         fg = Colors.orange.shade800;
-        label = 'Pending';
+        label = l10n.tabLabel;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -307,6 +331,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
   }
 
   Widget _buildAdminRequestCard(dynamic r) {
+    final l10n = AppLocalizations.of(context);
     final id = r['id'];
     final isResponding = _respondingIds.contains(id);
     final requestedBy = (r['requested_by_name'] ?? '').toString();
@@ -331,11 +356,11 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             ],
           ),
           const SizedBox(height: 4),
-          Text(_reasons[r['reason']] ?? r['reason'] ?? '',
+          Text(_reasonLabel(l10n, r['reason'] ?? ''),
               style: const TextStyle(fontSize: 12, color: Colors.black54)),
           if (requestedBy.isNotEmpty) ...[
             const SizedBox(height: 4),
-            Text('Requested by: $requestedBy',
+            Text(l10n.adminRequestCardRequestedByLine(requestedBy),
                 style: const TextStyle(fontSize: 12, color: Colors.black54)),
           ],
           if ((r['note'] ?? '').toString().isNotEmpty) ...[
@@ -363,7 +388,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                       foregroundColor: Colors.red,
                       side: const BorderSide(color: Colors.red),
                     ),
-                    child: const Text('Reject'),
+                    child: Text(l10n.adminRequestCardRejectButton),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -371,7 +396,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                   child: ElevatedButton(
                     onPressed: () => _respondAdminRequest(id, 'approve'),
                     style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    child: const Text('Approve', style: TextStyle(color: Colors.white)),
+                    child: Text(l10n.adminRequestCardApproveButton, style: const TextStyle(color: Colors.white)),
                   ),
                 ),
               ],
@@ -383,14 +408,15 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black),
-        title: const Text('Time Off / Availability',
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
+        title: Text(l10n.appbarTitle2,
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600)),
       ),
       body: RefreshIndicator(
         onRefresh: () => Future.wait([_loadRequests(), _loadAdminRequests()]),
@@ -403,12 +429,12 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 child: Center(child: CircularProgressIndicator()),
               )
             else if (_adminRequests.isNotEmpty) ...[
-              const Text('Requests from your admin',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(l10n.adminProposalsSectionHeading,
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 4),
-              const Text(
-                'Your admin proposed time off for you. Review and respond below.',
-                style: TextStyle(fontSize: 12, color: Colors.black54),
+              Text(
+                l10n.adminProposalsSubheading,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
               ),
               const SizedBox(height: 12),
               ..._adminRequests.map((r) => _buildAdminRequestCard(r)),
@@ -417,12 +443,12 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
               const SizedBox(height: 16),
             ],
 
-            const Text('Request time off',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(l10n.requestTimeOffSectionHeading,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            const Text(
-              'Let your admin know you\'ll be on holiday, resting, or otherwise unavailable. They\'ll review and approve it.',
-              style: TextStyle(fontSize: 12, color: Colors.black54),
+            Text(
+              l10n.subheadingUnderRequestTimeOff,
+              style: const TextStyle(fontSize: 12, color: Colors.black54),
             ),
             const SizedBox(height: 16),
 
@@ -431,14 +457,14 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _pickDate(isStart: true),
-                    child: Text(_startDate == null ? 'Start date' : _fmt(_startDate!)),
+                    child: Text(_startDate == null ? l10n.startDateButtonPlaceholder : _fmt(_startDate!)),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => _pickDate(isStart: false),
-                    child: Text(_endDate == null ? 'End date' : _fmt(_endDate!)),
+                    child: Text(_endDate == null ? l10n.endDateButtonPlaceholder : _fmt(_endDate!)),
                   ),
                 ),
               ],
@@ -447,12 +473,12 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
             DropdownButtonFormField<String>(
               value: _reason,
-              decoration: const InputDecoration(
-                labelText: 'Reason',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.reasonDropdownFieldLabel,
+                border: const OutlineInputBorder(),
               ),
-              items: _reasons.entries
-                  .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+              items: _reasons.keys
+                  .map((key) => DropdownMenuItem(value: key, child: Text(_reasonLabel(l10n, key))))
                   .toList(),
               onChanged: (v) => setState(() => _reason = v ?? 'holiday'),
             ),
@@ -461,9 +487,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
             TextField(
               controller: _noteController,
               maxLines: 3,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-                border: OutlineInputBorder(),
+              decoration: InputDecoration(
+                labelText: l10n.noteFieldLabel,
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 16),
@@ -478,15 +504,15 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         height: 18, width: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                       )
-                    : const Text('Submit request'),
+                    : Text(l10n.submitButton3),
               ),
             ),
 
             const SizedBox(height: 28),
             const Divider(),
             const SizedBox(height: 8),
-            const Text('Your requests',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text(l10n.yourRequestsSectionHeading,
+                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
 
             if (_isLoadingRequests)
@@ -495,9 +521,9 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                 child: CircularProgressIndicator(),
               ))
             else if (_requests.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: 16),
-                child: Text('No requests yet.', style: TextStyle(color: Colors.black54)),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(l10n.emptyStateText, style: const TextStyle(color: Colors.black54)),
               )
             else
               ..._requests.map((r) => Container(
@@ -520,12 +546,13 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                           ],
                         ),
                         const SizedBox(height: 4),
-                        Text(_reasons[r['reason']] ?? r['reason'] ?? '',
+                        Text(_reasonLabel(l10n, r['reason'] ?? ''),
                             style: const TextStyle(fontSize: 12, color: Colors.black54)),
                         if (r['is_admin_initiated'] == true) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'Requested by: ${r['requested_by_name'] ?? 'your admin'}',
+                            l10n.adminRequestCardRequestedByLine(
+                                r['requested_by_name'] ?? l10n.adminRequestCardDefaultAdminNameFallback),
                             style: const TextStyle(fontSize: 11, color: Colors.blue, fontStyle: FontStyle.italic),
                           ),
                         ],
@@ -535,7 +562,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
                         ],
                         if (r['status'] != 'pending' && (r['admin_note'] ?? '').toString().isNotEmpty) ...[
                           const SizedBox(height: 4),
-                          Text('Admin note: ${r['admin_note']}',
+                          Text(l10n.adminRequestCardAdminNotePrefix(r['admin_note']),
                               style: const TextStyle(fontSize: 11, color: Colors.black45, fontStyle: FontStyle.italic)),
                         ],
                       ],

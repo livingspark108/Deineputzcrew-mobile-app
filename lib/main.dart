@@ -1,6 +1,7 @@
 import 'dart:ui'; // for PlatformDispatcher
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
@@ -15,6 +16,8 @@ import 'login.dart';
 import 'notification_service.dart';
 import 'background_task_manager.dart';
 import 'live_location_tracker.dart';
+import 'locale_controller.dart';
+import 'l10n/app_localizations.dart';
 
 /// 🔔 Local Notifications
 final FlutterLocalNotificationsPlugin notificationsPlugin =
@@ -39,6 +42,7 @@ Future<void> main() async {
     appRunner: () async {
       WidgetsFlutterBinding.ensureInitialized();
       await initPunchTimeZone();
+      await LocaleController.load();
 
       // ✅ catches ALL uncaught errors
       FlutterError.onError = (details) {
@@ -67,7 +71,7 @@ Future<void> main() async {
       }
 
       try {
-        LiveLocationTracker.init();
+        await LiveLocationTracker.init();
         print('✅ LiveLocationTracker initialized in main()');
       } catch (e) {
         print('⚠️ LiveLocationTracker initialization failed: $e');
@@ -183,9 +187,22 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      home: SplashScreen(),
+    return ValueListenableBuilder<Locale>(
+      valueListenable: LocaleController.notifier,
+      builder: (context, locale, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          locale: locale,
+          supportedLocales: AppLocalizations.supportedLocales,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          home: const SplashScreen(),
+        );
+      },
     );
   }
 }
@@ -297,12 +314,13 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    final l10n = AppLocalizations.of(context);
+    return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
         child: Text(
-          "Welcome!",
-          style: TextStyle(
+          l10n.welcomeText,
+          style: const TextStyle(
             color: Colors.white,
             fontSize: 24,
             fontWeight: FontWeight.bold,

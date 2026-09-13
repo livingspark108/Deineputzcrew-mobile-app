@@ -11,6 +11,8 @@ import 'db_helper.dart';
 import 'login.dart';
 import 'notification_test_trigger.dart';
 import 'notification_service.dart';
+import 'locale_controller.dart';
+import 'l10n/app_localizations.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -51,9 +53,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
         return StatefulBuilder(
           builder: (ctx, setDialogState) {
             Future<void> submit() async {
+              final l10n = AppLocalizations.of(context);
               final code = codeController.text.trim();
               if (code.length != 6 || int.tryParse(code) == null) {
-                setDialogState(() => errorText = "Enter the 6-digit security code");
+                setDialogState(() => errorText = l10n.invalidCodeLengthInlineError);
                 return;
               }
 
@@ -89,26 +92,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 } else {
                   setDialogState(() {
                     isSubmitting = false;
-                    errorText = (data['message'] ?? "Invalid security code.").toString();
+                    errorText = (data['message'] ?? l10n.invalidCodeFallback).toString();
                   });
                 }
               } catch (e) {
                 setDialogState(() {
                   isSubmitting = false;
-                  errorText = "Something went wrong. Please try again.";
+                  errorText = l10n.genericErrorFallback;
                 });
               }
             }
 
+            final l10n = AppLocalizations.of(context);
             return AlertDialog(
-              title: const Text("Enter Security Code"),
+              title: Text(l10n.screenHeading),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    "Ask your admin for the 6-digit security code shown on their dashboard.",
-                  ),
+                  Text(l10n.subheading2),
                   const SizedBox(height: 16),
                   TextField(
                     controller: codeController,
@@ -130,7 +132,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               actions: [
                 TextButton(
                   onPressed: isSubmitting ? null : () => Navigator.pop(ctx),
-                  child: const Text("Cancel"),
+                  child: Text(l10n.dialogCancelButton),
                 ),
                 TextButton(
                   onPressed: isSubmitting ? null : submit,
@@ -141,7 +143,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           height: 16,
                           child: CircularProgressIndicator(strokeWidth: 2),
                         )
-                      : const Text("Logout"),
+                      : Text(l10n.logoutConfirmButton),
                 ),
               ],
             );
@@ -152,22 +154,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _deleteAccount() async {
+    final l10n = AppLocalizations.of(context);
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text("Delete Account"),
-        content: const Text(
-          "Are you sure you want to permanently delete your account? This action cannot be undone.",
-        ),
+        title: Text(l10n.deleteAccountDialogTitle),
+        content: Text(l10n.deleteAccountDialogBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel"),
+            child: Text(l10n.dialogCancelButton),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text("Delete"),
+            child: Text(l10n.deleteAccountConfirmButton),
           ),
         ],
       ),
@@ -192,8 +193,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
         await prefs.clear();
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text("Account deletion request submitted successfully."),
+            SnackBar(
+              content: Text(l10n.deleteAccountSuccessSnackbar),
               backgroundColor: Colors.green,
             ),
           );
@@ -206,7 +207,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text("Failed to delete account: ${response.body}"),
+              content: Text(l10n.deleteAccountFailureSnackbar(response.body)),
               backgroundColor: Colors.red,
             ),
           );
@@ -216,7 +217,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text("Error: $e"),
+            content: Text(l10n.exceptionSnackbar(e.toString())),
             backgroundColor: Colors.red,
           ),
         );
@@ -254,8 +255,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  Widget _buildLanguageTile(AppLocalizations l10n) {
+    final currentCode = Localizations.localeOf(context).languageCode;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade100,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.language, color: Colors.black54),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Text(
+              l10n.languageRowLabel,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ),
+          DropdownButton<String>(
+            value: currentCode == 'de' ? 'de' : 'en',
+            underline: const SizedBox.shrink(),
+            items: [
+              DropdownMenuItem(value: 'en', child: Text(l10n.languageDropdownOption)),
+              DropdownMenuItem(value: 'de', child: Text(l10n.languageDropdownOption2)),
+            ],
+            onChanged: (code) {
+              if (code == null) return;
+              LocaleController.setLocale(Locale(code));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -265,9 +303,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
           icon: const Icon(Icons.close, color: Colors.black),
           onPressed: () {},
         ),
-        title: const Text(
-          "Settings",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+        title: Text(
+          l10n.bottomNavLabel3,
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
         ),
         centerTitle: false,
       ),
@@ -300,14 +338,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             const SizedBox(height: 24),
 
-            const Text("General",
-                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+            Text(l10n.sectionHeader12,
+                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
             const SizedBox(height: 12),
+
+            _buildLanguageTile(l10n),
 
             _buildListTile(
               context: context,
               icon: Icons.refresh,
-              title: "Change password",
+              title: l10n.listItemChangePassword,
               iconColor: Colors.black,
               onTap: () {
                 Navigator.push(
@@ -321,7 +361,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _buildListTile(
               context: context,
               icon: Icons.beach_access,
-              title: "Time off / Availability",
+              title: l10n.listItemNavigatesToTimeOffScreen,
               iconColor: Colors.black,
               onTap: () {
                 Navigator.push(
@@ -346,12 +386,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.logout, color: Colors.red),
-                    SizedBox(width: 8),
+                  children: [
+                    const Icon(Icons.logout, color: Colors.red),
+                    const SizedBox(width: 8),
                     Text(
-                      "Logout",
-                      style: TextStyle(
+                      l10n.logoutConfirmButton,
+                      style: const TextStyle(
                           color: Colors.red,
                           fontSize: 16,
                           fontWeight: FontWeight.w500),
@@ -379,7 +419,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     Icon(Icons.delete_forever, color: Colors.red.shade900),
                     const SizedBox(width: 8),
                     Text(
-                      "Delete Account",
+                      l10n.deleteAccountDialogTitle,
                       style: TextStyle(
                         color: Colors.red.shade900,
                         fontSize: 16,

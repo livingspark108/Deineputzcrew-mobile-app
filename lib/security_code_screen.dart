@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'home.dart';
 import 'login.dart';
 import 'punch_timezone.dart';
+import 'l10n/app_localizations.dart';
 
 class SecurityCodeScreen extends StatefulWidget {
   final String pendingToken;
@@ -36,12 +37,13 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
   }
 
   Future<void> verifyCode() async {
+    final l10n = AppLocalizations.of(context);
     final String code = codeController.text.trim();
 
     setState(() => _codeError = null);
 
     if (code.length != 6 || int.tryParse(code) == null) {
-      setState(() => _codeError = "Enter the 6-digit security code");
+      setState(() => _codeError = l10n.invalidCodeLengthInlineError);
       return;
     }
 
@@ -84,7 +86,7 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? "Login successful")),
+          SnackBar(content: Text(data['message'] ?? l10n.verifySuccessFallback)),
         );
 
         Navigator.pushReplacement(
@@ -102,7 +104,7 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
             SnackBar(
               content: Text(backendMessage.isNotEmpty
                   ? backendMessage
-                  : "Login session expired or invalid. Please login again."),
+                  : l10n.sessionExpiredFallback),
               backgroundColor: Colors.red,
             ),
           );
@@ -114,14 +116,14 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
           setState(() {
             _codeError = backendMessage.isNotEmpty
                 ? backendMessage
-                : "Invalid security code.";
+                : l10n.invalidCodeFallback;
           });
         }
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Verification failed: ${e.toString()}")),
+        SnackBar(content: Text(l10n.verificationExceptionSnackbar(e.toString()))),
       );
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -130,6 +132,7 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -139,15 +142,15 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const SizedBox(height: 60),
-              const Text(
-                'Enter Security Code',
-                style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+              Text(
+                l10n.screenHeading,
+                style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 12),
-              const Text(
-                'Ask your admin for the 6-digit security code shown on their dashboard.',
+              Text(
+                l10n.subheading2,
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.black54, fontSize: 16),
+                style: const TextStyle(color: Colors.black54, fontSize: 16),
               ),
               const SizedBox(height: 32),
               TextField(
@@ -179,9 +182,9 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
                   onPressed: isLoading ? null : verifyCode,
                   child: isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Verify',
-                          style: TextStyle(
+                      : Text(
+                          l10n.verifyButton,
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
@@ -197,9 +200,9 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
                     MaterialPageRoute(builder: (_) => LoginScreen()),
                   );
                 },
-                child: const Text(
-                  'Back to login',
-                  style: TextStyle(
+                child: Text(
+                  l10n.backLink,
+                  style: const TextStyle(
                     decoration: TextDecoration.underline,
                     fontWeight: FontWeight.w500,
                   ),

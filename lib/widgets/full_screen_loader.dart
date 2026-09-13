@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../l10n/app_localizations.dart';
+
 /// Full-screen, non-dismissible loading overlay shown while a blocking async
 /// action (checking location, opening camera, punch in/out, break in/out...)
 /// is in progress, so the user can't tap anything else underneath it.
@@ -167,10 +169,10 @@ class _FullScreenLoaderViewState extends State<_FullScreenLoaderView>
                       ),
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      "Please wait, don't close the app",
+                    Text(
+                      AppLocalizations.of(context).staticSubtextUnderEveryLoaderMessage,
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontFamily: 'Poppins',
                         fontSize: 12,
                         color: Colors.black45,

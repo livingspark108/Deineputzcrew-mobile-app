@@ -2,18 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'login.dart';
+import 'l10n/app_localizations.dart';
 
 class PrivacyPolicyScreen extends StatelessWidget {
   const PrivacyPolicyScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     // Determine platform-specific policy content
     final bool isIOS = Platform.isIOS;
-    final String policyTitle = isIOS ? "Privacy Policy - iOS" : "Privacy Policy - Android";
+    final String policyTitle = isIOS ? l10n.pageTitleIos : l10n.pageTitleAndroid;
     final String effectiveDate = isIOS ? "06/01/2025" : "6 January 2026";
     final String storeReference = isIOS ? "Apple App Store" : "Google Play Store";
-    
+
     return WillPopScope(
       onWillPop: () async {
         Navigator.pop(context);
@@ -47,7 +49,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                "Effective Date: $effectiveDate",
+                l10n.effectiveDateLabel(effectiveDate),
                 style: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.grey),
               ),
               const SizedBox(height: 16),
@@ -149,7 +151,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
 
               const SizedBox(height: 30),
               Text(
-                "Last updated: $effectiveDate",
+                l10n.footer(effectiveDate),
                 style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
               const SizedBox(height: 20),

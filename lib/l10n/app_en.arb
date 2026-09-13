@@ -1,0 +1,1236 @@
+{
+  "@@locale": "en",
+  "emailEmptyInlineError": "Email is required",
+  "@emailEmptyInlineError": {
+    "description": "Login - email empty inline error"
+  },
+  "invalidEmailInlineError": "Enter a valid email",
+  "@invalidEmailInlineError": {
+    "description": "Login - invalid email inline error"
+  },
+  "passwordEmptyInlineError": "Password is required",
+  "@passwordEmptyInlineError": {
+    "description": "Login - password empty inline error"
+  },
+  "loginSuccessFallbackMessage": "Credentials verified. Enter the security code shown on the admin dashboard to complete login.",
+  "@loginSuccessFallbackMessage": {
+    "description": "Login - login success fallback message"
+  },
+  "emailNotFoundInlineError": "We couldn't find an account with this email.",
+  "@emailNotFoundInlineError": {
+    "description": "Login - email not found inline error"
+  },
+  "emailNotFoundSnackbar": "Please check your email and try again.",
+  "@emailNotFoundSnackbar": {
+    "description": "Login - email not found snackbar"
+  },
+  "passwordIncorrectInlineError": "The password you entered is incorrect.",
+  "@passwordIncorrectInlineError": {
+    "description": "Login - password incorrect inline error"
+  },
+  "passwordIncorrectSnackbar": "Please check your password and try again.",
+  "@passwordIncorrectSnackbar": {
+    "description": "Login - password incorrect snackbar"
+  },
+  "genericInvalidCredentialsInlineError": "The email or password you entered is incorrect.",
+  "@genericInvalidCredentialsInlineError": {
+    "description": "Login - generic invalid credentials inline error"
+  },
+  "genericInvalidCredentialsSnackbar": "Unable to sign in. Please try again.",
+  "@genericInvalidCredentialsSnackbar": {
+    "description": "Login - generic invalid credentials snackbar"
+  },
+  "accountDisabledSnackbar": "This account is not currently available.",
+  "@accountDisabledSnackbar": {
+    "description": "Login - account disabled snackbar"
+  },
+  "genericFailureSnackbar": "Unable to sign in at the moment. Please try again later.",
+  "@genericFailureSnackbar": {
+    "description": "Login - generic failure snackbar"
+  },
+  "offlineLoginSuccessSnackbar": "Offline Login Successful",
+  "@offlineLoginSuccessSnackbar": {
+    "description": "Login - offline login success snackbar"
+  },
+  "loginExceptionSnackbar": "Login failed: {error}",
+  "@loginExceptionSnackbar": {
+    "description": "Login - login exception snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "screenHeadingButtonLabel": "Log in",
+  "@screenHeadingButtonLabel": {
+    "description": "Login - screen heading / button label"
+  },
+  "subheading": "Please enter your credentials to continue",
+  "@subheading": {
+    "description": "Login - subheading"
+  },
+  "accessRestrictionNotice": "Access is limited to authorized staff and approved contractors. Accounts are created by an administrator. Public sign-up is not available.",
+  "@accessRestrictionNotice": {
+    "description": "Login - access-restriction notice"
+  },
+  "emailFieldHint": "Email",
+  "@emailFieldHint": {
+    "description": "Login - email field hint"
+  },
+  "passwordFieldHint": "Password",
+  "@passwordFieldHint": {
+    "description": "Login - password field hint"
+  },
+  "forgotPasswordLink": "Forgot Password?",
+  "@forgotPasswordLink": {
+    "description": "Login - forgot password link"
+  },
+  "consentTextBeforeTermsLink": "By logging in, you agree to our",
+  "@consentTextBeforeTermsLink": {
+    "description": "Login - consent text before terms link"
+  },
+  "termsLink": "Terms & Conditions",
+  "@termsLink": {
+    "description": "Login - terms link"
+  },
+  "consentConnectorWord": "and",
+  "@consentConnectorWord": {
+    "description": "Login - consent connector word"
+  },
+  "versionLabelPrefix": "V",
+  "@versionLabelPrefix": {
+    "description": "Login - version label prefix"
+  },
+  "invalidCodeLengthInlineError": "Enter the 6-digit security code",
+  "@invalidCodeLengthInlineError": {
+    "description": "Security Code - invalid code length inline error"
+  },
+  "verifySuccessFallback": "Login successful",
+  "@verifySuccessFallback": {
+    "description": "Security Code - verify success fallback"
+  },
+  "sessionExpiredFallback": "Login session expired or invalid. Please login again.",
+  "@sessionExpiredFallback": {
+    "description": "Security Code - session expired fallback"
+  },
+  "invalidCodeFallback": "Invalid security code.",
+  "@invalidCodeFallback": {
+    "description": "Security Code - invalid code fallback"
+  },
+  "verificationExceptionSnackbar": "Verification failed: {error}",
+  "@verificationExceptionSnackbar": {
+    "description": "Security Code - verification exception snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "screenHeading": "Enter Security Code",
+  "@screenHeading": {
+    "description": "Security Code - screen heading"
+  },
+  "subheading2": "Ask your admin for the 6-digit security code shown on their dashboard.",
+  "@subheading2": {
+    "description": "Security Code - subheading"
+  },
+  "codeFieldPlaceholder": "0.0",
+  "@codeFieldPlaceholder": {
+    "description": "Security Code - code field placeholder"
+  },
+  "verifyButton": "Verify",
+  "@verifyButton": {
+    "description": "Security Code - verify button"
+  },
+  "backLink": "Back to login",
+  "@backLink": {
+    "description": "Security Code - back link"
+  },
+  "successFallback": "Success",
+  "@successFallback": {
+    "description": "Forgot Password - success fallback"
+  },
+  "failureSnackbar": "Failed: {statusCode}",
+  "@failureSnackbar": {
+    "description": "Forgot Password - failure snackbar",
+    "placeholders": {
+      "statusCode": {}
+    }
+  },
+  "exceptionSnackbar": "Error: {error}",
+  "@exceptionSnackbar": {
+    "description": "Forgot Password - exception snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "appbarTitle": "Forgot Password",
+  "@appbarTitle": {
+    "description": "Forgot Password - AppBar title"
+  },
+  "instructionText": "Enter your email to receive a password reset link.",
+  "@instructionText": {
+    "description": "Forgot Password - instruction text"
+  },
+  "emailFieldHint2": "you@example.com",
+  "@emailFieldHint2": {
+    "description": "Forgot Password - email field hint"
+  },
+  "submitButton": "Send Reset Link",
+  "@submitButton": {
+    "description": "Forgot Password - submit button"
+  },
+  "apiResultFallback": "Something went wrong",
+  "@apiResultFallback": {
+    "description": "Reset Password - api result fallback"
+  },
+  "appbarTitleButtonLabel": "Reset Password",
+  "@appbarTitleButtonLabel": {
+    "description": "Reset Password - AppBar title / button label"
+  },
+  "otpFieldLabel": "OTP",
+  "@otpFieldLabel": {
+    "description": "Reset Password - OTP field label"
+  },
+  "otpFieldHint": "Enter OTP",
+  "@otpFieldHint": {
+    "description": "Reset Password - OTP field hint"
+  },
+  "otpRequiredValidation": "OTP is required",
+  "@otpRequiredValidation": {
+    "description": "Reset Password - OTP required validation"
+  },
+  "newPasswordFieldLabel": "New Password",
+  "@newPasswordFieldLabel": {
+    "description": "Reset Password - new password field label"
+  },
+  "newPasswordFieldHint": "Enter new password",
+  "@newPasswordFieldHint": {
+    "description": "Reset Password - new password field hint"
+  },
+  "passwordLengthValidation": "Password must be at least 8 characters",
+  "@passwordLengthValidation": {
+    "description": "Reset Password - password length validation"
+  },
+  "confirmPasswordFieldLabel": "Confirm Password",
+  "@confirmPasswordFieldLabel": {
+    "description": "Reset Password - confirm password field label"
+  },
+  "confirmPasswordFieldHint": "Re-enter password",
+  "@confirmPasswordFieldHint": {
+    "description": "Reset Password - confirm password field hint"
+  },
+  "confirmPasswordRequiredValidation": "Confirm password is required",
+  "@confirmPasswordRequiredValidation": {
+    "description": "Reset Password - confirm password required validation"
+  },
+  "passwordsMismatchValidation": "Passwords do not match",
+  "@passwordsMismatchValidation": {
+    "description": "Reset Password - passwords mismatch validation"
+  },
+  "missingTokenSnackbar": "No auth token found. Please login again.",
+  "@missingTokenSnackbar": {
+    "description": "Change Password - missing token snackbar"
+  },
+  "appbarTitleButtonLabel2": "Change Password",
+  "@appbarTitleButtonLabel2": {
+    "description": "Change Password - AppBar title / button label"
+  },
+  "oldPasswordFieldLabel": "Old Password",
+  "@oldPasswordFieldLabel": {
+    "description": "Change Password - old password field label"
+  },
+  "oldPasswordRequiredValidation": "Old password is required",
+  "@oldPasswordRequiredValidation": {
+    "description": "Change Password - old password required validation"
+  },
+  "newPasswordRequiredValidation": "New password is required",
+  "@newPasswordRequiredValidation": {
+    "description": "Change Password - new password required validation"
+  },
+  "confirmPasswordFieldLabel2": "Confirm New Password",
+  "@confirmPasswordFieldLabel2": {
+    "description": "Change Password - confirm password field label"
+  },
+  "accessibilityHintToggleOff": "Double tap to disable",
+  "@accessibilityHintToggleOff": {
+    "description": "Consent Screen - accessibility hint (toggle off)"
+  },
+  "accessibilityHintToggleOn": "Double tap to enable",
+  "@accessibilityHintToggleOn": {
+    "description": "Consent Screen - accessibility hint (toggle on)"
+  },
+  "heading": "Before You Continue",
+  "@heading": {
+    "description": "Consent Screen - heading"
+  },
+  "subheading3": "Please review and confirm the following to use this app.",
+  "@subheading3": {
+    "description": "Consent Screen - subheading"
+  },
+  "cardTitle": "Age Confirmation",
+  "@cardTitle": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription": "You must be at least 18 years old to use this app.",
+  "@cardDescription": {
+    "description": "Consent Screen - card description"
+  },
+  "cardTitle2": "Your Privacy Matters",
+  "@cardTitle2": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription2": "We only collect data required to provide our services.",
+  "@cardDescription2": {
+    "description": "Consent Screen - card description"
+  },
+  "cardLink": "Privacy Policy",
+  "@cardLink": {
+    "description": "Consent Screen - card link"
+  },
+  "cardTitle3": "Allow Notifications (Optional)",
+  "@cardTitle3": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription3": "Receive task updates and shift reminders. This is optional — the app works without notifications. You can change this anytime in device settings.",
+  "@cardDescription3": {
+    "description": "Consent Screen - card description"
+  },
+  "cardTitle4": "Location & Device Information",
+  "@cardTitle4": {
+    "description": "Consent Screen - card title"
+  },
+  "cardDescription4": "We collect your device identifier and, if you allow, your approximate location to improve security, prevent fraud, and deliver location-based services. Your location is not tracked continuously and is never shared or sold. You can change this permission anytime in your device settings.",
+  "@cardDescription4": {
+    "description": "Consent Screen - card description"
+  },
+  "continueButton": "Continue",
+  "@continueButton": {
+    "description": "Consent Screen - continue button"
+  },
+  "welcomeText": "Welcome!",
+  "@welcomeText": {
+    "description": "Splash Screen - welcome text"
+  },
+  "missingUpdateLinkSnackbar": "Update link is not available.",
+  "@missingUpdateLinkSnackbar": {
+    "description": "Force Update - missing update link snackbar"
+  },
+  "invalidLinkSnackbar": "Invalid update link.",
+  "@invalidLinkSnackbar": {
+    "description": "Force Update - invalid link snackbar"
+  },
+  "launchFailureSnackbar": "Unable to open update link: {error}",
+  "@launchFailureSnackbar": {
+    "description": "Force Update - launch failure snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "genericErrorSnackbar": "Error opening update link: {error}",
+  "@genericErrorSnackbar": {
+    "description": "Force Update - generic error snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "heading2": "Update Required",
+  "@heading2": {
+    "description": "Force Update - heading"
+  },
+  "bodyText": "A newer version of Deine Putzcrew is available and required to keep using the app.",
+  "@bodyText": {
+    "description": "Force Update - body text"
+  },
+  "reasonListItem": "Bug fixes and stability improvements",
+  "@reasonListItem": {
+    "description": "Force Update - reason list item"
+  },
+  "reasonListItem2": "Important security updates",
+  "@reasonListItem2": {
+    "description": "Force Update - reason list item"
+  },
+  "reasonListItem3": "Punch in/out will stay disabled until you update",
+  "@reasonListItem3": {
+    "description": "Force Update - reason list item"
+  },
+  "updateButton": "Update Now",
+  "@updateButton": {
+    "description": "Force Update - update button"
+  },
+  "footerNoteIos": "You'll be redirected to TestFlight to install the update.",
+  "@footerNoteIos": {
+    "description": "Force Update - footer note iOS"
+  },
+  "footerNoteAndroid": "You'll be redirected to the Play Store to install the update.",
+  "@footerNoteAndroid": {
+    "description": "Force Update - footer note Android"
+  },
+  "pageTitleIos": "Privacy Policy - iOS",
+  "@pageTitleIos": {
+    "description": "Privacy Policy - page title iOS"
+  },
+  "pageTitleAndroid": "Privacy Policy - Android",
+  "@pageTitleAndroid": {
+    "description": "Privacy Policy - page title Android"
+  },
+  "effectiveDateLabel": "Effective Date: {date}",
+  "@effectiveDateLabel": {
+    "description": "Privacy Policy - effective date label",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "introParagraph": "This Privacy Policy explains how LivingSpark Global Tech Pvt Ltd (\"we\", \"our\", \"us\"), the developer and operator of DeinePutzCrew, collects, uses, stores, and protects personal data when you use the DeinePutzCrew iOS/Android application published on the Apple App Store/Google Play Store, and related services provided via deineputzcrew.de.",
+  "@introParagraph": {
+    "description": "Privacy Policy - intro paragraph"
+  },
+  "sectionHeader": "1. App Purpose",
+  "@sectionHeader": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader2": "1.1 Account Access",
+  "@sectionHeader2": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader3": "2. Data We Collect",
+  "@sectionHeader3": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader4": "3. How We Use Your Data",
+  "@sectionHeader4": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader5": "4. Data Storage & Security",
+  "@sectionHeader5": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader6": "5. User Rights (EU / GDPR)",
+  "@sectionHeader6": {
+    "description": "Privacy Policy - section header"
+  },
+  "sectionHeader7": "6. Contact Information",
+  "@sectionHeader7": {
+    "description": "Privacy Policy - section header"
+  },
+  "footer": "Last updated: {date}",
+  "@footer": {
+    "description": "Privacy Policy - footer",
+    "placeholders": {
+      "date": {}
+    }
+  },
+  "pageHeading": "Welcome to DiveInPuits!",
+  "@pageHeading": {
+    "description": "Terms & Conditions - page heading"
+  },
+  "introParagraph2": "These Terms and Conditions govern your use of our application and services. By accessing or using our app, you agree to comply with these terms.",
+  "@introParagraph2": {
+    "description": "Terms & Conditions - intro paragraph"
+  },
+  "sectionHeader8": "1. Account Responsibilities",
+  "@sectionHeader8": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody": "You are responsible for maintaining the confidentiality of your account credentials. You agree to notify us immediately of any unauthorized use of your account.",
+  "@sectionBody": {
+    "description": "Terms & Conditions - section body"
+  },
+  "sectionHeader9": "2. Usage of Services",
+  "@sectionHeader9": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody2": "You agree not to misuse our services, including engaging in fraudulent, abusive, or illegal activities within the app.",
+  "@sectionBody2": {
+    "description": "Terms & Conditions - section body"
+  },
+  "sectionHeader10": "3. Limitation of Liability",
+  "@sectionHeader10": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody3": "We are not responsible for any indirect, incidental, or consequential damages arising from your use of our app.",
+  "@sectionBody3": {
+    "description": "Terms & Conditions - section body"
+  },
+  "sectionHeader11": "4. Changes to Terms",
+  "@sectionHeader11": {
+    "description": "Terms & Conditions - section header"
+  },
+  "sectionBody4": "We may update these Terms from time to time. Continued use of the app after updates means you accept the new Terms.",
+  "@sectionBody4": {
+    "description": "Terms & Conditions - section body"
+  },
+  "footer2": "Last updated: November 2025",
+  "@footer2": {
+    "description": "Terms & Conditions - footer"
+  },
+  "notificationAlertDialogTitle": "🔔 Notification Alert",
+  "@notificationAlertDialogTitle": {
+    "description": "Dashboard - notification alert dialog title"
+  },
+  "notificationAlertBodyWithTask": "You have an active notification.\n\nTask ID: {taskId}\n\nPlease acknowledge to continue.",
+  "@notificationAlertBodyWithTask": {
+    "description": "Dashboard - notification alert dialog body",
+    "placeholders": {
+      "taskId": {}
+    }
+  },
+  "notificationAlertBodyNoTask": "You have an active notification.\n\nPlease acknowledge to continue.",
+  "@notificationAlertBodyNoTask": {
+    "description": "Dashboard - notification alert dialog body"
+  },
+  "notificationAlertAcknowledgeButton": "Acknowledge",
+  "@notificationAlertAcknowledgeButton": {
+    "description": "Dashboard - notification alert acknowledge button"
+  },
+  "manualRefreshSnackbar": "🔄 Refreshing data...",
+  "@manualRefreshSnackbar": {
+    "description": "Dashboard - manual refresh snackbar"
+  },
+  "refreshFailureSnackbar": "⚠️ Failed to refresh: {error}",
+  "@refreshFailureSnackbar": {
+    "description": "Dashboard - refresh failure snackbar",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "bottomNavLabel": "Home",
+  "@bottomNavLabel": {
+    "description": "Dashboard - bottom nav label"
+  },
+  "bottomNavLabel2": "Tasks",
+  "@bottomNavLabel2": {
+    "description": "Dashboard - bottom nav label"
+  },
+  "bottomNavLabel3": "Settings",
+  "@bottomNavLabel3": {
+    "description": "Dashboard - bottom nav label"
+  },
+  "autoCheckInOfflineSnackbar": "✅ Auto Check-in completed (offline)",
+  "@autoCheckInOfflineSnackbar": {
+    "description": "Dashboard - auto check-in offline snackbar"
+  },
+  "autoCheckOutOfflineSnackbar": "📴 Auto Check-out saved offline. Will sync when online.",
+  "@autoCheckOutOfflineSnackbar": {
+    "description": "Dashboard - auto check-out offline snackbar"
+  },
+  "autoCheckInOfflineSnackbarVariant": "📴 Auto Check-in saved offline. Will sync when online.",
+  "@autoCheckInOfflineSnackbarVariant": {
+    "description": "Dashboard - auto check-in offline snackbar (variant)"
+  },
+  "autoCheckInSuccessSnackbar": "✅ Auto Check-in successful for {taskName}",
+  "@autoCheckInSuccessSnackbar": {
+    "description": "Dashboard - auto check-in success snackbar",
+    "placeholders": {
+      "taskName": {}
+    }
+  },
+  "remoteWipeSnackbar": "🧹 Local data cleared by server",
+  "@remoteWipeSnackbar": {
+    "description": "Dashboard - remote wipe snackbar"
+  },
+  "offlineSyncProgressSnackbar": "📤 Syncing {count} offline actions...",
+  "@offlineSyncProgressSnackbar": {
+    "description": "Dashboard - offline sync progress snackbar",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "offlineSyncSuccessSnackbar": "✅ Synced {count} actions successfully!",
+  "@offlineSyncSuccessSnackbar": {
+    "description": "Dashboard - offline sync success snackbar",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "breakInOfflineSnackbar": "⏸ Break-In saved offline",
+  "@breakInOfflineSnackbar": {
+    "description": "Dashboard - break-in offline snackbar"
+  },
+  "breakInFailureSnackbar": "❌ Break-In failed ({statusCode})",
+  "@breakInFailureSnackbar": {
+    "description": "Dashboard - break-in failure snackbar",
+    "placeholders": {
+      "statusCode": {}
+    }
+  },
+  "breakOutAuthErrorSnackbar": "Authentication error. Please log in again.",
+  "@breakOutAuthErrorSnackbar": {
+    "description": "Dashboard - break-out auth error snackbar"
+  },
+  "breakOutOfflineSnackbar": "▶️ Break-Out saved offline. Will sync later.",
+  "@breakOutOfflineSnackbar": {
+    "description": "Dashboard - break-out offline snackbar"
+  },
+  "breakOutSuccessSnackbar": "✅ Break-Out successful.",
+  "@breakOutSuccessSnackbar": {
+    "description": "Dashboard - break-out success snackbar"
+  },
+  "breakOutFailureSnackbar": "❌ Break-Out failed ({statusCode}).",
+  "@breakOutFailureSnackbar": {
+    "description": "Dashboard - break-out failure snackbar",
+    "placeholders": {
+      "statusCode": {}
+    }
+  },
+  "breakSelectTaskFirstSnackbar": "Please select a task before starting a break.",
+  "@breakSelectTaskFirstSnackbar": {
+    "description": "Dashboard - break select-task-first snackbar"
+  },
+  "breakButtonLabelOnBreak": "End Break",
+  "@breakButtonLabelOnBreak": {
+    "description": "Dashboard - break button label (on break)"
+  },
+  "breakButtonLabelNotOnBreak": "Go for Break",
+  "@breakButtonLabelNotOnBreak": {
+    "description": "Dashboard - break button label (not on break)"
+  },
+  "clockOutBlockedByBreakSnackbar": "⛔ You're on a break. Please end your break before clocking out.",
+  "@clockOutBlockedByBreakSnackbar": {
+    "description": "Dashboard - clock-out blocked by break snackbar"
+  },
+  "clockOutNotClockedInSnackbar": "⛔ Cannot clock out - You are not clocked in to any task",
+  "@clockOutNotClockedInSnackbar": {
+    "description": "Dashboard - clock-out not-clocked-in snackbar"
+  },
+  "clockOutNoTaskFoundSnackbar": "No punched-in task found.",
+  "@clockOutNoTaskFoundSnackbar": {
+    "description": "Dashboard - clock-out no-task-found snackbar"
+  },
+  "clockOutButton": "Clock Out",
+  "@clockOutButton": {
+    "description": "Dashboard - clock out button"
+  },
+  "dashboardRetryButton": "Retry",
+  "@dashboardRetryButton": {
+    "description": "Dashboard - dashboard retry button"
+  },
+  "dashboardLoadingText": "Loading dashboard...",
+  "@dashboardLoadingText": {
+    "description": "Dashboard - dashboard loading text"
+  },
+  "taskSearchFieldHint": "Search tasks...",
+  "@taskSearchFieldHint": {
+    "description": "Dashboard - task search field hint"
+  },
+  "offlineBannerHeading": "📴 Offline Mode",
+  "@offlineBannerHeading": {
+    "description": "Dashboard - offline banner heading"
+  },
+  "syncingBannerHeading": "📤 Syncing Data",
+  "@syncingBannerHeading": {
+    "description": "Dashboard - syncing banner heading"
+  },
+  "offlineBannerSubtext": "Check-ins/outs will be saved and synced when online",
+  "@offlineBannerSubtext": {
+    "description": "Dashboard - offline banner subtext"
+  },
+  "syncPendingBannerSubtext": "{count} action(s) pending sync",
+  "@syncPendingBannerSubtext": {
+    "description": "Dashboard - sync pending banner subtext",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "syncNowTooltip": "Sync now",
+  "@syncNowTooltip": {
+    "description": "Dashboard - sync now tooltip"
+  },
+  "taskListSectionTitle": "Today's Tasks",
+  "@taskListSectionTitle": {
+    "description": "Dashboard - task list section title"
+  },
+  "viewAllTasksLink": "View all",
+  "@viewAllTasksLink": {
+    "description": "Dashboard - view all tasks link"
+  },
+  "emptyTaskListText": "No tasks available",
+  "@emptyTaskListText": {
+    "description": "Dashboard - empty task list text"
+  },
+  "priorityFilterChip": "All",
+  "@priorityFilterChip": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "priorityFilterChip2": "Low",
+  "@priorityFilterChip2": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "priorityFilterChip3": "Medium",
+  "@priorityFilterChip3": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "priorityFilterChip4": "High",
+  "@priorityFilterChip4": {
+    "description": "Dashboard - priority filter chip"
+  },
+  "taskCardStatusBadge": "Punched In",
+  "@taskCardStatusBadge": {
+    "description": "Dashboard - task card status badge"
+  },
+  "punchInAlreadyPunchedOutOfflineSnackbar": "⛔ You already punched out from this task (offline). Cannot punch in again.",
+  "@punchInAlreadyPunchedOutOfflineSnackbar": {
+    "description": "Dashboard - punch-in already-punched-out-offline snackbar"
+  },
+  "punchInLocationErrorSnackbar": "⛔ Unable to get your location. Please enable location services.",
+  "@punchInLocationErrorSnackbar": {
+    "description": "Dashboard - punch-in location error snackbar"
+  },
+  "punchInNotOnLocationSnackbar": "⛔ You are not on location",
+  "@punchInNotOnLocationSnackbar": {
+    "description": "Dashboard - punch-in not-on-location snackbar"
+  },
+  "punchInInvalidTaskDateSnackbar": "⛔ Invalid task date format",
+  "@punchInInvalidTaskDateSnackbar": {
+    "description": "Dashboard - punch-in invalid task date snackbar"
+  },
+  "punchInTooEarly": "⛔ Too early! Task starts at {time} on {date} (in {hours}h {minutes}m)",
+  "@punchInTooEarly": {
+    "description": "Dashboard - punch-in too-early snackbar",
+    "placeholders": {
+      "date": {},
+      "hours": {},
+      "minutes": {},
+      "time": {}
+    }
+  },
+  "punchInTaskEndedSnackbar": "⛔ Task ended at {time} on {date}",
+  "@punchInTaskEndedSnackbar": {
+    "description": "Dashboard - punch-in task-ended snackbar",
+    "placeholders": {
+      "date": {},
+      "time": {}
+    }
+  },
+  "punchInOfflineSnackbar": "📴 Punch-in saved offline. Will sync automatically.",
+  "@punchInOfflineSnackbar": {
+    "description": "Dashboard - punch-in offline snackbar"
+  },
+  "punchInSuccessSnackbar": "✅ Punch-in successful",
+  "@punchInSuccessSnackbar": {
+    "description": "Dashboard - punch-in success snackbar"
+  },
+  "punchInOfflinePunchoutBlockSnackbar": "⛔ This task already has an offline punch-out. Cannot punch in again.",
+  "@punchInOfflinePunchoutBlockSnackbar": {
+    "description": "Dashboard - punch-in offline-punchout-block snackbar"
+  },
+  "taskAlreadyCompletedSnackbar": "This task is already completed.",
+  "@taskAlreadyCompletedSnackbar": {
+    "description": "Dashboard - task already completed snackbar"
+  },
+  "alreadyPunchedIntoAnotherTaskSnackbar": "You are already punched into \"{taskName}\".",
+  "@alreadyPunchedIntoAnotherTaskSnackbar": {
+    "description": "Dashboard - already punched into another task snackbar",
+    "placeholders": {
+      "taskName": {}
+    }
+  },
+  "loaderTextCheckingLocation": "Checking your location...",
+  "@loaderTextCheckingLocation": {
+    "description": "Dashboard - loader text - checking location"
+  },
+  "loaderTextOpeningCamera": "Opening camera...",
+  "@loaderTextOpeningCamera": {
+    "description": "Dashboard - loader text - opening camera"
+  },
+  "loaderTextPunchingIn": "Punching in...",
+  "@loaderTextPunchingIn": {
+    "description": "Dashboard - loader text - punching in"
+  },
+  "loaderTextStartingBreak": "Starting break...",
+  "@loaderTextStartingBreak": {
+    "description": "Dashboard - loader text - starting break"
+  },
+  "loaderTextEndingBreak": "Ending break...",
+  "@loaderTextEndingBreak": {
+    "description": "Dashboard - loader text - ending break"
+  },
+  "appBarTitle": "All Tasks",
+  "@appBarTitle": {
+    "description": "All Tasks - app bar title"
+  },
+  "tabLabel": "Pending",
+  "@tabLabel": {
+    "description": "All Tasks - tab label"
+  },
+  "tabLabel2": "Completed",
+  "@tabLabel2": {
+    "description": "All Tasks - tab label"
+  },
+  "searchFieldHint": "Search Task",
+  "@searchFieldHint": {
+    "description": "All Tasks - search field hint"
+  },
+  "appBarTitle2": "Task Details",
+  "@appBarTitle2": {
+    "description": "Task Details - app bar title"
+  },
+  "taskLabel": "Task",
+  "@taskLabel": {
+    "description": "Task Details - task label"
+  },
+  "statusFieldLabel": "Status",
+  "@statusFieldLabel": {
+    "description": "Task Details - status field label"
+  },
+  "loggedTimeLabel": "Logged:",
+  "@loggedTimeLabel": {
+    "description": "Task Details - logged time label"
+  },
+  "attachmentsSectionTitle": "Attachments",
+  "@attachmentsSectionTitle": {
+    "description": "Task Details - attachments section title"
+  },
+  "remarksFieldLabel": "Remarks",
+  "@remarksFieldLabel": {
+    "description": "Task Details - remarks field label"
+  },
+  "remarksFieldHint": "Enter Remark",
+  "@remarksFieldHint": {
+    "description": "Task Details - remarks field hint"
+  },
+  "addAttachmentSheetOption": "Camera",
+  "@addAttachmentSheetOption": {
+    "description": "Task Details - add attachment sheet option"
+  },
+  "addAttachmentButton": "Add Attachment",
+  "@addAttachmentButton": {
+    "description": "Task Details - add attachment button"
+  },
+  "markAsCompletedButton": "Mark as Completed",
+  "@markAsCompletedButton": {
+    "description": "Task Details - mark as completed button"
+  },
+  "punchOutMissingImageSnackbar": "Please select at least one image",
+  "@punchOutMissingImageSnackbar": {
+    "description": "Task Details - punch-out missing image snackbar"
+  },
+  "punchOutNotPunchedInSnackbar": "⛔ Cannot punch out - You are not punched in to any task",
+  "@punchOutNotPunchedInSnackbar": {
+    "description": "Task Details - punch-out not-punched-in snackbar"
+  },
+  "punchOutTaskMismatchSnackbar": "⛔ Cannot punch out - You are punched in to a different task",
+  "@punchOutTaskMismatchSnackbar": {
+    "description": "Task Details - punch-out task-mismatch snackbar"
+  },
+  "loaderTextGettingLocation": "Getting your location...",
+  "@loaderTextGettingLocation": {
+    "description": "Task Details - loader text - getting location"
+  },
+  "loaderTextPunchingOut": "Punching out...",
+  "@loaderTextPunchingOut": {
+    "description": "Task Details - loader text - punching out"
+  },
+  "punchOutOfflineSnackbar": "📴 Punch-out saved offline. Will sync when online.",
+  "@punchOutOfflineSnackbar": {
+    "description": "Task Details - punch-out offline snackbar"
+  },
+  "punchOutSuccessSnackbar": "✅ Punch-out successful",
+  "@punchOutSuccessSnackbar": {
+    "description": "Task Details - punch-out success snackbar"
+  },
+  "changeStatusPopupTitle": "Change Status",
+  "@changeStatusPopupTitle": {
+    "description": "Task Details - change status popup title"
+  },
+  "statusOption": "Work in progress",
+  "@statusOption": {
+    "description": "Task Details - status option"
+  },
+  "statusPopupSelectButton": "Select",
+  "@statusPopupSelectButton": {
+    "description": "Task Details - status popup select button"
+  },
+  "staticSubtextUnderEveryLoaderMessage": "Please wait, don't close the app",
+  "@staticSubtextUnderEveryLoaderMessage": {
+    "description": "Full-Screen Loader - static subtext under every loader message"
+  },
+  "genericErrorFallback": "Something went wrong. Please try again.",
+  "@genericErrorFallback": {
+    "description": "Settings - generic error fallback"
+  },
+  "dialogCancelButton": "Cancel",
+  "@dialogCancelButton": {
+    "description": "Settings - dialog cancel button"
+  },
+  "logoutConfirmButton": "Logout",
+  "@logoutConfirmButton": {
+    "description": "Settings - logout confirm button"
+  },
+  "deleteAccountDialogTitle": "Delete Account",
+  "@deleteAccountDialogTitle": {
+    "description": "Settings - delete account dialog title"
+  },
+  "deleteAccountDialogBody": "Are you sure you want to permanently delete your account? This action cannot be undone.",
+  "@deleteAccountDialogBody": {
+    "description": "Settings - delete account dialog body"
+  },
+  "deleteAccountConfirmButton": "Delete",
+  "@deleteAccountConfirmButton": {
+    "description": "Settings - delete account confirm button"
+  },
+  "deleteAccountSuccessSnackbar": "Account deletion request submitted successfully.",
+  "@deleteAccountSuccessSnackbar": {
+    "description": "Settings - delete account success snackbar"
+  },
+  "deleteAccountFailureSnackbar": "Failed to delete account: {details}",
+  "@deleteAccountFailureSnackbar": {
+    "description": "Settings - delete account failure snackbar",
+    "placeholders": {
+      "details": {}
+    }
+  },
+  "sectionHeader12": "General",
+  "@sectionHeader12": {
+    "description": "Settings - section header"
+  },
+  "listItemChangePassword": "Change password",
+  "@listItemChangePassword": {
+    "description": "Settings - list item - change password"
+  },
+  "noCamerasFoundError": "No cameras found on this device.",
+  "@noCamerasFoundError": {
+    "description": "Camera (Front/Back - shared text) - no cameras found error"
+  },
+  "noFrontCameraFound": "No front camera found on this device.",
+  "@noFrontCameraFound": {
+    "description": "Camera (Front/Back - shared text) - no matching camera found error"
+  },
+  "noBackCameraFound": "No back camera found on this device.",
+  "@noBackCameraFound": {
+    "description": "Camera (Front/Back - shared text) - no matching camera found error"
+  },
+  "cameraPermissionDeniedError": "Camera access is denied. Please enable it in your device Settings.",
+  "@cameraPermissionDeniedError": {
+    "description": "Camera (Front/Back - shared text) - camera permission denied error"
+  },
+  "genericCameraExceptionError": "Camera error: {details}",
+  "@genericCameraExceptionError": {
+    "description": "Camera (Front/Back - shared text) - generic camera exception error",
+    "placeholders": {
+      "details": {}
+    }
+  },
+  "cameraInitFailureError": "Failed to open camera: {error}",
+  "@cameraInitFailureError": {
+    "description": "Camera (Front/Back - shared text) - camera init failure error",
+    "placeholders": {
+      "error": {}
+    }
+  },
+  "openSettingsButton": "Open Settings",
+  "@openSettingsButton": {
+    "description": "Camera (Front/Back - shared text) - open settings button"
+  },
+  "goBackButton": "Go Back",
+  "@goBackButton": {
+    "description": "Camera (Front/Back - shared text) - go back button"
+  },
+  "appBarTitle3": "Complete Task",
+  "@appBarTitle3": {
+    "description": "Complete Task (legacy/placeholder screen) - app bar title"
+  },
+  "instructionText2": "Please add Remark and photos to mark the task as completed.",
+  "@instructionText2": {
+    "description": "Complete Task (legacy/placeholder screen) - instruction text"
+  },
+  "remarksFieldHint2": "Enter your task name",
+  "@remarksFieldHint2": {
+    "description": "Complete Task (legacy/placeholder screen) - remarks field hint"
+  },
+  "attachmentsHeader": "Attachments ({count})",
+  "@attachmentsHeader": {
+    "description": "Complete Task (legacy/placeholder screen) - attachments header",
+    "placeholders": {
+      "count": {}
+    }
+  },
+  "submitSuccessSnackbar": "Task Completed with remark: {remark} and {count} images",
+  "@submitSuccessSnackbar": {
+    "description": "Complete Task (legacy/placeholder screen) - submit success snackbar",
+    "placeholders": {
+      "count": {},
+      "remark": {}
+    }
+  },
+  "submitButton2": "Mark as Complete",
+  "@submitButton2": {
+    "description": "Complete Task (legacy/placeholder screen) - submit button"
+  },
+  "channelNameGeneral": "High Importance Notifications",
+  "@channelNameGeneral": {
+    "description": "System Notifications - channel name - general"
+  },
+  "channelDescriptionGeneral": "This channel is used for important notifications.",
+  "@channelDescriptionGeneral": {
+    "description": "System Notifications - channel description - general"
+  },
+  "channelNameAutoCheckIn": "Auto Check-in Notifications",
+  "@channelNameAutoCheckIn": {
+    "description": "System Notifications - channel name - auto check-in"
+  },
+  "channelDescriptionAutoCheckInCreationTime": "Critical notifications for automatic task check-ins with sound.",
+  "@channelDescriptionAutoCheckInCreationTime": {
+    "description": "System Notifications - channel description - auto check-in (creation time)"
+  },
+  "channelDescriptionAutoCheckInPerNotification": "Critical notifications for automatic task check-ins",
+  "@channelDescriptionAutoCheckInPerNotification": {
+    "description": "System Notifications - channel description - auto check-in (per-notification)"
+  },
+  "fallbackPushTitle": "New Message",
+  "@fallbackPushTitle": {
+    "description": "System Notifications - fallback push title"
+  },
+  "fallbackPushBody": "You have a new notification",
+  "@fallbackPushBody": {
+    "description": "System Notifications - fallback push body"
+  },
+  "autoCheckInAlertTitle": "🚨 Auto Check-in Required",
+  "@autoCheckInAlertTitle": {
+    "description": "System Notifications - auto check-in alert title"
+  },
+  "autoCheckInAlertBodyWithLocation": "🎯 Time to check in at {location} Task starts at {time}",
+  "@autoCheckInAlertBodyWithLocation": {
+    "description": "System Notifications - auto check-in alert body (with location)",
+    "placeholders": {
+      "location": {},
+      "time": {}
+    }
+  },
+  "autoCheckInAlertBodyNoLocation": "🎯 Time to check in for your task Task starts at {time}",
+  "@autoCheckInAlertBodyNoLocation": {
+    "description": "System Notifications - auto check-in alert body (no location)",
+    "placeholders": {
+      "time": {}
+    }
+  },
+  "liveTrackingChannelName": "Live Location Tracking",
+  "@liveTrackingChannelName": {
+    "description": "System Notifications - live tracking channel name"
+  },
+  "liveTrackingChannelDescription": "Shown while you are punched in, so your location can be tracked for attendance.",
+  "@liveTrackingChannelDescription": {
+    "description": "System Notifications - live tracking channel description"
+  },
+  "liveTrackingPersistentNotificationTitle": "Deineputzcrew — Punched In",
+  "@liveTrackingPersistentNotificationTitle": {
+    "description": "System Notifications - live tracking persistent notification title"
+  },
+  "liveTrackingPersistentNotificationBody": "Your location is being tracked while you're on shift.",
+  "@liveTrackingPersistentNotificationBody": {
+    "description": "System Notifications - live tracking persistent notification body"
+  },
+  "taskChannelName": "Task Notifications",
+  "@taskChannelName": {
+    "description": "System Notifications - task channel name"
+  },
+  "taskChannelDescription": "Automatic task check-in notifications",
+  "@taskChannelDescription": {
+    "description": "System Notifications - task channel description"
+  },
+  "autoCheckInSuccessNotificationTitleOnline": "✅ Auto Check-in Successful",
+  "@autoCheckInSuccessNotificationTitleOnline": {
+    "description": "System Notifications - auto check-in success notification title (online)"
+  },
+  "autoCheckInSuccessNotificationTitleOffline": "✅ Auto Check-in (Offline)",
+  "@autoCheckInSuccessNotificationTitleOffline": {
+    "description": "System Notifications - auto check-in success notification title (offline)"
+  },
+  "autoCheckInNotificationBody": "Task: {taskName} Time: {time}",
+  "@autoCheckInNotificationBody": {
+    "description": "System Notifications - auto check-in notification body",
+    "placeholders": {
+      "taskName": {},
+      "time": {}
+    }
+  },
+  "reasonDropdownValue": "Holiday",
+  "@reasonDropdownValue": {
+    "description": "Availability / Time Off - reason dropdown value"
+  },
+  "reasonDropdownValue2": "Rest / Personal",
+  "@reasonDropdownValue2": {
+    "description": "Availability / Time Off - reason dropdown value"
+  },
+  "reasonDropdownValue3": "Sick",
+  "@reasonDropdownValue3": {
+    "description": "Availability / Time Off - reason dropdown value"
+  },
+  "reasonDropdownValue4": "Other",
+  "@reasonDropdownValue4": {
+    "description": "Availability / Time Off - reason dropdown value"
+  },
+  "appbarTitle2": "Time Off / Availability",
+  "@appbarTitle2": {
+    "description": "Availability / Time Off - AppBar title"
+  },
+  "adminProposalsSectionHeading": "Requests from your admin",
+  "@adminProposalsSectionHeading": {
+    "description": "Availability / Time Off - admin proposals section heading"
+  },
+  "adminProposalsSubheading": "Your admin proposed time off for you. Review and respond below.",
+  "@adminProposalsSubheading": {
+    "description": "Availability / Time Off - admin proposals subheading"
+  },
+  "adminRequestCardRequestedByLine": "Requested by: {name}",
+  "@adminRequestCardRequestedByLine": {
+    "description": "Availability / Time Off - admin request card - requested by line",
+    "placeholders": {
+      "name": {}
+    }
+  },
+  "adminRequestCardDefaultAdminNameFallback": "your admin",
+  "@adminRequestCardDefaultAdminNameFallback": {
+    "description": "Availability / Time Off - admin request card - default admin name fallback"
+  },
+  "adminRequestCardAdminNotePrefix": "Admin note: {note}",
+  "@adminRequestCardAdminNotePrefix": {
+    "description": "Availability / Time Off - admin request card - admin note prefix",
+    "placeholders": {
+      "note": {}
+    }
+  },
+  "adminRequestCardRejectButton": "Reject",
+  "@adminRequestCardRejectButton": {
+    "description": "Availability / Time Off - admin request card - reject button"
+  },
+  "adminRequestCardApproveButton": "Approve",
+  "@adminRequestCardApproveButton": {
+    "description": "Availability / Time Off - admin request card - approve button"
+  },
+  "rejectRequestDialogTitle": "Reject request",
+  "@rejectRequestDialogTitle": {
+    "description": "Availability / Time Off - reject-request dialog title"
+  },
+  "rejectRequestDialogNoteFieldLabel": "Note for admin (optional)",
+  "@rejectRequestDialogNoteFieldLabel": {
+    "description": "Availability / Time Off - reject-request dialog note field label"
+  },
+  "snackbarAfterApprove": "✅ Request approved",
+  "@snackbarAfterApprove": {
+    "description": "Availability / Time Off - snackbar after approve"
+  },
+  "snackbarAfterReject": "❌ Request rejected",
+  "@snackbarAfterReject": {
+    "description": "Availability / Time Off - snackbar after reject"
+  },
+  "fallbackErrorRespondingToAdminRequest": "Failed to respond to request",
+  "@fallbackErrorRespondingToAdminRequest": {
+    "description": "Availability / Time Off - fallback error responding to admin request"
+  },
+  "requestTimeOffSectionHeading": "Request time off",
+  "@requestTimeOffSectionHeading": {
+    "description": "Availability / Time Off - \"Request time off\" section heading"
+  },
+  "subheadingUnderRequestTimeOff": "Let your admin know you'll be on holiday, resting, or otherwise unavailable. They'll review and approve it.",
+  "@subheadingUnderRequestTimeOff": {
+    "description": "Availability / Time Off - subheading under Request time off"
+  },
+  "startDateButtonPlaceholder": "Start date",
+  "@startDateButtonPlaceholder": {
+    "description": "Availability / Time Off - start date button placeholder"
+  },
+  "endDateButtonPlaceholder": "End date",
+  "@endDateButtonPlaceholder": {
+    "description": "Availability / Time Off - end date button placeholder"
+  },
+  "reasonDropdownFieldLabel": "Reason",
+  "@reasonDropdownFieldLabel": {
+    "description": "Availability / Time Off - reason dropdown field label"
+  },
+  "noteFieldLabel": "Note (optional)",
+  "@noteFieldLabel": {
+    "description": "Availability / Time Off - note field label"
+  },
+  "validationSnackbarMissingDates": "Please select both a start and end date",
+  "@validationSnackbarMissingDates": {
+    "description": "Availability / Time Off - validation snackbar - missing dates"
+  },
+  "submitButton3": "Submit request",
+  "@submitButton3": {
+    "description": "Availability / Time Off - submit button"
+  },
+  "submitSuccessSnackbar2": "✅ Time off requested — awaiting admin approval",
+  "@submitSuccessSnackbar2": {
+    "description": "Availability / Time Off - submit success snackbar"
+  },
+  "submitFailureFallbackSnackbar": "Failed to submit request",
+  "@submitFailureFallbackSnackbar": {
+    "description": "Availability / Time Off - submit failure fallback snackbar"
+  },
+  "yourRequestsSectionHeading": "Your requests",
+  "@yourRequestsSectionHeading": {
+    "description": "Availability / Time Off - \"Your requests\" section heading"
+  },
+  "emptyStateText": "No requests yet.",
+  "@emptyStateText": {
+    "description": "Availability / Time Off - empty state text"
+  },
+  "statusBadge": "Approved",
+  "@statusBadge": {
+    "description": "Availability / Time Off - status badge"
+  },
+  "statusBadge2": "Rejected",
+  "@statusBadge2": {
+    "description": "Availability / Time Off - status badge"
+  },
+  "languageRowLabel": "Language",
+  "@languageRowLabel": {
+    "description": "Settings - language row label"
+  },
+  "languageDropdownOption": "English",
+  "@languageDropdownOption": {
+    "description": "Settings - language dropdown option"
+  },
+  "languageDropdownOption2": "German",
+  "@languageDropdownOption2": {
+    "description": "Settings - language dropdown option"
+  },
+  "listItemNavigatesToTimeOffScreen": "Time off / Availability",
+  "@listItemNavigatesToTimeOffScreen": {
+    "description": "Settings - list item - navigates to Time Off screen"
+  },
+  "shiftResponseSnackbarAccepted": "✅ Shift accepted",
+  "@shiftResponseSnackbarAccepted": {
+    "description": "Dashboard - shift-response snackbar (accepted)"
+  },
+  "shiftResponseSnackbarDeclined": "🚫 Shift declined",
+  "@shiftResponseSnackbarDeclined": {
+    "description": "Dashboard - shift-response snackbar (declined)"
+  },
+  "shiftResponseFallbackErrorSnackbar": "Failed to respond to shift",
+  "@shiftResponseFallbackErrorSnackbar": {
+    "description": "Dashboard - shift-response fallback error snackbar"
+  },
+  "needsResponseCardInfoLine": "This shift needs your response",
+  "@needsResponseCardInfoLine": {
+    "description": "Dashboard - \"needs response\" card info line"
+  },
+  "acceptButtonNeedsResponseCard": "Accept",
+  "@acceptButtonNeedsResponseCard": {
+    "description": "Dashboard - accept button (needs-response card)"
+  },
+  "declineButtonNeedsResponseCard": "Decline",
+  "@declineButtonNeedsResponseCard": {
+    "description": "Dashboard - decline button (needs-response card)"
+  },
+  "statusChipAfterRespondingAccepted": "✅ Accepted",
+  "@statusChipAfterRespondingAccepted": {
+    "description": "Dashboard - status chip after responding - accepted"
+  },
+  "statusChipAfterRespondingDeclined": "🚫 Declined",
+  "@statusChipAfterRespondingDeclined": {
+    "description": "Dashboard - status chip after responding - declined"
+  },
+  "debugTestNotificationChannelDescription": "Test notification with sound",
+  "@debugTestNotificationChannelDescription": {
+    "description": "System Notifications - debug/test notification channel description"
+  },
+  "debugTestNotificationTitle": "🔔 Sound Test #{number}",
+  "@debugTestNotificationTitle": {
+    "description": "System Notifications - debug/test notification title",
+    "placeholders": {
+      "number": {}
+    }
+  },
+  "debugTestNotificationBody": "Testing system default notification sound",
+  "@debugTestNotificationBody": {
+    "description": "System Notifications - debug/test notification body"
+  }
+}

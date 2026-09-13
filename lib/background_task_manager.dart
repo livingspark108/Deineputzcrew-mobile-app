@@ -15,6 +15,7 @@ import 'task_model.dart';
 import 'db_helper.dart';
 import 'punch_timezone.dart';
 import 'location_service.dart';
+import 'locale_controller.dart';
 
 class BackgroundTaskManager {
   static const String _taskChannelId = 'task_background_channel';
@@ -65,13 +66,14 @@ class BackgroundTaskManager {
 
     // Create notification channel for Android
     if (Platform.isAndroid) {
+      final l10n = await LocaleController.currentStrings();
       await _notifications!
           .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
           ?.createNotificationChannel(
-            const AndroidNotificationChannel(
+            AndroidNotificationChannel(
               _taskChannelId,
-              'Task Notifications',
-              description: 'Automatic task check-in notifications',
+              l10n.taskChannelName,
+              description: l10n.taskChannelDescription,
               importance: Importance.high,
               enableVibration: true,
             ),
@@ -688,15 +690,17 @@ class BackgroundTaskManager {
   /// Show auto check-in notification
   static Future<void> _showAutoCheckInNotification(Task task, {bool offline = false}) async {
     try {
+      final l10n = await LocaleController.currentStrings();
       await _notifications?.show(
         task.id.hashCode,
-        '✅ Auto Check-in ${offline ? '(Offline)' : 'Successful'}',
-        'Task: ${task.taskName}\nTime: ${DateTime.now().toString().substring(11, 16)}',
+        offline ? l10n.autoCheckInSuccessNotificationTitleOffline : l10n.autoCheckInSuccessNotificationTitleOnline,
+        l10n.autoCheckInNotificationBody(
+            task.taskName, DateTime.now().toString().substring(11, 16)),
         NotificationDetails(
           android: AndroidNotificationDetails(
             _taskChannelId,
-            'Task Notifications',
-            channelDescription: 'Automatic task check-in notifications',
+            l10n.taskChannelName,
+            channelDescription: l10n.taskChannelDescription,
             importance: Importance.high,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',

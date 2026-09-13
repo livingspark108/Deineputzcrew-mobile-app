@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'image_utils.dart';
+import 'l10n/app_localizations.dart';
 
 /// A full-screen camera page locked to the front-facing camera.
 /// Returns the image file path (String) via Navigator.pop, or null if cancelled.
@@ -46,7 +47,7 @@ class _FrontCameraPageState extends State<FrontCameraPage> {
       _cachedCameras ??= await availableCameras();
       final cameras = _cachedCameras!;
       if (cameras.isEmpty) {
-        if (mounted) setState(() => _errorMessage = 'No cameras found on this device.');
+        if (mounted) setState(() => _errorMessage = AppLocalizations.of(context).noCamerasFoundError);
         _signalReady();
         return;
       }
@@ -60,7 +61,7 @@ class _FrontCameraPageState extends State<FrontCameraPage> {
       }
 
       if (frontCamera == null) {
-        if (mounted) setState(() => _errorMessage = 'No front camera found on this device.');
+        if (mounted) setState(() => _errorMessage = AppLocalizations.of(context).noFrontCameraFound);
         _signalReady();
         return;
       }
@@ -79,16 +80,17 @@ class _FrontCameraPageState extends State<FrontCameraPage> {
             e.code == 'CameraAccessDeniedWithoutPrompt' ||
             e.code == 'CameraAccessRestricted' ||
             e.code == 'permissionDenied';
+        final l10n = AppLocalizations.of(context);
         setState(() {
           _isPermissionError = isPermission;
           _errorMessage = isPermission
-              ? 'Camera access is denied.\nPlease enable it in your device Settings.'
-              : 'Camera error: ${e.description}';
+              ? l10n.cameraPermissionDeniedError
+              : l10n.genericCameraExceptionError(e.description ?? '');
         });
       }
       _signalReady();
     } catch (e) {
-      if (mounted) setState(() => _errorMessage = 'Failed to open camera: $e');
+      if (mounted) setState(() => _errorMessage = AppLocalizations.of(context).cameraInitFailureError(e.toString()));
       _signalReady();
     }
   }
@@ -113,6 +115,7 @@ class _FrontCameraPageState extends State<FrontCameraPage> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     if (_errorMessage != null) {
       return Scaffold(
         backgroundColor: Colors.black,
@@ -136,12 +139,12 @@ class _FrontCameraPageState extends State<FrontCameraPage> {
                       Navigator.of(context).pop(null);
                       await openAppSettings();
                     },
-                    child: const Text('Open Settings'),
+                    child: Text(l10n.openSettingsButton),
                   ),
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(null),
-                  child: const Text('Go Back', style: TextStyle(color: Colors.white70)),
+                  child: Text(l10n.goBackButton, style: const TextStyle(color: Colors.white70)),
                 ),
               ],
             ),

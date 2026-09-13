@@ -14,6 +14,7 @@ import 'dart:convert';
 
 import 'back_camera_page.dart';
 import 'db_helper.dart';
+import 'l10n/app_localizations.dart';
 import 'live_location_tracker.dart';
 import 'punch_timezone.dart';
 import 'widgets/full_screen_loader.dart';
@@ -57,6 +58,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -75,7 +77,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
             }
           },
         ),
-        title: const Text("Task Details",
+        title: Text(l10n.appBarTitle2,
             style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500)),
       ),
       body: Padding(
@@ -84,7 +86,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text("Task",
+              Text(l10n.taskLabel,
                   style: TextStyle(
                       fontSize: 14, color: Colors.grey, fontFamily: 'Poppins')),
               const SizedBox(height: 4),
@@ -96,7 +98,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               const Divider(height: 30),
 
               /// Status row
-              const Text("Status",
+              Text(l10n.statusFieldLabel,
                   style: TextStyle(
                       fontSize: 14, color: Colors.grey, fontFamily: 'Poppins')),
               const SizedBox(height: 4),
@@ -149,7 +151,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text("Logged:",
+                              Text(l10n.loggedTimeLabel,
                                   style: TextStyle(
                                       fontSize: 14,
                                       color: Colors.grey,
@@ -250,7 +252,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
               const SizedBox(height: 20),
 
               /// Attachments
-              const Text("Attachments",
+              Text(l10n.attachmentsSectionTitle,
                   style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
@@ -304,8 +306,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                 controller: remarkController,
                 maxLines: 3,
                 decoration: InputDecoration(
-                  labelText: "Remarks",
-                  hintText: "Enter Remark",
+                  labelText: l10n.remarksFieldLabel,
+                  hintText: l10n.remarksFieldHint,
                   labelStyle: const TextStyle(fontSize: 14, color: Colors.grey),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
@@ -335,10 +337,11 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                         children: [
                           ListTile(
                             leading: const Icon(Icons.camera_alt),
-                            title: const Text('Camera'),
+                            title: Text(l10n.addAttachmentSheetOption),
                             onTap: () async {
                               Navigator.pop(context);
-                              FullScreenLoader.show(context, 'Opening camera...');
+                              FullScreenLoader.show(
+                                  context, l10n.loaderTextOpeningCamera);
                               final imagePath = await Navigator.push<String>(
                                 context,
                                 MaterialPageRoute(
@@ -374,7 +377,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                     );
                   },
                   icon: const Icon(Icons.upload),
-                  label: const Text("Add Attachment"),
+                  label: Text(l10n.addAttachmentButton),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
@@ -400,9 +403,9 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: const Text(
-                      "Mark as Completed",
-                      style: TextStyle(
+                    child: Text(
+                      l10n.markAsCompletedButton,
+                      style: const TextStyle(
                           color: Colors.white,
                           fontSize: 16,
                           fontFamily: 'Poppins',
@@ -624,10 +627,11 @@ Future<void> _handlePunchOut(
   List<File> images,
   TextEditingController controller,
 ) async {
+  final l10n = AppLocalizations.of(context);
   try {
     if (images.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select at least one image')),
+        SnackBar(content: Text(l10n.punchOutMissingImageSnackbar)),
       );
       return;
     }
@@ -636,8 +640,8 @@ Future<void> _handlePunchOut(
     final token = prefs.getString('token');
     if (token == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text('Authentication error. Please log in again.')),
+        SnackBar(
+            content: Text(l10n.breakOutAuthErrorSnackbar)),
       );
       return;
     }
@@ -646,9 +650,9 @@ Future<void> _handlePunchOut(
     final punchedInTaskId = prefs.getString('punchedInTaskId');
     if (punchedInTaskId == null || punchedInTaskId.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
           content:
-              Text('⛔ Cannot punch out - You are not punched in to any task'),
+              Text(l10n.punchOutNotPunchedInSnackbar),
           backgroundColor: Colors.orange,
         ),
       );
@@ -659,8 +663,7 @@ Future<void> _handlePunchOut(
     if (punchedInTaskId != taskId) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-              '⛔ Cannot punch out - You are punched in to a different task'),
+          content: Text(l10n.punchOutTaskMismatchSnackbar),
           backgroundColor: Colors.orange,
         ),
       );
@@ -668,13 +671,13 @@ Future<void> _handlePunchOut(
     }
 
     // Show full-screen loader
-    FullScreenLoader.show(context, 'Getting your location...');
+    FullScreenLoader.show(context, l10n.loaderTextGettingLocation);
 
     // Step 1: Get location (15s timeout to avoid hanging on iOS)
     final position = await Geolocator.getCurrentPosition()
         .timeout(const Duration(seconds: 15));
 
-    FullScreenLoader.updateMessage('Punching out...');
+    FullScreenLoader.updateMessage(l10n.loaderTextPunchingOut);
 
     // ✅ Step 2: Check connectivity FIRST
     final connectivity = await Connectivity().checkConnectivity();
@@ -721,9 +724,9 @@ Future<void> _handlePunchOut(
       FullScreenLoader.hide(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('📴 Punch-out saved offline. Will sync when online.'),
-          duration: Duration(seconds: 3),
+        SnackBar(
+          content: Text(l10n.punchOutOfflineSnackbar),
+          duration: const Duration(seconds: 3),
         ),
       );
 
@@ -781,7 +784,7 @@ Future<void> _handlePunchOut(
       await LiveLocationTracker.stop();
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Punch-out successful')),
+        SnackBar(content: Text(l10n.punchOutSuccessSnackbar)),
       );
 
       Navigator.pushAndRemoveUntil(
@@ -797,7 +800,7 @@ Future<void> _handlePunchOut(
     FullScreenLoader.hide(context);
     debugPrint('❌ Punch-out exception: $e');
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Error: $e')),
+      SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
     );
   }
 }
@@ -835,6 +838,7 @@ class _StatusPopupState extends State<StatusPopup> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -843,7 +847,7 @@ class _StatusPopupState extends State<StatusPopup> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text("Change Status",
+              Text(l10n.changeStatusPopupTitle,
                   style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -855,11 +859,12 @@ class _StatusPopupState extends State<StatusPopup> {
             ],
           ),
           const SizedBox(height: 10),
-          _buildStatusOption("Pending", Colors.purple),
+          _buildStatusOption("Pending", Colors.purple, l10n.tabLabel),
           const SizedBox(height: 8),
-          _buildStatusOption("Work in progress", Colors.orange),
+          _buildStatusOption(
+              "Work in progress", Colors.orange, l10n.statusOption),
           const SizedBox(height: 8),
-          _buildStatusOption("Completed", Colors.green),
+          _buildStatusOption("Completed", Colors.green, l10n.tabLabel2),
           const SizedBox(height: 20),
           SizedBox(
             width: double.infinity,
@@ -873,8 +878,8 @@ class _StatusPopupState extends State<StatusPopup> {
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text("Select",
-                  style: TextStyle(
+              child: Text(l10n.statusPopupSelectButton,
+                  style: const TextStyle(
                       color: Colors.white,
                       fontSize: 16,
                       fontFamily: 'Poppins')),
@@ -885,7 +890,7 @@ class _StatusPopupState extends State<StatusPopup> {
     );
   }
 
-  Widget _buildStatusOption(String status, Color color) {
+  Widget _buildStatusOption(String status, Color color, String label) {
     bool isSelected = selectedStatus == status;
     return InkWell(
       onTap: () => setState(() => selectedStatus = status),
@@ -905,7 +910,7 @@ class _StatusPopupState extends State<StatusPopup> {
               color: color,
             ),
             const SizedBox(width: 10),
-            Text(status,
+            Text(label,
                 style: const TextStyle(fontSize: 16, fontFamily: 'Poppins')),
           ],
         ),

@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 
 import 'app_metadata.dart';
 import 'home.dart';
+import 'l10n/app_localizations.dart';
 
 
 
@@ -144,11 +145,41 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
         .length;
   }
 
+  String _localizedPriorityLabel(String label) {
+    final l10n = AppLocalizations.of(context);
+    switch (label) {
+      case "All":
+        return l10n.priorityFilterChip;
+      case "Low":
+        return l10n.priorityFilterChip2;
+      case "Medium":
+        return l10n.priorityFilterChip3;
+      case "High":
+        return l10n.priorityFilterChip4;
+      default:
+        return label;
+    }
+  }
+
+  String _localizedTabLabel(String label) {
+    final l10n = AppLocalizations.of(context);
+    switch (label) {
+      case "All":
+        return l10n.priorityFilterChip;
+      case "Pending":
+        return l10n.tabLabel;
+      case "Completed":
+        return l10n.tabLabel2;
+      default:
+        return label;
+    }
+  }
+
   Widget _priorityChip(String label) {
     final isSelected = selectedPriority == label.toLowerCase();
 
     return ChoiceChip(
-      label: Text(label),
+      label: Text(_localizedPriorityLabel(label)),
       selected: isSelected,
       selectedColor: Colors.black,
       labelStyle: TextStyle(
@@ -199,6 +230,7 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -207,12 +239,23 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
           onPressed: () {
-            Navigator.pop(context);
+            // This screen is shown two ways: pushed as its own route (e.g.
+            // from the dashboard's "View all" link — Navigator.pop works
+            // there), and embedded directly as the body of the bottom-nav
+            // "Tasks" tab with no route of its own pushed for it. In the
+            // second case there's nothing to pop, and MainApp is the only
+            // route on the stack (splash replaces itself with it), so an
+            // unguarded pop would pop MainApp itself off the navigator,
+            // leaving a black screen. Only pop when there's actually a
+            // route to go back to.
+            if (Navigator.canPop(context)) {
+              Navigator.pop(context);
+            }
           },
         ),
-        title: const Text(
-          "All Tasks",
-          style: TextStyle(
+        title: Text(
+          l10n.appBarTitle,
+          style: const TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.w600,
           ),
@@ -255,7 +298,7 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
                     child: Row(
                       children: [
                         Text(
-                          tabs[index],
+                          _localizedTabLabel(tabs[index]),
                           style: TextStyle(
                             fontWeight: isSelected ? FontWeight.bold : FontWeight.w400,
                             color: isSelected ? Colors.black : Colors.black87,
@@ -312,9 +355,9 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
                         .toList();
                   });
                 },
-                decoration: const InputDecoration(
-                  icon: Icon(Icons.search, color: Colors.grey),
-                  hintText: "Search Task",
+                decoration: InputDecoration(
+                  icon: const Icon(Icons.search, color: Colors.grey),
+                  hintText: l10n.searchFieldHint,
                   border: InputBorder.none,
                 ),
               ),

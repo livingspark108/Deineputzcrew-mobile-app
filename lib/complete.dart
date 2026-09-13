@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'l10n/app_localizations.dart';
 
 class CompleteTaskScreen extends StatefulWidget {
   const CompleteTaskScreen({super.key});
@@ -20,6 +21,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -29,9 +31,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
-        title: const Text(
-          "Complete Task",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+        title: Text(
+          l10n.appBarTitle3,
+          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
         ),
       ),
       body: Padding(
@@ -39,9 +41,9 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              "Please add Remark and photos to mark the task as completed.",
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
+            Text(
+              l10n.instructionText2,
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w400),
             ),
             const SizedBox(height: 20),
 
@@ -50,8 +52,8 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
               controller: remarkController,
               maxLines: 3,
               decoration: InputDecoration(
-                labelText: "Remarks",
-                hintText: "Enter your task name",
+                labelText: l10n.remarksFieldLabel,
+                hintText: l10n.remarksFieldHint2,
                 labelStyle: const TextStyle(fontSize: 14, color: Colors.grey),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -69,7 +71,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text("Attachments (${images.length})",
+                Text(l10n.attachmentsHeader(images.length),
                     style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -79,7 +81,7 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                     // Add image picker logic here
                   },
                   icon: const Icon(Icons.upload),
-                  label: const Text("Add Attachment"),
+                  label: Text(l10n.addAttachmentButton),
                   style: OutlinedButton.styleFrom(
                     padding:
                     const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
@@ -150,12 +152,12 @@ class _CompleteTaskScreenState extends State<CompleteTaskScreen> {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
                         content: Text(
-                            "Task Completed with remark: $remark and ${images.length} images")),
+                            l10n.submitSuccessSnackbar(images.length, remark))),
                   );
                 },
                 icon: const Icon(Icons.check_circle, color: Colors.white),
-                label: const Text("Mark as Complete",
-                    style: TextStyle(fontSize: 16, color: Colors.white)),
+                label: Text(l10n.submitButton2,
+                    style: const TextStyle(fontSize: 16, color: Colors.white)),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green,
                   padding: const EdgeInsets.symmetric(vertical: 16),

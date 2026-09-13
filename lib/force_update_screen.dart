@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'app_metadata.dart';
+import 'l10n/app_localizations.dart';
 
 const Color _kBrandOrange = Color(0xFFFF7A1A);
 
@@ -36,9 +37,10 @@ class ForceUpdateScreen extends StatelessWidget {
   }
 
   Future<void> _launchUpdateUrl(BuildContext context, String? url) async {
+    final l10n = AppLocalizations.of(context);
     if (url == null || url.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Update link is not available.')),
+        SnackBar(content: Text(l10n.missingUpdateLinkSnackbar)),
       );
       return;
     }
@@ -47,7 +49,7 @@ class ForceUpdateScreen extends StatelessWidget {
       Uri uri = Uri.tryParse(url) ?? Uri();
       if (uri.toString().isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Invalid update link.')),
+          SnackBar(content: Text(l10n.invalidLinkSnackbar)),
         );
         return;
       }
@@ -80,7 +82,7 @@ class ForceUpdateScreen extends StatelessWidget {
           if (context.mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                  content: Text('Unable to open update link: ${e.toString()}')),
+                  content: Text(l10n.launchFailureSnackbar(e.toString()))),
             );
           }
         }
@@ -89,7 +91,7 @@ class ForceUpdateScreen extends StatelessWidget {
       debugPrint('🔗 Update URL error: $e');
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error opening update link: ${e.toString()}')),
+          SnackBar(content: Text(l10n.genericErrorSnackbar(e.toString()))),
         );
       }
     }
@@ -116,6 +118,7 @@ class ForceUpdateScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return PopScope(
       canPop: false,
       child: Scaffold(
@@ -172,9 +175,9 @@ class ForceUpdateScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 28),
 
-                        const Text(
-                          'Update Required',
-                          style: TextStyle(
+                        Text(
+                          l10n.heading2,
+                          style: const TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.2,
@@ -182,9 +185,9 @@ class ForceUpdateScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 10),
-                        const Text(
-                          'A newer version of Deine Putzcrew is available and required to keep using the app.',
-                          style: TextStyle(
+                        Text(
+                          l10n.bodyText,
+                          style: const TextStyle(
                             fontSize: 15,
                             height: 1.4,
                             color: Colors.black54,
@@ -208,15 +211,15 @@ class ForceUpdateScreen extends StatelessWidget {
                             children: [
                               _buildReasonRow(
                                 Icons.bug_report_outlined,
-                                'Bug fixes and stability improvements',
+                                l10n.reasonListItem,
                               ),
                               _buildReasonRow(
                                 Icons.security_rounded,
-                                'Important security updates',
+                                l10n.reasonListItem2,
                               ),
                               _buildReasonRow(
                                 Icons.lock_clock_outlined,
-                                'Punch in/out will stay disabled until you update',
+                                l10n.reasonListItem3,
                               ),
                             ],
                           ),
@@ -237,14 +240,14 @@ class ForceUpdateScreen extends StatelessWidget {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.system_update_alt_rounded, size: 20),
-                                SizedBox(width: 10),
+                                const Icon(Icons.system_update_alt_rounded, size: 20),
+                                const SizedBox(width: 10),
                                 Text(
-                                  'Update Now',
-                                  style: TextStyle(
+                                  l10n.updateButton,
+                                  style: const TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                   ),
@@ -256,8 +259,8 @@ class ForceUpdateScreen extends StatelessWidget {
                         const SizedBox(height: 14),
                         Text(
                           AppMetadata.isIOS
-                              ? "You'll be redirected to TestFlight to install the update."
-                              : "You'll be redirected to the Play Store to install the update.",
+                              ? l10n.footerNoteIos
+                              : l10n.footerNoteAndroid,
                           style: const TextStyle(
                             fontSize: 12.5,
                             color: Colors.black38,

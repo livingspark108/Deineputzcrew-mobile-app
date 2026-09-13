@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'login.dart';
+import 'l10n/app_localizations.dart';
 
 class TermsConditionsScreen extends StatelessWidget {
   const TermsConditionsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return WillPopScope(
       onWillPop: () async {
         Navigator.pop(context);
@@ -13,9 +15,9 @@ class TermsConditionsScreen extends StatelessWidget {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: const Text(
-            "Terms & Conditions",
-            style: TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
+          title: Text(
+            l10n.termsLink,
+            style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w600),
           ),
           backgroundColor: Colors.white,
           elevation: 0.8,
@@ -32,68 +34,65 @@ class TermsConditionsScreen extends StatelessWidget {
           padding: const EdgeInsets.all(20.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
+            children: [
               Text(
-                "Welcome to DiveInPuits!",
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                l10n.pageHeading,
+                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
-              SizedBox(height: 16),
+              const SizedBox(height: 16),
               Text(
-                "These Terms and Conditions govern your use of our application and services. "
-                    "By accessing or using our app, you agree to comply with these terms.",
-                style: TextStyle(fontSize: 15, height: 1.6),
+                l10n.introParagraph2,
+                style: const TextStyle(fontSize: 15, height: 1.6),
                 textAlign: TextAlign.justify,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
-                "1. Account Responsibilities",
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                l10n.sectionHeader8,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                "You are responsible for maintaining the confidentiality of your account credentials. "
-                    "You agree to notify us immediately of any unauthorized use of your account.",
-                style: TextStyle(fontSize: 15, height: 1.6),
+                l10n.sectionBody,
+                style: const TextStyle(fontSize: 15, height: 1.6),
                 textAlign: TextAlign.justify,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
-                "2. Usage of Services",
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                l10n.sectionHeader9,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                "You agree not to misuse our services, including engaging in fraudulent, abusive, "
-                    "or illegal activities within the app.",
-                style: TextStyle(fontSize: 15, height: 1.6),
+                l10n.sectionBody2,
+                style: const TextStyle(fontSize: 15, height: 1.6),
                 textAlign: TextAlign.justify,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
-                "3. Limitation of Liability",
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                l10n.sectionHeader10,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                "We are not responsible for any indirect, incidental, or consequential damages arising from your use of our app.",
-                style: TextStyle(fontSize: 15, height: 1.6),
+                l10n.sectionBody3,
+                style: const TextStyle(fontSize: 15, height: 1.6),
                 textAlign: TextAlign.justify,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
-                "4. Changes to Terms",
-                style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
+                l10n.sectionHeader11,
+                style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
               ),
-              SizedBox(height: 8),
+              const SizedBox(height: 8),
               Text(
-                "We may update these Terms from time to time. Continued use of the app after updates means you accept the new Terms.",
-                style: TextStyle(fontSize: 15, height: 1.6),
+                l10n.sectionBody4,
+                style: const TextStyle(fontSize: 15, height: 1.6),
                 textAlign: TextAlign.justify,
               ),
-              SizedBox(height: 30),
+              const SizedBox(height: 30),
               Text(
-                "Last updated: November 2025",
-                style: TextStyle(fontSize: 13, color: Colors.grey),
+                l10n.footer2,
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
               ),
             ],
           ),

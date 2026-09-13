@@ -7,6 +7,8 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'locale_controller.dart';
+
 /// Live location tracking: while a worker is punched in, pings the server
 /// with their current GPS position roughly every 30 seconds, so the admin
 /// dashboard's live map can show where everyone currently working is.
@@ -37,13 +39,13 @@ class LiveLocationTracker {
   static DateTime? _iosLastPingAt;
 
   /// Call once at app startup (before the service is ever started).
-  static void init() {
+  static Future<void> init() async {
+    final l10n = await LocaleController.currentStrings();
     FlutterForegroundTask.init(
       androidNotificationOptions: AndroidNotificationOptions(
         channelId: 'live_location_tracking',
-        channelName: 'Live Location Tracking',
-        channelDescription:
-            'Shown while you are punched in, so your location can be tracked for attendance.',
+        channelName: l10n.liveTrackingChannelName,
+        channelDescription: l10n.liveTrackingChannelDescription,
         onlyAlertOnce: true,
       ),
       iosNotificationOptions: const IOSNotificationOptions(
@@ -76,10 +78,11 @@ class LiveLocationTracker {
       return;
     }
 
+    final l10n = await LocaleController.currentStrings();
     await FlutterForegroundTask.startService(
       serviceId: 501,
-      notificationTitle: 'Deineputzcrew — Punched In',
-      notificationText: 'Your location is being tracked while you\'re on shift.',
+      notificationTitle: l10n.liveTrackingPersistentNotificationTitle,
+      notificationText: l10n.liveTrackingPersistentNotificationBody,
       callback: startLocationTrackingCallback,
     );
   }

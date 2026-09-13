@@ -3,6 +3,8 @@ import 'package:deineputzcrew/login.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'l10n/app_localizations.dart';
+
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
 
@@ -23,6 +25,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
   bool _obscureConfirmPassword = true;
 
   Future<void> _resetPassword() async {
+    final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
@@ -48,7 +51,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
       setState(() => _isSubmitting = false);
 
       final resBody = jsonDecode(response.body);
-      String message = resBody['message'] ?? 'Something went wrong';
+      String message = resBody['message'] ?? l10n.apiResultFallback;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -63,7 +66,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
     } catch (e) {
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
       );
     }
   }
@@ -79,12 +82,13 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
-        title: const Text(
-          'Reset Password',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        title: Text(
+          l10n.appbarTitleButtonLabel,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
         backgroundColor: const Color(0xFF000000),
         elevation: 0,
@@ -100,17 +104,17 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _emailController,
                 keyboardType: TextInputType.emailAddress,
                 decoration: InputDecoration(
-                  labelText: 'Email',
-                  hintText: 'you@example.com',
+                  labelText: l10n.emailFieldHint,
+                  hintText: l10n.emailFieldHint2,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.email),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'Email is required';
+                  if (value == null || value.isEmpty) return l10n.emailEmptyInlineError;
                   final emailRegex =
                   RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
-                  if (!emailRegex.hasMatch(value)) return 'Enter a valid email';
+                  if (!emailRegex.hasMatch(value)) return l10n.invalidEmailInlineError;
                   return null;
                 },
               ),
@@ -119,14 +123,14 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _otpController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  labelText: 'OTP',
-                  hintText: 'Enter OTP',
+                  labelText: l10n.otpFieldLabel,
+                  hintText: l10n.otpFieldHint,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock_clock),
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return 'OTP is required';
+                  if (value == null || value.isEmpty) return l10n.otpRequiredValidation;
                   return null;
                 },
               ),
@@ -135,8 +139,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _passwordController,
                 obscureText: _obscurePassword,
                 decoration: InputDecoration(
-                  labelText: 'New Password',
-                  hintText: 'Enter new password',
+                  labelText: l10n.newPasswordFieldLabel,
+                  hintText: l10n.newPasswordFieldHint,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock),
@@ -150,10 +154,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Password is required';
+                    return l10n.passwordEmptyInlineError;
                   }
                   if (value.length < 8) {
-                    return 'Password must be at least 8 characters';
+                    return l10n.passwordLengthValidation;
                   }
                   return null;
                 },
@@ -163,8 +167,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirmPassword,
                 decoration: InputDecoration(
-                  labelText: 'Confirm Password',
-                  hintText: 'Re-enter password',
+                  labelText: l10n.confirmPasswordFieldLabel,
+                  hintText: l10n.confirmPasswordFieldHint,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -179,10 +183,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Confirm password is required';
+                    return l10n.confirmPasswordRequiredValidation;
                   }
                   if (value != _passwordController.text) {
-                    return 'Passwords do not match';
+                    return l10n.passwordsMismatchValidation;
                   }
                   return null;
                 },
@@ -200,9 +204,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                   ),
                   child: _isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                    'Reset Password',
-                    style: TextStyle(
+                      : Text(
+                    l10n.appbarTitleButtonLabel,
+                    style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),

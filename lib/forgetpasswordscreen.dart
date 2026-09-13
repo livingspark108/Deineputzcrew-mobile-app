@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 
 import 'login.dart';
 import 'resetpassword.dart';
+import 'l10n/app_localizations.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -29,6 +30,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
 
   Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
@@ -52,7 +54,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         final data = jsonDecode(response.body);
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(data['message'] ?? 'Success')),
+          SnackBar(content: Text(data['message'] ?? l10n.successFallback)),
         );
 
         if (data['success'] == true) {
@@ -63,13 +65,13 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed: ${response.statusCode}')),
+          SnackBar(content: Text(l10n.failureSnackbar(response.statusCode.toString()))),
         );
       }
     } catch (e) {
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
       );
     }
   }
@@ -82,6 +84,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return WillPopScope(
       onWillPop: () async {
         _goToLogin(); // Android back & iOS swipe-back
@@ -101,9 +104,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             ),
             onPressed: _goToLogin,
           ),
-          title: const Text(
-            'Forgot Password',
-            style: TextStyle(
+          title: Text(
+            l10n.appbarTitle,
+            style: const TextStyle(
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -115,7 +118,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
             children: [
               const SizedBox(height: 40),
               Text(
-                'Enter your email to receive a password reset link.',
+                l10n.instructionText,
                 style: TextStyle(fontSize: 16, color: Colors.grey[700]),
                 textAlign: TextAlign.center,
               ),
@@ -126,8 +129,8 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   controller: _emailController,
                   keyboardType: TextInputType.emailAddress,
                   decoration: InputDecoration(
-                    labelText: 'Email',
-                    hintText: 'you@example.com',
+                    labelText: l10n.emailFieldHint,
+                    hintText: l10n.emailFieldHint2,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
@@ -135,12 +138,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Email is required';
+                      return l10n.emailEmptyInlineError;
                     }
                     final emailRegex =
                         RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
                     if (!emailRegex.hasMatch(value)) {
-                      return 'Enter a valid email';
+                      return l10n.invalidEmailInlineError;
                     }
                     return null;
                   },
@@ -160,9 +163,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                   ),
                   child: _isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                          'Send Reset Link',
-                          style: TextStyle(
+                      : Text(
+                          l10n.submitButton,
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,

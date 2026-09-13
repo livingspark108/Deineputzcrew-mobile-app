@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'l10n/app_localizations.dart';
+
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
 
@@ -24,6 +26,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   bool _obscureConfirm = true;
 
   Future<void> _changePassword() async {
+    final l10n = AppLocalizations.of(context);
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _isSubmitting = true);
@@ -35,7 +38,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     if (token == null) {
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("No auth token found. Please login again.")),
+        SnackBar(content: Text(l10n.missingTokenSnackbar)),
       );
       return;
     }
@@ -60,7 +63,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       setState(() => _isSubmitting = false);
 
       final resBody = jsonDecode(response.body);
-      String message = resBody['message']?.toString() ?? 'Something went wrong';
+      String message = resBody['message']?.toString() ?? l10n.apiResultFallback;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -77,7 +80,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     } catch (e) {
       setState(() => _isSubmitting = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
+        SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
       );
     }
   }
@@ -92,14 +95,16 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FB),
       appBar: AppBar(
-        title: const Text(
-          'Change Password',
-          style: TextStyle(fontWeight: FontWeight.w600),
+        title: Text(
+          l10n.appbarTitleButtonLabel2,
+          style: const TextStyle(fontWeight: FontWeight.w600, color: Colors.white),
         ),
         backgroundColor: const Color(0xFF000000),
+        foregroundColor: Colors.white,
         elevation: 0,
       ),
       body: Padding(
@@ -114,7 +119,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 controller: _oldPasswordController,
                 obscureText: _obscureOld,
                 decoration: InputDecoration(
-                  labelText: 'Old Password',
+                  labelText: l10n.oldPasswordFieldLabel,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock_outline),
@@ -127,7 +132,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Old password is required';
+                    return l10n.oldPasswordRequiredValidation;
                   }
                   return null;
                 },
@@ -139,7 +144,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 controller: _newPasswordController,
                 obscureText: _obscureNew,
                 decoration: InputDecoration(
-                  labelText: 'New Password',
+                  labelText: l10n.newPasswordFieldLabel,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock),
@@ -152,10 +157,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'New password is required';
+                    return l10n.newPasswordRequiredValidation;
                   }
                   if (value.length < 8) {
-                    return 'Password must be at least 8 characters';
+                    return l10n.passwordLengthValidation;
                   }
                   return null;
                 },
@@ -167,7 +172,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureConfirm,
                 decoration: InputDecoration(
-                  labelText: 'Confirm New Password',
+                  labelText: l10n.confirmPasswordFieldLabel2,
                   border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12)),
                   prefixIcon: const Icon(Icons.lock_reset),
@@ -181,10 +186,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
-                    return 'Confirm password is required';
+                    return l10n.confirmPasswordRequiredValidation;
                   }
                   if (value != _newPasswordController.text) {
-                    return 'Passwords do not match';
+                    return l10n.passwordsMismatchValidation;
                   }
                   return null;
                 },
@@ -204,9 +209,9 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ),
                   child: _isSubmitting
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text(
-                    'Change Password',
-                    style: TextStyle(
+                      : Text(
+                    l10n.appbarTitleButtonLabel2,
+                    style: const TextStyle(
                         fontSize: 16, fontWeight: FontWeight.w600),
                   ),
                 ),

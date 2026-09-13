@@ -1,0 +1,78 @@
+﻿Screen,Context,English Text,German Translation,Notes
+Availability / Time Off,reason dropdown value,Holiday,Urlaub,
+Availability / Time Off,reason dropdown value,Rest / Personal,Erholung / Privat,
+Availability / Time Off,reason dropdown value,Sick,Krank,
+Availability / Time Off,reason dropdown value,Other,Sonstiges,
+Availability / Time Off,AppBar title,Time Off / Availability,Abwesenheit / Verfügbarkeit,
+Availability / Time Off,admin proposals section heading,Requests from your admin,Anfragen von deinem Admin,
+Availability / Time Off,admin proposals subheading,Your admin proposed time off for you. Review and respond below.,Dein Admin hat eine Abwesenheit für dich vorgeschlagen. Prüfe sie und antworte unten.,
+Availability / Time Off,admin request card - requested by line,Requested by: [name],Angefragt von: [name],keep [name] placeholder
+Availability / Time Off,admin request card - default admin name fallback,your admin,dein Admin,"used when no admin name is available - ""Requested by: your admin"""
+Availability / Time Off,admin request card - admin note prefix,Admin note: [note],Hinweis vom Admin: [note],keep placeholder
+Availability / Time Off,admin request card - reject button,Reject,Ablehnen,
+Availability / Time Off,admin request card - approve button,Approve,Genehmigen,
+Availability / Time Off,reject-request dialog title,Reject request,Anfrage ablehnen,
+Availability / Time Off,reject-request dialog note field label,Note for admin (optional),Hinweis für den Admin (optional),
+Availability / Time Off,reject-request dialog cancel button,Cancel,Abbrechen,
+Availability / Time Off,reject-request dialog confirm button,Reject,Ablehnen,same word as the card button above - can reuse one translation
+Availability / Time Off,snackbar after approve,✅ Request approved,✅ Anfrage genehmigt,keep emoji
+Availability / Time Off,snackbar after reject,❌ Request rejected,❌ Anfrage abgelehnt,keep emoji
+Availability / Time Off,fallback error responding to admin request,Failed to respond to request,Antwort auf die Anfrage fehlgeschlagen,
+Availability / Time Off,generic exception snackbar,Error: [error],Fehler: [error],keep placeholder - reused everywhere else in the app
+Availability / Time Off,"""Request time off"" section heading",Request time off,Abwesenheit beantragen,
+Availability / Time Off,subheading under Request time off,"Let your admin know you'll be on holiday, resting, or otherwise unavailable. They'll review and approve it.","Teile deinem Admin mit, dass du im Urlaub bist, dich erholst oder anderweitig nicht verfügbar bist. Die Anfrage wird geprüft und genehmigt.",
+Availability / Time Off,start date button placeholder,Start date,Startdatum,
+Availability / Time Off,end date button placeholder,End date,Enddatum,
+Availability / Time Off,reason dropdown field label,Reason,Grund,
+Availability / Time Off,note field label,Note (optional),Notiz (optional),
+Availability / Time Off,validation snackbar - missing dates,Please select both a start and end date,Bitte wähle Start- und Enddatum aus,
+Availability / Time Off,submit button,Submit request,Anfrage senden,
+Availability / Time Off,submit success snackbar,✅ Time off requested — awaiting admin approval,✅ Abwesenheit beantragt — wartet auf Genehmigung durch den Admin,keep emoji
+Availability / Time Off,submit failure fallback snackbar,Failed to submit request,Anfrage konnte nicht gesendet werden,
+Availability / Time Off,"""Your requests"" section heading",Your requests,Deine Anfragen,
+Availability / Time Off,empty state text,No requests yet.,Noch keine Anfragen.,
+Availability / Time Off,status badge,Approved,Genehmigt,
+Availability / Time Off,status badge,Rejected,Abgelehnt,
+Availability / Time Off,status badge (default),Pending,Ausstehend,
+Settings,language row label,Language,Sprache,this is the label next to the language switcher dropdown itself
+Settings,language dropdown option,English,Englisch,
+Settings,language dropdown option,German,Deutsch,
+Settings,list item - navigates to Time Off screen,Time off / Availability,Abwesenheit / Verfügbarkeit,
+Dashboard,shift-response snackbar (accepted),✅ Shift accepted,✅ Schicht angenommen,keep emoji
+Dashboard,shift-response snackbar (declined),🚫 Shift declined,🚫 Schicht abgelehnt,keep emoji
+Dashboard,shift-response fallback error snackbar,Failed to respond to shift,Antwort auf die Schicht fehlgeschlagen,
+Dashboard,"""needs response"" card info line",This shift needs your response,Diese Schicht wartet auf deine Antwort,
+Dashboard,accept button (needs-response card),Accept,Annehmen,
+Dashboard,decline button (needs-response card),Decline,Ablehnen,
+Dashboard,status chip after responding - accepted,✅ Accepted,✅ Angenommen,keep emoji
+Dashboard,status chip after responding - declined,🚫 Declined,🚫 Abgelehnt,keep emoji
+System Notifications,channel name - general,High Importance Notifications,Wichtige Benachrichtigungen,"shown in phone's Android notification settings only - already in the first sheet, listed again for completeness"
+System Notifications,channel description - general,This channel is used for important notifications.,Dieser Kanal wird für wichtige Benachrichtigungen verwendet.,shown in phone's Android notification settings
+System Notifications,channel name - auto check-in,Auto Check-in Notifications,Automatische Check-in-Benachrichtigungen,
+System Notifications,channel description - auto check-in (creation time),Critical notifications for automatic task check-ins with sound.,Kritische Benachrichtigungen für automatische Aufgaben-Check-ins mit Ton.,
+System Notifications,channel description - auto check-in (per-notification),Critical notifications for automatic task check-ins,Kritische Benachrichtigungen für automatische Aufgaben-Check-ins,
+System Notifications,fallback push title,New Message,Neue Nachricht,used only if server sends no title
+System Notifications,fallback push body,You have a new notification,Du hast eine neue Benachrichtigung,used only if server sends no body
+System Notifications,auto check-in alert title,🚨 Auto Check-in Required,🚨 Automatischer Check-in erforderlich,keep emoji
+System Notifications,auto check-in alert body (with location),🎯 Time to check in at [location] Task starts at [time],🎯 Zeit zum Einchecken bei [location] Aufgabe beginnt um [time],keep emoji + placeholders
+System Notifications,auto check-in alert body (no location),🎯 Time to check in for your task Task starts at [time],🎯 Zeit zum Einchecken für deine Aufgabe Aufgabe beginnt um [time],keep emoji + placeholder
+System Notifications,debug/test notification channel description,Test notification with sound,Testbenachrichtigung mit Ton,internal test feature - low priority
+System Notifications,debug/test notification title,🔔 Sound Test #[number],🔔 Tontest #[number],internal test feature - low priority
+System Notifications,debug/test notification body,Testing system default notification sound,Test des Standard-Benachrichtigungstons des Systems,internal test feature - low priority
+System Notifications,task-monitor channel name,Task Notifications,Aufgaben-Benachrichtigungen,shown in phone's Android notification settings
+System Notifications,task-monitor channel description,Automatic task check-in notifications,Benachrichtigungen für automatische Aufgaben-Check-ins,shown in phone's Android notification settings
+System Notifications,auto check-in success notification title (online),✅ Auto Check-in Successful,✅ Automatischer Check-in erfolgreich,keep emoji
+System Notifications,auto check-in success notification title (offline),✅ Auto Check-in (Offline),✅ Automatischer Check-in (offline),keep emoji
+System Notifications,auto check-in notification body,Task: [task name] Time: [time],Aufgabe: [task name] Zeit: [time],keep placeholders
+System Notifications,live tracking channel name,Live Location Tracking,Live-Standortverfolgung,shown in phone's Android notification settings
+System Notifications,live tracking channel description,"Shown while you are punched in, so your location can be tracked for attendance.","Wird angezeigt, solange du eingestempelt bist, damit dein Standort für die Zeiterfassung erfasst werden kann.",
+System Notifications,live tracking persistent notification title,Deineputzcrew — Punched In,Deineputzcrew — Eingestempelt,keep app name unchanged
+System Notifications,live tracking persistent notification body,Your location is being tracked while you're on shift.,Dein Standort wird während deiner Schicht erfasst.,
+Privacy Policy (legal - optional/separate),intro paragraph,"This Privacy Policy explains how LivingSpark Global Tech Pvt Ltd (""we"", ""our"", ""us""), the developer and operator of DeinePutzCrew, collects, uses, stores, and protects personal data when you use the DeinePutzCrew iOS/Android application published on the Apple App Store/Google Play Store, and related services provided via deineputzcrew.de.","Diese Datenschutzerklärung erläutert, wie LivingSpark Global Tech Pvt Ltd („wir“, „unser“, „uns“), Entwickler und Betreiber von DeinePutzCrew, personenbezogene Daten erhebt, verwendet, speichert und schützt, wenn Sie die im Apple App Store/Google Play Store veröffentlichte DeinePutzCrew-App für iOS/Android sowie die damit verbundenen, über deineputzcrew.de bereitgestellten Dienste nutzen.",already has a translation from the FIRST sheet actually applied to the title/date/footer only - the section body paragraphs below are the ones still pending | Sie-Form (formell) für Rechtstext
+Privacy Policy (legal - optional/separate),section body - App Purpose,[full paragraph - not included here],,"see lib/privacypolicy.dart section 1 for exact current English text | Englischer Text nicht mitgeliefert – bitte Absatz aus lib/privacypolicy.dart nachreichen, dann übersetze ich ihn"
+Privacy Policy (legal - optional/separate),section body - Account Access,[full paragraph - not included here],,"see lib/privacypolicy.dart section 1.1 | Englischer Text nicht mitgeliefert – bitte Absatz aus lib/privacypolicy.dart nachreichen, dann übersetze ich ihn"
+Privacy Policy (legal - optional/separate),section body - Data We Collect,[full paragraph - not included here],,"see lib/privacypolicy.dart section 2 | Englischer Text nicht mitgeliefert – bitte Absatz aus lib/privacypolicy.dart nachreichen, dann übersetze ich ihn"
+Privacy Policy (legal - optional/separate),section body - How We Use Your Data,[full paragraph - not included here],,"see lib/privacypolicy.dart section 3 | Englischer Text nicht mitgeliefert – bitte Absatz aus lib/privacypolicy.dart nachreichen, dann übersetze ich ihn"
+Privacy Policy (legal - optional/separate),section body - Data Storage & Security,[full paragraph - not included here],,"see lib/privacypolicy.dart section 4 | Englischer Text nicht mitgeliefert – bitte Absatz aus lib/privacypolicy.dart nachreichen, dann übersetze ich ihn"
+Privacy Policy (legal - optional/separate),section body - User Rights (EU/GDPR),[full paragraph - not included here],,"see lib/privacypolicy.dart section 5 | Englischer Text nicht mitgeliefert – bitte Absatz aus lib/privacypolicy.dart nachreichen, dann übersetze ich ihn"
+Privacy Policy (legal - optional/separate),section body - Contact Information,[full paragraph - not included here],,"see lib/privacypolicy.dart section 6 | Englischer Text nicht mitgeliefert – bitte Absatz aus lib/privacypolicy.dart nachreichen, dann übersetze ich ihn"

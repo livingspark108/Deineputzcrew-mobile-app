@@ -1,0 +1,78 @@
+Screen,Context,English Text,German Translation,Notes
+Availability / Time Off,reason dropdown value,Holiday,,
+Availability / Time Off,reason dropdown value,Rest / Personal,,
+Availability / Time Off,reason dropdown value,Sick,,
+Availability / Time Off,reason dropdown value,Other,,
+Availability / Time Off,AppBar title,Time Off / Availability,,
+Availability / Time Off,admin proposals section heading,Requests from your admin,,
+Availability / Time Off,admin proposals subheading,Your admin proposed time off for you. Review and respond below.,,
+Availability / Time Off,admin request card - requested by line,Requested by: [name],,keep [name] placeholder
+Availability / Time Off,admin request card - default admin name fallback,your admin,,used when no admin name is available - "Requested by: your admin"
+Availability / Time Off,admin request card - admin note prefix,Admin note: [note],,keep placeholder
+Availability / Time Off,admin request card - reject button,Reject,,
+Availability / Time Off,admin request card - approve button,Approve,,
+Availability / Time Off,reject-request dialog title,Reject request,,
+Availability / Time Off,reject-request dialog note field label,Note for admin (optional),,
+Availability / Time Off,reject-request dialog cancel button,Cancel,,
+Availability / Time Off,reject-request dialog confirm button,Reject,,same word as the card button above - can reuse one translation
+Availability / Time Off,snackbar after approve,✅ Request approved,,keep emoji
+Availability / Time Off,snackbar after reject,❌ Request rejected,,keep emoji
+Availability / Time Off,fallback error responding to admin request,Failed to respond to request,,
+Availability / Time Off,generic exception snackbar,Error: [error],,keep placeholder - reused everywhere else in the app
+Availability / Time Off,"""Request time off"" section heading",Request time off,,
+Availability / Time Off,subheading under Request time off,Let your admin know you'll be on holiday, resting, or otherwise unavailable. They'll review and approve it.,,
+Availability / Time Off,start date button placeholder,Start date,,
+Availability / Time Off,end date button placeholder,End date,,
+Availability / Time Off,reason dropdown field label,Reason,,
+Availability / Time Off,note field label,Note (optional),,
+Availability / Time Off,validation snackbar - missing dates,Please select both a start and end date,,
+Availability / Time Off,submit button,Submit request,,
+Availability / Time Off,submit success snackbar,✅ Time off requested — awaiting admin approval,,keep emoji
+Availability / Time Off,submit failure fallback snackbar,Failed to submit request,,
+Availability / Time Off,"""Your requests"" section heading",Your requests,,
+Availability / Time Off,empty state text,No requests yet.,,
+Availability / Time Off,status badge,Approved,,
+Availability / Time Off,status badge,Rejected,,
+Availability / Time Off,status badge (default),Pending,,
+Settings,language row label,Language,,this is the label next to the language switcher dropdown itself
+Settings,language dropdown option,English,,
+Settings,language dropdown option,German,,
+Settings,list item - navigates to Time Off screen,Time off / Availability,,
+Dashboard,shift-response snackbar (accepted),✅ Shift accepted,,keep emoji
+Dashboard,shift-response snackbar (declined),🚫 Shift declined,,keep emoji
+Dashboard,shift-response fallback error snackbar,Failed to respond to shift,,
+Dashboard,"""needs response"" card info line",This shift needs your response,,
+Dashboard,accept button (needs-response card),Accept,,
+Dashboard,decline button (needs-response card),Decline,,
+Dashboard,status chip after responding - accepted,✅ Accepted,,keep emoji
+Dashboard,status chip after responding - declined,🚫 Declined,,keep emoji
+System Notifications,channel name - general,High Importance Notifications,,shown in phone's Android notification settings only - already in the first sheet, listed again for completeness
+System Notifications,channel description - general,This channel is used for important notifications.,,shown in phone's Android notification settings
+System Notifications,channel name - auto check-in,Auto Check-in Notifications,,
+System Notifications,channel description - auto check-in (creation time),Critical notifications for automatic task check-ins with sound.,,
+System Notifications,channel description - auto check-in (per-notification),Critical notifications for automatic task check-ins,,
+System Notifications,fallback push title,New Message,,used only if server sends no title
+System Notifications,fallback push body,You have a new notification,,used only if server sends no body
+System Notifications,auto check-in alert title,🚨 Auto Check-in Required,,keep emoji
+System Notifications,auto check-in alert body (with location),🎯 Time to check in at [location] Task starts at [time],,keep emoji + placeholders
+System Notifications,auto check-in alert body (no location),🎯 Time to check in for your task Task starts at [time],,keep emoji + placeholder
+System Notifications,debug/test notification channel description,Test notification with sound,,internal test feature - low priority
+System Notifications,debug/test notification title,🔔 Sound Test #[number],,internal test feature - low priority
+System Notifications,debug/test notification body,Testing system default notification sound,,internal test feature - low priority
+System Notifications,task-monitor channel name,Task Notifications,,shown in phone's Android notification settings
+System Notifications,task-monitor channel description,Automatic task check-in notifications,,shown in phone's Android notification settings
+System Notifications,auto check-in success notification title (online),✅ Auto Check-in Successful,,keep emoji
+System Notifications,auto check-in success notification title (offline),✅ Auto Check-in (Offline),,keep emoji
+System Notifications,auto check-in notification body,Task: [task name] Time: [time],,keep placeholders
+System Notifications,live tracking channel name,Live Location Tracking,,shown in phone's Android notification settings
+System Notifications,live tracking channel description,"Shown while you are punched in, so your location can be tracked for attendance.",,
+System Notifications,live tracking persistent notification title,Deineputzcrew — Punched In,,keep app name unchanged
+System Notifications,live tracking persistent notification body,Your location is being tracked while you're on shift.,,
+Privacy Policy (legal - optional/separate),intro paragraph,"This Privacy Policy explains how LivingSpark Global Tech Pvt Ltd (""we"", ""our"", ""us""), the developer and operator of DeinePutzCrew, collects, uses, stores, and protects personal data when you use the DeinePutzCrew iOS/Android application published on the Apple App Store/Google Play Store, and related services provided via deineputzcrew.de.",,already has a translation from the FIRST sheet actually applied to the title/date/footer only - the section body paragraphs below are the ones still pending
+Privacy Policy (legal - optional/separate),section body - App Purpose,[full paragraph - not included here],,see lib/privacypolicy.dart section 1 for exact current English text
+Privacy Policy (legal - optional/separate),section body - Account Access,[full paragraph - not included here],,see lib/privacypolicy.dart section 1.1
+Privacy Policy (legal - optional/separate),section body - Data We Collect,[full paragraph - not included here],,see lib/privacypolicy.dart section 2
+Privacy Policy (legal - optional/separate),section body - How We Use Your Data,[full paragraph - not included here],,see lib/privacypolicy.dart section 3
+Privacy Policy (legal - optional/separate),section body - Data Storage & Security,[full paragraph - not included here],,see lib/privacypolicy.dart section 4
+Privacy Policy (legal - optional/separate),section body - User Rights (EU/GDPR),[full paragraph - not included here],,see lib/privacypolicy.dart section 5
+Privacy Policy (legal - optional/separate),section body - Contact Information,[full paragraph - not included here],,see lib/privacypolicy.dart section 6
