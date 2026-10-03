@@ -19,6 +19,7 @@ import 'live_location_tracker.dart';
 import 'punch_timezone.dart';
 import 'widgets/full_screen_loader.dart';
 import 'home.dart';
+import 'api_config.dart';
 
 class TaskDetailsScreen extends StatefulWidget {
   final String? title;
@@ -449,7 +450,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
       final position = await Geolocator.getCurrentPosition();
 
       // Step 2: Prepare request
-      final uri = Uri.parse('https://admin.deineputzcrew.de/api/punch-out/');
+      final uri = Uri.parse('$kApiBaseUrl/api/punch-out/');
       var request = http.MultipartRequest('POST', uri);
 
       request.headers['Authorization'] = 'token $token';
@@ -538,7 +539,7 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
 //     final position = await Geolocator.getCurrentPosition();
 
 //     // Step 2: Try sending API request
-//     final uri = Uri.parse('https://admin.deineputzcrew.de/api/punch-out/');
+//     final uri = Uri.parse('$kApiBaseUrl/api/punch-out/');
 //     var request = http.MultipartRequest('POST', uri);
 
 //     request.headers['Authorization'] = 'token $token';
@@ -740,7 +741,7 @@ Future<void> _handlePunchOut(
     }
 
     // ==================== ONLINE MODE ====================
-    final uri = Uri.parse('https://admin.deineputzcrew.de/api/punch-out/');
+    final uri = Uri.parse('$kApiBaseUrl/api/punch-out/');
     var request = http.MultipartRequest('POST', uri);
 
     request.headers['Authorization'] = 'token $token';

@@ -12,6 +12,7 @@ import 'package:http/http.dart' as http;
 import 'db_helper.dart';
 import 'punch_timezone.dart';
 import 'task_model.dart';
+import 'api_config.dart';
 
 /// Background Location Service for Auto Check-in/Check-out
 class LocationService {
@@ -216,6 +217,9 @@ class LocationService {
       // Skip if auto check-in is disabled
       if (!task.autoCheckin) continue;
 
+      // Skip shifts that are not accepted yet
+      if (!task.canPunchIn) continue;
+
       // Check if task is within 24 hours of its START TIME
       DateTime taskStartDateTime;
       try {
@@ -321,6 +325,9 @@ class LocationService {
       // Skip if auto check-in is disabled
       if (!task.autoCheckin) continue;
 
+      // Skip shifts that are not accepted yet
+      if (!task.canPunchIn) continue;
+
       // Check if task is within 24 hours of its START TIME
       DateTime taskStartDateTime;
       try {
@@ -359,6 +366,7 @@ class LocationService {
         double.tryParse(task.longg) ?? 0.0,
       );
 
+      debugPrint("📍 Device lat/long: ${position.latitude}, ${position.longitude} | Task lat/long: ${task.lat}, ${task.longg}");
       debugPrint("📏 Distance to task ${task.taskName}: ${distance.toStringAsFixed(1)}m (radius: ${task.radius}m)");
 
       if (distance > task.radius) {
@@ -607,6 +615,8 @@ class LocationService {
         double.tryParse(punchedTask.longg) ?? 0.0,
       );
 
+      debugPrint("📍 Device lat/long: ${position.latitude}, ${position.longitude} | Task lat/long: ${punchedTask.lat}, ${punchedTask.longg} | Distance: ${distance.toStringAsFixed(1)}m (radius: ${punchedTask.radius}m)");
+
       if (distance > punchedTask.radius) {
         shouldCheckOut = true;
         reason = "Location check-out (distance: ${distance.toStringAsFixed(2)}m, radius: ${punchedTask.radius}m)";
@@ -710,7 +720,7 @@ class LocationService {
         return false;
       }
 
-      const url = 'https://admin.deineputzcrew.de/api/punch-in/';
+      const url = '$kApiBaseUrl/api/punch-in/';
       
       // Load default auto check-in image
       final ByteData imageData = await rootBundle.load('assets/images/auto_check_in.jpeg');

@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'login.dart';
 import 'resetpassword.dart';
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -35,7 +36,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final url = Uri.parse('https://admin.deineputzcrew.de/api/forgot-password/');
+    final url = Uri.parse('$kApiBaseUrl/api/forgot-password/');
     final body = jsonEncode({'email': _emailController.text.trim()});
 
     try {

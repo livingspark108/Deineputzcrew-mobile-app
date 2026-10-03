@@ -17,6 +17,7 @@ import 'notification_service.dart';
 import 'background_task_manager.dart';
 import 'live_location_tracker.dart';
 import 'locale_controller.dart';
+import 'session_manager.dart';
 import 'l10n/app_localizations.dart';
 
 /// 🔔 Local Notifications
@@ -191,6 +192,7 @@ class MyApp extends StatelessWidget {
       valueListenable: LocaleController.notifier,
       builder: (context, locale, _) {
         return MaterialApp(
+          navigatorKey: appNavigatorKey,
           debugShowCheckedModeBanner: false,
           locale: locale,
           supportedLocales: AppLocalizations.supportedLocales,

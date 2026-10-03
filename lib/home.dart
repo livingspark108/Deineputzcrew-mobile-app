@@ -25,14 +25,17 @@ import 'db_helper.dart';
 import 'l10n/app_localizations.dart';
 import 'live_location_tracker.dart';
 import 'force_update_screen.dart';
+import 'fresh_location.dart';
 import 'front_camera_page.dart';
 import 'punch_timezone.dart';
+import 'session_manager.dart';
 import 'main.dart';
 import 'task_model.dart';
 import 'location_service.dart';
 import 'background_task_manager.dart';
 import 'notification_service.dart';
 import 'widgets/full_screen_loader.dart';
+import 'api_config.dart';
 
 class MainApp extends StatefulWidget {
   final int initialIndex;
@@ -81,7 +84,7 @@ class _MainAppState extends State<MainApp> {
   }
 
   static const String _permissionStatusUrl =
-      'https://admin.deineputzcrew.de/api/user-permissions/';
+      '$kApiBaseUrl/api/user-permissions/';
 
   Future<void> _checkAndSyncPermissionStatusOnHomeOpen() async {
     try {
@@ -495,6 +498,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   static bool _onBreak = false;
 
   Timer? _autoCheckInTimer; // ✅ Add timer for periodic auto check-in
+  // Re-checks every minute so tasks drop off the list once their end time passes
+  Timer? _endedTasksTimer;
+  // Reloads the dashboard from the server every 30 minutes
+  Timer? _autoRefreshTimer;
 
   void _startAutoCheckoutTimer() {
     _autoCheckoutTimer?.cancel();
@@ -605,6 +612,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       _startSyncStatusMonitoring();
     });
 
+    _endedTasksTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) _applyDashboardFilters();
+    });
+
+    _autoRefreshTimer = Timer.periodic(const Duration(minutes: 30), (_) {
+      // Don't interrupt a refresh already running or a punch-in in progress
+      if (!mounted || _isManualRefresh || FullScreenLoader.isShowing) return;
+      debugPrint('⏰ 30-minute dashboard auto refresh');
+      _refreshDashboard();
+    });
+
     _connectivitySub =
         Connectivity().onConnectivityChanged.listen((result) {
       // Keep the "Online"/"Offline" pill reacting instantly — only the
@@ -649,6 +667,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     _connectivityDebounce?.cancel();
     _syncStatusTimer?.cancel();
     _autoCheckInTimer?.cancel(); // ✅ Stop auto check-in timer
+    _endedTasksTimer?.cancel();
+    _autoRefreshTimer?.cancel();
     _locationService.stopMonitoring();
     super.dispose();
   }
@@ -862,7 +882,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
         double.tryParse(task.longg) ?? 0.0,
       );
 
-      // ✅ Use radius from API (default 300m)
+      debugPrint(
+          "📍 Device lat/long: ${pos.latitude}, ${pos.longitude} | Task lat/long: ${task.lat}, ${task.longg} | Distance: ${distance.toStringAsFixed(1)}m (radius: ${task.radius}m)");
+
+      // ✅ Use radius from API
       if (distance > task.radius) {
         debugPrint(
             "📍 User left location (distance: ${distance.toStringAsFixed(2)}m, radius: ${task.radius}m) - Auto punch-out triggered");
@@ -1004,7 +1027,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // ONLINE → Send to API
     var request = http.MultipartRequest(
       'POST',
-      Uri.parse("https://admin.deineputzcrew.de/api/punch-out/"),
+      Uri.parse("$kApiBaseUrl/api/punch-out/"),
     );
 
     request.headers["Authorization"] = "token $token";
@@ -1459,7 +1482,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final token = prefs.getString('token') ?? "";
 
     final response = await http.post(
-      Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+      Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'token $token', // 🔑 add token here
@@ -1471,7 +1494,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (data['success']) {
       setState(() {
         allTasks = List<Task>.from(data['task'].map((t) => Task.fromJson(t)));
-        taskList = List.from(allTasks);
+        taskList = _visibleTasks(allTasks);
 
         _restoreTimerState(); // Initialize visible list to all tasks
       });
@@ -1544,17 +1567,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
       return;
     }
 
-    // CURRENT LOCATION
+    // CURRENT LOCATION (fresh fix only; no popup for background auto checks)
     Position pos;
     try {
-      pos = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+      pos = await FreshLocation.get(requestPermission: false);
     } catch (e) {
       print("❌ Cannot get location: $e");
       return;
     }
 
-    final now = DateTime.now();
+    // Task times are in the account's timezone (from the API)
+    final now = punchTimeNow();
     final todayDate = DateFormat("yyyy-MM-dd").format(now);
 
     // TIME PARSER
@@ -1576,6 +1599,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
       if (t.status.toLowerCase() == "completed") continue;
 
       if (t.autoCheckin == false) continue;
+
+      // ❌ Skip shifts that are not accepted yet
+      if (!t.canPunchIn) continue;
 
       // 🔥 DATE + TIME CHECK - Allow tasks within 24 hours of their START TIME
       DateTime taskStartDateTime;
@@ -1617,13 +1643,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
         double.tryParse(t.longg) ?? 0.0,
       );
 
-      if (distance > 500) {
+      print(
+          "📍 Device lat/long: ${pos.latitude}, ${pos.longitude} | Task lat/long: ${t.lat}, ${t.longg}");
+
+      // ✅ Use the task's location radius from the API
+      if (distance > t.radius) {
         print(
-            "⛔ Not on location - Distance: ${distance.toStringAsFixed(2)}m (>500m)");
+            "⛔ Not on location - Distance: ${distance.toStringAsFixed(2)}m (>${t.radius}m)");
         continue; // Skip this task if not on location
       } else {
         print(
-            "✅ Location verified - Distance: ${distance.toStringAsFixed(2)}m (within 500m)");
+            "✅ Location verified - Distance: ${distance.toStringAsFixed(2)}m (within ${t.radius}m)");
       }
 
       // TIME PARSING - Use task's actual date, not current date
@@ -1733,9 +1763,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       final prefs = await SharedPreferences.getInstance();
       String? token = prefs.getString('token');
 
-      // Get current location
-      final position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+      // Get current location (fresh fix only)
+      final position = await FreshLocation.get(requestPermission: false);
 
       // Use default auto check-in image from assets
       final ByteData imageData =
@@ -1799,7 +1828,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       // ONLINE → Send to API
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+        Uri.parse('$kApiBaseUrl/api/punch-in/'),
       );
 
       request.headers['Authorization'] = 'token $token';
@@ -1893,7 +1922,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         // ✅ Online
         final response = await http
             .post(
-              Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+              Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
               headers: {
                 'Content-Type': 'application/json',
                 'Authorization': 'token $token',
@@ -1906,13 +1935,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
             )
             .timeout(const Duration(seconds: 10));
 
+        // 🔒 Token no longer valid → back to login
+        if (SessionManager.isUnauthorized(response.statusCode)) {
+          await SessionManager.forceLogout();
+          return;
+        }
+
         final data = jsonDecode(response.body);
         var sss = AppMetadata.mobileType + " " + AppMetadata.appVersion;
         print('📱 App Version Sent: $sss');
 
         // Print curl equivalent for debugging
         final curlCommand = '''
-curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
+curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
   -H "Content-Type: application/json" \\
   -H "Authorization: token $token" \\
   -d '{
@@ -1923,7 +1958,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
         ''';
         print('🔗 CURL Command:\n$curlCommand');
         print("📡 Fetch Tasks Response: ${response.body}");
-        if (data['success']) {
+        if (data['success'] == true) {
           // 🌍 Use whatever timezone the backend reports for this account
           // for punch/break timestamps — never hardcoded.
           await applyTimezoneFromApiResponse(data);
@@ -2014,7 +2049,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
                 .map((t) => Task.fromJson(t, day: day, date: date));
           }).toList();
 
-          // 🔥 SORT → LATEST FIRST (DATE + START TIME)
+          // 🔥 SORT → EARLIEST FIRST (DATE + START TIME)
           tasks.sort((a, b) {
             DateTime parseDateTime(Task t) {
               try {
@@ -2036,7 +2071,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
               }
             }
 
-            return parseDateTime(b).compareTo(parseDateTime(a));
+            return parseDateTime(a).compareTo(parseDateTime(b));
           });
 
           final db = DBHelper();
@@ -2047,7 +2082,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           }
           setState(() {
             allTasks = tasks;
-            taskList = List.from(allTasks);
+            taskList = _visibleTasks(allTasks);
           });
 
           // ✅ Update location service with new tasks
@@ -2093,12 +2128,12 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
             }
           }
 
-          return parseDateTime(b).compareTo(parseDateTime(a));
+          return parseDateTime(a).compareTo(parseDateTime(b));
         });
 
         setState(() {
           allTasks = parsed;
-          taskList = List.from(allTasks);
+          taskList = _visibleTasks(allTasks);
         });
 
         // 📱 Update BackgroundTaskManager with new tasks
@@ -2149,7 +2184,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
             }
           }
 
-          return parseDateTime(b).compareTo(parseDateTime(a));
+          return parseDateTime(a).compareTo(parseDateTime(b));
         });
 
         final connectivityResult = await Connectivity().checkConnectivity();
@@ -2157,7 +2192,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
 
         setState(() {
           allTasks = parsed;
-          taskList = List.from(allTasks);
+          taskList = _visibleTasks(allTasks);
           _error = null;
           _isOnline = isOnline;
         });
@@ -2305,7 +2340,7 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
           }
 
           final uri =
-              Uri.parse("https://admin.deineputzcrew.de/api/$endpoint/");
+              Uri.parse("$kApiBaseUrl/api/$endpoint/");
           var request = http.MultipartRequest("POST", uri);
 
           final prefs = await SharedPreferences.getInstance();
@@ -2512,9 +2547,9 @@ curl -X POST https://admin.deineputzcrew.de/api/get_user_detail/ \\
         return false;
       }
 
-      final uri = Uri.parse('https://admin.deineputzcrew.de/api/break-in/');
+      final uri = Uri.parse('$kApiBaseUrl/api/break-in/');
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/break-in/'),
+        Uri.parse('$kApiBaseUrl/api/break-in/'),
         headers: {
           'Authorization': 'token $token',  // must be lowercase 'token'
           'Content-Type': 'application/json',
@@ -2564,7 +2599,7 @@ print(response.body);
         return false;
       }
 
-      final uri = Uri.parse('https://admin.deineputzcrew.de/api/break-out/');
+      final uri = Uri.parse('$kApiBaseUrl/api/break-out/');
       final response = await http.post(
         uri,
         headers: {
@@ -2634,7 +2669,7 @@ print(response.body);
 
       // ================= ONLINE =================
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/break-in/'),
+        Uri.parse('$kApiBaseUrl/api/break-in/'),
         headers: {
           'Authorization': 'token $token',
           'Content-Type': 'application/json',
@@ -2703,7 +2738,7 @@ print(response.body);
 
       // ✅ Online → Call API
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/break-out/'),
+        Uri.parse('$kApiBaseUrl/api/break-out/'),
         headers: {
           'Authorization': 'token $token',
           'Content-Type': 'application/json',
@@ -2775,8 +2810,39 @@ print(response.body);
     );
   }
 
+  /// Same as swipe-down: reload tasks, sync offline punches, re-run auto
+  /// check-in. Used by pull-to-refresh and the 30-minute auto refresh.
+  Future<void> _refreshDashboard() async {
+    _autoCheckoutLocked = true; // 🔒 HARD LOCK
+    _isManualRefresh = true;
+    _stopAutoCheckoutTimer();
+
+    try {
+      await fetchTasks();
+      await syncOfflineActions();
+
+      // ✅ FORCE AUTO CHECK-IN after refresh
+      _triggerAutoCheckInAfterRefresh();
+    } finally {
+      _isManualRefresh = false;
+      _autoCheckoutLocked = false; // 🔓 UNLOCK
+      if (mounted) _startAutoCheckoutTimer();
+    }
+  }
+
+  /// Hide tasks whose end time has passed — except the one punched into.
+  List<Task> _visibleTasks(List<Task> tasks) {
+    final now = punchTimeNow(); // account timezone from API
+    return tasks
+        .where((t) =>
+            t.id == selectedTaskId ||
+            (t.punchIn && !t.punchOut) ||
+            !t.hasEnded(now))
+        .toList();
+  }
+
   void _applyDashboardFilters() {
-    List<Task> filtered = allTasks;
+    List<Task> filtered = _visibleTasks(allTasks);
 
     // 🔹 Priority filter
     if (selectedPriority != "all") {
@@ -3173,21 +3239,7 @@ print(response.body);
 
     return RefreshIndicator(
       //onRefresh: fetchTasks,
-      onRefresh: () async {
-        _autoCheckoutLocked = true; // 🔒 HARD LOCK
-        _isManualRefresh = true;
-        _stopAutoCheckoutTimer();
-
-        await fetchTasks();
-        await syncOfflineActions();
-
-        // ✅ FORCE AUTO CHECK-IN after refresh
-        _triggerAutoCheckInAfterRefresh();
-
-        _isManualRefresh = false;
-        _autoCheckoutLocked = false; // 🔓 UNLOCK
-        _startAutoCheckoutTimer();
-      },
+      onRefresh: _refreshDashboard,
 
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -3522,6 +3574,8 @@ class TaskCard extends StatefulWidget {
   final String? date;
   final String? lat;
   final String? longg;
+  // Punch-in is only allowed from the Home dashboard
+  final bool allowPunchIn;
   TaskCard({
     super.key,
     required this.taskId,
@@ -3542,6 +3596,7 @@ class TaskCard extends StatefulWidget {
     this.date,
     required this.lat,
     required this.longg,
+    this.allowPunchIn = true,
   });
 
   @override
@@ -3566,6 +3621,9 @@ class _TaskCardState extends State<TaskCard> {
   bool get _needsAcceptance =>
       (_task?.requiresAcceptance ?? false) && _acceptanceStatus == 'pending';
 
+  bool get _canPunchIn =>
+      !(_task?.requiresAcceptance ?? false) || _acceptanceStatus == 'accepted';
+
   Future<void> _respondToAcceptance(bool accept) async {
     setState(() => _isRespondingToAcceptance = true);
     try {
@@ -3575,7 +3633,7 @@ class _TaskCardState extends State<TaskCard> {
 
       final response = await http
           .post(
-            Uri.parse('https://admin.deineputzcrew.de/api/$endpoint/'),
+            Uri.parse('$kApiBaseUrl/api/$endpoint/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'token $token',
@@ -3624,27 +3682,10 @@ class _TaskCardState extends State<TaskCard> {
     return actions.isNotEmpty;
   }
 
-  Future<Position> _getCurrentLocation() async {
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      await Geolocator.openLocationSettings();
-      throw Exception('Location services are disabled.');
-    }
-
-    LocationPermission permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        throw Exception('Location permissions are denied');
-      }
-    }
-
-    if (permission == LocationPermission.deniedForever) {
-      throw Exception('Location permissions are permanently denied.');
-    }
-
-    return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high);
+  /// "15:00:00" → "15:00" for messages
+  String _hhmm(String time) {
+    final parts = time.trim().split(':');
+    return parts.length >= 2 ? '${parts[0]}:${parts[1]}' : time;
   }
 
   // Helper function to parse task time
@@ -3723,7 +3764,7 @@ class _TaskCardState extends State<TaskCard> {
       // ✅ Online → Send API directly
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+        Uri.parse('$kApiBaseUrl/api/punch-in/'),
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -3779,33 +3820,96 @@ class _TaskCardState extends State<TaskCard> {
         return;
       }
 
-      widget.onPunchStart();
+      // 🔒 TIME VALIDATION FIRST - no point waiting for GPS if it's not time yet.
+      // Task date/times are wall-clock in the account's timezone (from the
+      // API), so compare against "now" in that same timezone.
+      final task = widget.taskList.firstWhere((t) => t.id == widget.taskId);
+      final now = punchTimeNow();
 
-      // Block interaction from the moment the task is tapped, all the way
-      // through location/time validation, until the camera screen opens.
-      FullScreenLoader.show(context, l10n.loaderTextCheckingLocation);
-
-      // Get location first to validate
-      Position? position;
+      // Parse task date and times using ACTUAL task date (not current date)
+      DateTime taskDate;
       try {
-        position = await _getCurrentLocation();
-        debugPrint(
-            "📍 Got user location: ${position.latitude}, ${position.longitude}");
+        taskDate = DateTime.parse(task.date);
       } catch (e) {
-        debugPrint("❌ Location error: $e");
-        FullScreenLoader.hide(context);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(l10n.punchInLocationErrorSnackbar),
+            content: Text(l10n.punchInInvalidTaskDateSnackbar),
             backgroundColor: Colors.red,
-            duration: const Duration(seconds: 3),
           ),
         );
         return;
       }
 
+      final start = _parseTaskTime(
+          task.startTime, taskDate); // Use task date, not current date
+      final end = task.endTime.isNotEmpty
+          ? _parseTaskTime(task.endTime, taskDate)
+          : null;
+
+      debugPrint("🕒 Time check (account tz): now=$now start=$start end=$end");
+
+      // Check if too early (before start time)
+      if (now.isBefore(start)) {
+        // Round up so 59m30s shows as 1h 0m, never "0h 0m"
+        final totalMinutes = (start.difference(now).inSeconds + 59) ~/ 60;
+        final hoursUntil = totalMinutes ~/ 60;
+        final minutesUntil = totalMinutes % 60;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(l10n.punchInTooEarly(
+              task.date,
+              hoursUntil.toString(),
+              minutesUntil.toString(),
+              _hhmm(task.startTime),
+            )),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+        return;
+      }
+
+      // Check if task has ended
+      if (end != null) {
+        DateTime effectiveEnd = end;
+        // Handle overnight shifts
+        if (end.isBefore(start)) {
+          effectiveEnd = end.add(const Duration(days: 1));
+        }
+
+        if (now.isAfter(effectiveEnd)) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  l10n.punchInTaskEndedSnackbar(task.date, _hhmm(task.endTime))),
+              backgroundColor: Colors.red,
+            ),
+          );
+          return;
+        }
+      }
+
+      widget.onPunchStart();
+
+      // Block interaction from here, through location validation, until the
+      // camera screen opens.
+      FullScreenLoader.show(context, l10n.loaderTextCheckingLocation);
+
+      // Get a fresh location to validate (never a cached one)
+      Position? position;
+      try {
+        position = await FreshLocation.get();
+        debugPrint(
+            "📍 Got user location: ${position.latitude}, ${position.longitude}");
+      } on LocationFetchException catch (e) {
+        debugPrint("❌ Location error: $e");
+        FullScreenLoader.hide(context);
+        if (mounted) await showLocationErrorDialog(context, e);
+        return;
+      }
+
       // ✅ LOCATION VALIDATION
-      final task = widget.taskList.firstWhere((t) => t.id == widget.taskId);
       double distance = Geolocator.distanceBetween(
         position.latitude,
         position.longitude,
@@ -3813,6 +3917,8 @@ class _TaskCardState extends State<TaskCard> {
         double.tryParse(task.longg) ?? 0.0,
       );
 
+      debugPrint(
+          "📍 Device lat/long: ${position.latitude}, ${position.longitude} | Task lat/long: ${task.lat}, ${task.longg}");
       debugPrint(
           "📏 Distance check: ${distance.toStringAsFixed(1)}m (radius: ${task.radius}m)");
 
@@ -3830,72 +3936,6 @@ class _TaskCardState extends State<TaskCard> {
       }
 
       debugPrint("✅ Location validation passed");
-
-      // 🔒 TIME VALIDATION - Check BEFORE opening camera with specific messages
-      final now = DateTime.now();
-
-      // Parse task date and times using ACTUAL task date (not current date)
-      DateTime taskDate;
-      try {
-        taskDate = DateTime.parse(task.date);
-      } catch (e) {
-        FullScreenLoader.hide(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.punchInInvalidTaskDateSnackbar),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      final start = _parseTaskTime(
-          task.startTime, taskDate); // Use task date, not current date
-      final end = task.endTime.isNotEmpty
-          ? _parseTaskTime(task.endTime, taskDate)
-          : null;
-
-      // Check if too early (before start time)
-      if (now.isBefore(start)) {
-        final timeUntilStart = start.difference(now);
-        final hoursUntil = timeUntilStart.inHours;
-        final minutesUntil = timeUntilStart.inMinutes % 60;
-
-        FullScreenLoader.hide(context);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.punchInTooEarly(
-              task.date,
-              hoursUntil.toString(),
-              minutesUntil.toString(),
-              task.startTime,
-            )),
-            backgroundColor: Colors.orange,
-          ),
-        );
-        return;
-      }
-
-      // Check if task has ended
-      if (end != null) {
-        DateTime effectiveEnd = end;
-        // Handle overnight shifts
-        if (end.isBefore(start)) {
-          effectiveEnd = end.add(const Duration(days: 1));
-        }
-
-        if (now.isAfter(effectiveEnd)) {
-          FullScreenLoader.hide(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                  l10n.punchInTaskEndedSnackbar(task.date, task.endTime)),
-              backgroundColor: Colors.red,
-            ),
-          );
-          return;
-        }
-      }
 
       // Camera is about to open — keep the loader up until the camera
       // preview is actually ready, then let it go so the preview shows.
@@ -3957,7 +3997,7 @@ class _TaskCardState extends State<TaskCard> {
       // ==========================
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+        Uri.parse('$kApiBaseUrl/api/punch-in/'),
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -3974,7 +4014,7 @@ class _TaskCardState extends State<TaskCard> {
 
       // 📊 DEBUG: Print all API parameters
       print('🚀 PUNCH-IN API CALL:');
-      print('📡 URL: https://admin.deineputzcrew.de/api/punch-in/');
+      print('📡 URL: $kApiBaseUrl/api/punch-in/');
       print('🔐 Authorization: token ${token}');
       print('📋 Parameters:');
       print('   - task_id: ${widget.taskId}');
@@ -4020,6 +4060,11 @@ class _TaskCardState extends State<TaskCard> {
       FullScreenLoader.hide(context);
       debugPrint('Punch-in failed: $e');
 
+      if (isNetworkError(e)) {
+        if (mounted) await showNetworkErrorDialog(context);
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
       );
@@ -4042,10 +4087,13 @@ class _TaskCardState extends State<TaskCard> {
     final bool isHigh = widget.highPriority.toLowerCase() == "high";
     final bool isCompleted = widget.completed.toLowerCase() == "completed";
     final bool isSelected = widget.selectedTaskId == widget.taskId;
+    // Declined shifts can't be punched into, so the card isn't tappable.
+    final bool isDeclined = (_task?.requiresAcceptance ?? false) &&
+        _acceptanceStatus == 'declined';
 
     return InkWell(
       borderRadius: BorderRadius.circular(16),
-      onTap: () async {
+      onTap: isDeclined ? null : () async {
         final prefs = await SharedPreferences.getInstance();
         String storedPunchedInTaskId = prefs.getString('punchedInTaskId') ?? "";
 
@@ -4085,6 +4133,23 @@ class _TaskCardState extends State<TaskCard> {
         }
         // ✅ If no task is punched in → punch this one in
         if (storedPunchedInTaskId.isEmpty) {
+          // ⛔ Punch-in only from the Home screen
+          if (!widget.allowPunchIn) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(l10n.punchInFromHomeOnlySnackbar)),
+            );
+            return;
+          }
+          // ⛔ Shift must be accepted before punch-in
+          if (!_canPunchIn) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(l10n.punchInAcceptShiftFirstSnackbar),
+                backgroundColor: Colors.orange,
+              ),
+            );
+            return;
+          }
           await _handlePunchIn(context); // your punch-in function
 
           return;
@@ -4138,14 +4203,16 @@ class _TaskCardState extends State<TaskCard> {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
-          gradient: isHigh
+          gradient: isHigh && !isDeclined
               ? LinearGradient(
                   colors: [Colors.orange.shade50, Colors.white],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: isHigh
+          color: isDeclined
+              ? Colors.grey.shade200
+              : isHigh
               ? null
               : (widget.punchedInTaskId.isNotEmpty &&
                       widget.taskId != widget.punchedInTaskId &&
@@ -4171,7 +4238,11 @@ class _TaskCardState extends State<TaskCard> {
           children: [
             // Icon indicator
             Icon(
-              isCompleted ? Icons.check_circle : Icons.circle_outlined,
+              isCompleted
+                  ? Icons.check_circle
+                  : isDeclined
+                      ? Icons.block
+                      : Icons.circle_outlined,
               color: isCompleted ? Colors.green : Colors.grey.shade400,
               size: 28,
             ),
@@ -4467,7 +4538,7 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
       // ✅ Online
       final response = await http
           .post(
-            Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+            Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'token $token',

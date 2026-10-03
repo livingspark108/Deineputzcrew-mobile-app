@@ -13,6 +13,7 @@ import 'notification_test_trigger.dart';
 import 'notification_service.dart';
 import 'locale_controller.dart';
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -70,7 +71,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
               try {
                 final response = await http.post(
-                  Uri.parse("https://admin.deineputzcrew.de/api/v2/logout/"),
+                  Uri.parse("$kApiBaseUrl/api/v2/logout/"),
                   headers: {
                     "Authorization": "Token $token",
                     "Content-Type": "application/json",
@@ -181,7 +182,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     try {
       final response = await http.post(
-        Uri.parse("https://admin.deineputzcrew.de/api/delete-account/"),
+        Uri.parse("$kApiBaseUrl/api/delete-account/"),
         headers: {
           "Authorization": "Token $token",
           "Content-Type": "application/json",

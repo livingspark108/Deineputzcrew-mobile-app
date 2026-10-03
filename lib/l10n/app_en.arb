@@ -1232,5 +1232,62 @@
   "debugTestNotificationBody": "Testing system default notification sound",
   "@debugTestNotificationBody": {
     "description": "System Notifications - debug/test notification body"
+  },
+  "locationErrorDialogTitle": "Location error",
+  "@locationErrorDialogTitle": {
+    "description": "Punch-in - title of the popup shown when the current location cannot be read"
+  },
+  "locationErrorServicesDisabled": "Location services (GPS) are turned off. Please turn them on to punch in.",
+  "@locationErrorServicesDisabled": {
+    "description": "Punch-in - location services disabled"
+  },
+  "locationErrorPermissionDenied": "Location permission was denied. Please allow location access to punch in.",
+  "@locationErrorPermissionDenied": {
+    "description": "Punch-in - location permission denied"
+  },
+  "locationErrorPermissionDeniedForever": "Location permission is permanently denied. Please enable it in the app settings to punch in.",
+  "@locationErrorPermissionDeniedForever": {
+    "description": "Punch-in - location permission permanently denied"
+  },
+  "locationErrorTimeout": "Could not get your current location. Please check your GPS signal and internet connection, then try again.",
+  "@locationErrorTimeout": {
+    "description": "Punch-in - timed out waiting for a fresh location"
+  },
+  "locationErrorUnknown": "Could not get your current location: {error}",
+  "@locationErrorUnknown": {
+    "description": "Punch-in - unexpected location error",
+    "placeholders": {
+      "error": {
+        "type": "String"
+      }
+    }
+  },
+  "networkErrorDialogTitle": "No internet connection",
+  "@networkErrorDialogTitle": {
+    "description": "Punch-in - title of the popup shown when the request cannot reach the server"
+  },
+  "networkErrorDialogBody": "The punch-in could not be sent. Please check your internet connection and try again.",
+  "@networkErrorDialogBody": {
+    "description": "Punch-in - network error body"
+  },
+  "dialogOpenSettingsButton": "Open settings",
+  "@dialogOpenSettingsButton": {
+    "description": "Dialog button that opens system settings"
+  },
+  "dialogOkButton": "OK",
+  "@dialogOkButton": {
+    "description": "Dialog OK button"
+  },
+  "punchInAcceptShiftFirstSnackbar": "Please accept this shift before punching in.",
+  "@punchInAcceptShiftFirstSnackbar": {
+    "description": "Dashboard - punch-in blocked because the shift is still pending acceptance"
+  },
+  "sessionExpiredSnackbar": "Your session has expired. Please log in again.",
+  "@sessionExpiredSnackbar": {
+    "description": "Shown on the login screen after the server rejected the stored token"
+  },
+  "punchInFromHomeOnlySnackbar": "Please punch in from the Home screen.",
+  "@punchInFromHomeOnlySnackbar": {
+    "description": "Tasks tab - tapping a task explains that punch-in is only possible on the Home screen"
   }
 }

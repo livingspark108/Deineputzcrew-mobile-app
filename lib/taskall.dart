@@ -9,6 +9,8 @@ import 'package:http/http.dart' as http;
 import 'app_metadata.dart';
 import 'home.dart';
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
+import 'punch_timezone.dart';
 
 
 
@@ -30,22 +32,34 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
   String selectedTaskId = '';
   String? punchedInTaskId;
   int? userId;
+  // Re-checks every minute so tasks drop off the list once their end time passes
+  Timer? _endedTasksTimer;
+
   @override
   void initState() {
     super.initState();
     fetchTasks();
+    _endedTasksTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (mounted) setState(applyFilter);
+    });
+  }
 
+  @override
+  void dispose() {
+    _endedTasksTimer?.cancel();
+    super.dispose();
   }
   Future<void> fetchTasks() async {
     final connectivityResult = await Connectivity().checkConnectivity();
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token') ?? "";
     userId = prefs.getInt('userid') ?? 0;
+    punchedInTaskId = prefs.getString('punchedInTaskId');
 
     if (!connectivityResult.contains(ConnectivityResult.none)) {
       // ✅ Online
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+        Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'token $token',
@@ -73,7 +87,7 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
         })
             .toList();
 
-        // 🔥 SORT: Latest date + latest start time FIRST
+        // 🔥 SORT: Earliest date + earliest start time FIRST
         parsed.sort((a, b) {
           // ✅ Combine DATE + START TIME into DateTime
           DateTime parseDateTime(Task t) {
@@ -101,8 +115,8 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
           final dtA = parseDateTime(a);
           final dtB = parseDateTime(b);
 
-          // 🔥 Latest FIRST
-          return dtB.compareTo(dtA);
+          // 🔥 Earliest FIRST
+          return dtA.compareTo(dtB);
         });
 
 
@@ -121,8 +135,19 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
   }
 
 
+  /// Hide tasks whose end time has passed — except the one punched into.
+  List<Task> get visibleTasks {
+    final now = punchTimeNow(); // account timezone from API
+    return tasks
+        .where((t) =>
+            t.id == punchedInTaskId ||
+            (t.punchIn && !t.punchOut) ||
+            !t.hasEnded(now))
+        .toList();
+  }
+
   void applyFilter() {
-    List<Task> temp = tasks;
+    List<Task> temp = visibleTasks;
 
     // 🔹 STATUS FILTER
     if (selectedTabIndex != 0) {
@@ -140,7 +165,7 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
     filteredTasks = temp;
   }
   int priorityCount(String priority) {
-    return tasks
+    return visibleTasks
         .where((t) => t.priority.toLowerCase() == priority)
         .length;
   }
@@ -277,11 +302,11 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
                 // Count logic
                 int count = 0;
                 if (index == 0) {
-                  count = tasks.length; // All
+                  count = visibleTasks.length; // All
                 } else if (index == 1) {
-                  count = tasks.where((t) => t.status== 'pending').length;
+                  count = visibleTasks.where((t) => t.status== 'pending').length;
                 } else if (index == 2) {
-                  count = tasks.where((t) => t.status == 'completed').length;
+                  count = visibleTasks.where((t) => t.status == 'completed').length;
                 }
 
                 return GestureDetector(
@@ -386,6 +411,7 @@ class _AllTasksScreenState extends State<AllTasksScreen2> {
                     date:task.date,
                     lat: task.lat,
                     longg: task.longg,
+                    allowPunchIn: false, // punch-in only from Home
                     onTaskSelected: (id) {
                       final taskObj = filteredTasks.firstWhere((t) => t.id == id);
 

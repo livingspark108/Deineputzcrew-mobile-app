@@ -8,6 +8,7 @@ import 'home.dart';
 import 'login.dart';
 import 'punch_timezone.dart';
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
 
 class SecurityCodeScreen extends StatefulWidget {
   final String pendingToken;
@@ -51,7 +52,7 @@ class _SecurityCodeScreenState extends State<SecurityCodeScreen> {
 
     try {
       final Uri url =
-          Uri.parse("https://admin.deineputzcrew.de/api/v2/login/verify/");
+          Uri.parse("$kApiBaseUrl/api/v2/login/verify/");
 
       final response = await http
           .post(

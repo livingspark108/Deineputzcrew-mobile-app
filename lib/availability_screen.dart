@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
 
 /// Lets an employee request time off (holiday / rest / sick / other) and see
 /// the status of their past requests. Submitted requests start 'pending' and
@@ -80,7 +81,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       final token = prefs.getString('token');
 
       final response = await http.get(
-        Uri.parse('https://admin.deineputzcrew.de/api/availability/my-requests/'),
+        Uri.parse('$kApiBaseUrl/api/availability/my-requests/'),
         headers: {'Authorization': 'token $token'},
       ).timeout(const Duration(seconds: 15));
 
@@ -105,7 +106,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
       final response = await http.get(
         Uri.parse(
-            'https://admin.deineputzcrew.de/api/availability/admin-requests/?status=pending'),
+            '$kApiBaseUrl/api/availability/admin-requests/?status=pending'),
         headers: {'Authorization': 'token $token'},
       ).timeout(const Duration(seconds: 15));
 
@@ -132,7 +133,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
       final response = await http
           .post(
             Uri.parse(
-                'https://admin.deineputzcrew.de/api/availability/admin-requests/$id/respond/'),
+                '$kApiBaseUrl/api/availability/admin-requests/$id/respond/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'token $token',
@@ -252,7 +253,7 @@ class _AvailabilityScreenState extends State<AvailabilityScreen> {
 
       final response = await http
           .post(
-            Uri.parse('https://admin.deineputzcrew.de/api/availability/request/'),
+            Uri.parse('$kApiBaseUrl/api/availability/request/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'token $token',

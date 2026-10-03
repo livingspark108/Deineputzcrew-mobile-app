@@ -25,6 +25,7 @@ import 'db_helper.dart';
 import 'home.dart';
 import 'task_model.dart';
 import 'taskall.dart';
+import 'api_config.dart';
 
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
@@ -290,7 +291,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final token = prefs.getString('token') ?? "";
 
     final response = await http.post(
-      Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+      Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'token $token', // 🔑 add token here
@@ -322,7 +323,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!connectivityResult.contains(ConnectivityResult.none)) {
       // ✅ Online
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+        Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'token $token',
@@ -398,7 +399,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             continue;
         }
 
-        final uri = Uri.parse("https://admin.deineputzcrew.de/api/$endpoint/");
+        final uri = Uri.parse("$kApiBaseUrl/api/$endpoint/");
         var request = http.MultipartRequest("POST", uri);
 
         final prefs = await SharedPreferences.getInstance();
@@ -486,9 +487,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
         return false;
       }
 
-      final uri = Uri.parse('https://admin.deineputzcrew.de/api/break-in/');
+      final uri = Uri.parse('$kApiBaseUrl/api/break-in/');
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/break-in/'),
+        Uri.parse('$kApiBaseUrl/api/break-in/'),
         headers: {
           'Authorization': 'token $token',  // must be lowercase 'token'
           'Content-Type': 'application/json',
@@ -540,7 +541,7 @@ print(response.body);
         return false;
       }
 
-      final uri = Uri.parse('https://admin.deineputzcrew.de/api/break-out/');
+      final uri = Uri.parse('$kApiBaseUrl/api/break-out/');
       final response = await http.post(
         uri,
         headers: {
@@ -614,7 +615,7 @@ print(response.body);
 
       // ✅ Online → Call API
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/break-in/'),
+        Uri.parse('$kApiBaseUrl/api/break-in/'),
         headers: {
           'Authorization': 'token $token',
           'Content-Type': 'application/json',
@@ -683,7 +684,7 @@ print(response.body);
 
       // ✅ Online → Call API
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/break-out/'),
+        Uri.parse('$kApiBaseUrl/api/break-out/'),
         headers: {
           'Authorization': 'token $token',
           'Content-Type': 'application/json',
@@ -1319,7 +1320,7 @@ class _TaskCardState extends State<TaskCard> {
       // ✅ Online → Send API directly
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+        Uri.parse('$kApiBaseUrl/api/punch-in/'),
       );
 
       final prefs = await SharedPreferences.getInstance();
@@ -1386,7 +1387,7 @@ class _TaskCardState extends State<TaskCard> {
       // API request
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+        Uri.parse('$kApiBaseUrl/api/punch-in/'),
       );
 
       final prefs = await SharedPreferences.getInstance();

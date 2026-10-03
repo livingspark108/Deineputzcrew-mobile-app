@@ -8,6 +8,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'locale_controller.dart';
+import 'api_config.dart';
 
 /// Live location tracking: while a worker is punched in, pings the server
 /// with their current GPS position roughly every 30 seconds, so the admin
@@ -162,7 +163,7 @@ class LiveLocationTracker {
       }
 
       await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/location-ping/'),
+        Uri.parse('$kApiBaseUrl/api/location-ping/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'token $token',
@@ -219,7 +220,7 @@ class _LocationPingTaskHandler extends TaskHandler {
       );
 
       await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/location-ping/'),
+        Uri.parse('$kApiBaseUrl/api/location-ping/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'token $token',

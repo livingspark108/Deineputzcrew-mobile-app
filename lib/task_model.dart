@@ -1,3 +1,5 @@
+import 'punch_timezone.dart';
+
 class Task {
   final String id;
   final String taskName;
@@ -76,7 +78,7 @@ class Task {
       autoCheckin: json['auto_checkin'],   // ✅ important
       autoCheckout: json['auto_checkout'] ?? true, // Default to true if not specified
       totalWorkTime: json['total_work_time'] ?? "0h 0m",
-      radius: json['radius'] ?? 300, // Default to 300m if not specified
+      radius: parseRadius(json['radius']), // Location radius from API
       attendances: attendancesList,
       requiresAcceptance: json['requires_acceptance'] == 1 || json['requires_acceptance'] == true,
       acceptanceStatus: json['acceptance_status'] ?? 'not_required',
@@ -104,7 +106,7 @@ class Task {
       autoCheckin: map['auto_checkin'] == 1,        // ✅ NEW
       autoCheckout: map['auto_checkout'] == 1,       // ✅ NEW
       totalWorkTime: map['total_work_time'] ?? "0h 0m",
-      radius: map['radius'] ?? 300, // Default to 300m if not specified
+      radius: parseRadius(map['radius']),
       requiresAcceptance: map['requires_acceptance'] == 1,
       acceptanceStatus: map['acceptance_status'] ?? 'not_required',
     );
@@ -157,4 +159,47 @@ class Task {
 
   /// True while this shift still needs the employee's explicit acceptance.
   bool get needsAcceptance => requiresAcceptance && acceptanceStatus == 'pending';
+
+  /// Task date + end time; rolls to the next day for overnight shifts.
+  /// Null when the task has no (parseable) date or end time.
+  DateTime? get endDateTime {
+    if (date.isEmpty || endTime.trim().isEmpty) return null;
+    final day = DateTime.tryParse(date);
+    if (day == null) return null;
+
+    List<int> hms(String s) {
+      final p = s.trim().split(':').map((e) => int.tryParse(e) ?? 0).toList();
+      return [p[0], p.length > 1 ? p[1] : 0, p.length > 2 ? p[2] : 0];
+    }
+
+    final e = hms(endTime);
+    var end = DateTime(day.year, day.month, day.day, e[0], e[1], e[2]);
+    if (startTime.trim().isNotEmpty) {
+      final s = hms(startTime);
+      final start = DateTime(day.year, day.month, day.day, s[0], s[1], s[2]);
+      if (end.isBefore(start)) end = end.add(const Duration(days: 1));
+    }
+    return end;
+  }
+
+  /// True once the shift's end time has passed (tasks without one never end).
+  /// Task date/times are wall-clock in the account's timezone (from the API),
+  /// so "now" must be too — not the device's own timezone.
+  bool hasEnded([DateTime? now]) {
+    final end = endDateTime;
+    return end != null && (now ?? punchTimeNow()).isAfter(end);
+  }
+
+  /// Same default as the backend's Task.radius.
+  static const int defaultRadius = 100;
+
+  /// Radius in meters from the API/DB; accepts int, double or numeric string.
+  static int parseRadius(dynamic value) {
+    if (value is num && value > 0) return value.round();
+    final parsed = num.tryParse(value?.toString() ?? '');
+    return (parsed != null && parsed > 0) ? parsed.round() : defaultRadius;
+  }
+
+  /// Shifts that require acceptance can only be punched into once accepted.
+  bool get canPunchIn => !requiresAcceptance || acceptanceStatus == 'accepted';
 }

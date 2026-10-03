@@ -16,6 +16,7 @@ import 'db_helper.dart';
 import 'punch_timezone.dart';
 import 'location_service.dart';
 import 'locale_controller.dart';
+import 'api_config.dart';
 
 class BackgroundTaskManager {
   static const String _taskChannelId = 'task_background_channel';
@@ -155,7 +156,7 @@ class BackgroundTaskManager {
         
         // Check which tasks are eligible for auto check-in
         final eligibleTasks = _activeTasks.where((task) => 
-          !task.punchIn && task.autoCheckin).toList();
+          !task.punchIn && task.autoCheckin && task.canPunchIn).toList();
         print('🎯 ${eligibleTasks.length} tasks eligible for auto check-in');
       } else {
         print('ℹ️ No valid tasks for auto check-in');
@@ -211,7 +212,7 @@ class BackgroundTaskManager {
       print('🔄 Refreshing tasks from API for user: $userId');
       
       // Use the same API endpoint as main app
-      const url = 'https://admin.deineputzcrew.de/api/get_user_detail/';
+      const url = '$kApiBaseUrl/api/get_user_detail/';
       
       final response = await http.post(
         Uri.parse(url),
@@ -314,6 +315,12 @@ class BackgroundTaskManager {
       // Check if auto check-in is enabled for this task
       if (!task.autoCheckin) {
         print('❌ Auto checkin not enabled');
+        return false;
+      }
+
+      // Shifts that require acceptance must be accepted first
+      if (!task.canPunchIn) {
+        print('❌ Shift not accepted (${task.acceptanceStatus})');
         return false;
       }
 
@@ -437,11 +444,12 @@ class BackgroundTaskManager {
         taskLng,
       );
       
+      print('📍 Device lat/long: ${position.latitude}, ${position.longitude} | Task lat/long: $taskLat, $taskLng');
       print('📏 Distance to task location: ${distance.toStringAsFixed(1)}m');
       
-      // Within 100 meters
-      final isInRange = distance <= 100;
-      print('📍 In range: $isInRange');
+      // Within the task's location radius from the API
+      final isInRange = distance <= task.radius;
+      print('📍 In range: $isInRange (radius: ${task.radius}m)');
       return isInRange;
     } catch (e) {
       print('⚠️ Error checking location: $e');
@@ -530,7 +538,7 @@ class BackgroundTaskManager {
       }
 
       // Use the same API endpoint as main app
-      const url = 'https://admin.deineputzcrew.de/api/punch-in/';
+      const url = '$kApiBaseUrl/api/punch-in/';
       
       // Load default auto check-in image from assets
       print('📸 Creating auto check-in image...');
@@ -818,7 +826,7 @@ class BackgroundTaskManager {
   static Future<bool> _callTaskCleanupAPI(String taskId, String token) async {
     try {
       // You can customize this API endpoint and payload as needed
-      const url = 'https://admin.deineputzcrew.de/api/task-cleanup/';
+      const url = '$kApiBaseUrl/api/task-cleanup/';
       
       final response = await http.post(
         Uri.parse(url),

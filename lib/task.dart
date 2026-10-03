@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:deineputzcrew/task_model.dart';
+import 'api_config.dart';
 
 
 
@@ -38,7 +39,7 @@ class _AllTasksScreenState extends State<AllTasksScreen> {
 
     if (!connectivityResult.contains(ConnectivityResult.none)) {
       final response = await http.post(
-        Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+        Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'token $token',

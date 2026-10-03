@@ -1802,6 +1802,84 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Testing system default notification sound'**
   String get debugTestNotificationBody;
+
+  /// Punch-in - title of the popup shown when the current location cannot be read
+  ///
+  /// In en, this message translates to:
+  /// **'Location error'**
+  String get locationErrorDialogTitle;
+
+  /// Punch-in - location services disabled
+  ///
+  /// In en, this message translates to:
+  /// **'Location services (GPS) are turned off. Please turn them on to punch in.'**
+  String get locationErrorServicesDisabled;
+
+  /// Punch-in - location permission denied
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission was denied. Please allow location access to punch in.'**
+  String get locationErrorPermissionDenied;
+
+  /// Punch-in - location permission permanently denied
+  ///
+  /// In en, this message translates to:
+  /// **'Location permission is permanently denied. Please enable it in the app settings to punch in.'**
+  String get locationErrorPermissionDeniedForever;
+
+  /// Punch-in - timed out waiting for a fresh location
+  ///
+  /// In en, this message translates to:
+  /// **'Could not get your current location. Please check your GPS signal and internet connection, then try again.'**
+  String get locationErrorTimeout;
+
+  /// Punch-in - unexpected location error
+  ///
+  /// In en, this message translates to:
+  /// **'Could not get your current location: {error}'**
+  String locationErrorUnknown(String error);
+
+  /// Punch-in - title of the popup shown when the request cannot reach the server
+  ///
+  /// In en, this message translates to:
+  /// **'No internet connection'**
+  String get networkErrorDialogTitle;
+
+  /// Punch-in - network error body
+  ///
+  /// In en, this message translates to:
+  /// **'The punch-in could not be sent. Please check your internet connection and try again.'**
+  String get networkErrorDialogBody;
+
+  /// Dialog button that opens system settings
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get dialogOpenSettingsButton;
+
+  /// Dialog OK button
+  ///
+  /// In en, this message translates to:
+  /// **'OK'**
+  String get dialogOkButton;
+
+  /// Dashboard - punch-in blocked because the shift is still pending acceptance
+  ///
+  /// In en, this message translates to:
+  /// **'Please accept this shift before punching in.'**
+  String get punchInAcceptShiftFirstSnackbar;
+
+  /// Shown on the login screen after the server rejected the stored token
+  ///
+  /// In en, this message translates to:
+  /// **'Your session has expired. Please log in again.'**
+  String get sessionExpiredSnackbar;
+
+  /// Tasks tab - tapping a task explains that punch-in is only possible on the Home screen
+  ///
+  /// In en, this message translates to:
+  /// **'Please punch in from the Home screen.'**
+  String get punchInFromHomeOnlySnackbar;
 }
 
 class _AppLocalizationsDelegate

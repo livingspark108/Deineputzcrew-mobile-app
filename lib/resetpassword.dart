@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   const ResetPasswordScreen({super.key});
@@ -30,7 +31,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     setState(() => _isSubmitting = true);
 
-    final url = Uri.parse('https://admin.deineputzcrew.de/api/reset-password/');
+    final url = Uri.parse('$kApiBaseUrl/api/reset-password/');
     final body = jsonEncode({
       "email": _emailController.text.trim(),
       "otp": _otpController.text.trim(),

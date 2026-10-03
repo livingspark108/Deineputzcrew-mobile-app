@@ -71,7 +71,7 @@
 //       /// 🔔 FCM token (already created in main.dart)
 //       final String? fcmToken = prefs.getString('fcm_token');
 
-//       final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/login/");
+//       final Uri url = Uri.parse("$kApiBaseUrl/api/login/");
 
 //       // Prepare request body - only include token fields if they exist
 //       Map<String, dynamic> requestBody = {
@@ -352,6 +352,7 @@ import 'forgetpasswordscreen.dart';
 import 'notification_service.dart';
 import 'security_code_screen.dart';
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -465,7 +466,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (auditJson == null || alreadySynced) return;
 
       final Uri url = Uri.parse(
-        "https://admin.deineputzcrew.de/api/consent-log/",
+        "$kApiBaseUrl/api/consent-log/",
       );
 
       final response = await http.post(
@@ -537,7 +538,7 @@ class _LoginScreenState extends State<LoginScreen> {
         debugPrint("⚠️ FCM token not available, using device UDID: $deviceId");
       }
 
-      final Uri url = Uri.parse("https://admin.deineputzcrew.de/api/v2/login/");
+      final Uri url = Uri.parse("$kApiBaseUrl/api/v2/login/");
 
       // Prepare request body
       Map<String, dynamic> requestBody = {

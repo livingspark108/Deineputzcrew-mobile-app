@@ -986,4 +986,53 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get debugTestNotificationBody =>
       'Testing system default notification sound';
+
+  @override
+  String get locationErrorDialogTitle => 'Location error';
+
+  @override
+  String get locationErrorServicesDisabled =>
+      'Location services (GPS) are turned off. Please turn them on to punch in.';
+
+  @override
+  String get locationErrorPermissionDenied =>
+      'Location permission was denied. Please allow location access to punch in.';
+
+  @override
+  String get locationErrorPermissionDeniedForever =>
+      'Location permission is permanently denied. Please enable it in the app settings to punch in.';
+
+  @override
+  String get locationErrorTimeout =>
+      'Could not get your current location. Please check your GPS signal and internet connection, then try again.';
+
+  @override
+  String locationErrorUnknown(String error) {
+    return 'Could not get your current location: $error';
+  }
+
+  @override
+  String get networkErrorDialogTitle => 'No internet connection';
+
+  @override
+  String get networkErrorDialogBody =>
+      'The punch-in could not be sent. Please check your internet connection and try again.';
+
+  @override
+  String get dialogOpenSettingsButton => 'Open settings';
+
+  @override
+  String get dialogOkButton => 'OK';
+
+  @override
+  String get punchInAcceptShiftFirstSnackbar =>
+      'Please accept this shift before punching in.';
+
+  @override
+  String get sessionExpiredSnackbar =>
+      'Your session has expired. Please log in again.';
+
+  @override
+  String get punchInFromHomeOnlySnackbar =>
+      'Please punch in from the Home screen.';
 }

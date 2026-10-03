@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'l10n/app_localizations.dart';
+import 'api_config.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -43,7 +44,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       return;
     }
 
-    final url = Uri.parse('https://admin.deineputzcrew.de/api/change-password/');
+    final url = Uri.parse('$kApiBaseUrl/api/change-password/');
     final body = jsonEncode({
       "old_password": _oldPasswordController.text.trim(),
       "new_password1": _newPasswordController.text.trim(),

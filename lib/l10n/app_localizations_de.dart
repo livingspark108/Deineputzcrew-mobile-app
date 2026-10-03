@@ -1007,4 +1007,53 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get debugTestNotificationBody =>
       'Test des Standard-Benachrichtigungstons des Systems';
+
+  @override
+  String get locationErrorDialogTitle => 'Standortfehler';
+
+  @override
+  String get locationErrorServicesDisabled =>
+      'Die Standortdienste (GPS) sind ausgeschaltet. Bitte schalten Sie sie ein, um einzustempeln.';
+
+  @override
+  String get locationErrorPermissionDenied =>
+      'Die Standortberechtigung wurde verweigert. Bitte erlauben Sie den Standortzugriff, um einzustempeln.';
+
+  @override
+  String get locationErrorPermissionDeniedForever =>
+      'Die Standortberechtigung wurde dauerhaft verweigert. Bitte aktivieren Sie sie in den App-Einstellungen, um einzustempeln.';
+
+  @override
+  String get locationErrorTimeout =>
+      'Ihr aktueller Standort konnte nicht ermittelt werden. Bitte prüfen Sie GPS-Signal und Internetverbindung und versuchen Sie es erneut.';
+
+  @override
+  String locationErrorUnknown(String error) {
+    return 'Ihr aktueller Standort konnte nicht ermittelt werden: $error';
+  }
+
+  @override
+  String get networkErrorDialogTitle => 'Keine Internetverbindung';
+
+  @override
+  String get networkErrorDialogBody =>
+      'Das Einstempeln konnte nicht gesendet werden. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.';
+
+  @override
+  String get dialogOpenSettingsButton => 'Einstellungen öffnen';
+
+  @override
+  String get dialogOkButton => 'OK';
+
+  @override
+  String get punchInAcceptShiftFirstSnackbar =>
+      'Bitte nehmen Sie diese Schicht an, bevor Sie einstempeln.';
+
+  @override
+  String get sessionExpiredSnackbar =>
+      'Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.';
+
+  @override
+  String get punchInFromHomeOnlySnackbar =>
+      'Bitte stempeln Sie auf dem Startbildschirm ein.';
 }

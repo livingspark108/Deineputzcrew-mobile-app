@@ -20,6 +20,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
 import 'taskall.dart';
+import 'api_config.dart';
 
 class MainApp extends StatefulWidget {
   const MainApp({super.key});
@@ -118,7 +119,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> fetchTasks() async {
     final response = await http.post(
-      Uri.parse('https://admin.deineputzcrew.de/api/get_user_detail/'),
+      Uri.parse('$kApiBaseUrl/api/get_user_detail/'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({"id": userId}),
     );
@@ -538,7 +539,7 @@ class TaskCard extends StatelessWidget {
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('https://admin.deineputzcrew.de/api/punch-in/'),
+        Uri.parse('$kApiBaseUrl/api/punch-in/'),
       );
 
       final prefs = await SharedPreferences.getInstance();

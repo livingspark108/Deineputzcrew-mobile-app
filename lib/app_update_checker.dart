@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'app_metadata.dart';
+import 'api_config.dart';
 
 class AppUpdateInfo {
   final bool updateRequired;
@@ -26,7 +27,7 @@ class AppUpdateInfo {
 Future<AppUpdateInfo?> checkAppUpdateRequired() async {
   try {
     final uri = Uri.parse(
-      'https://admin.deineputzcrew.de/api/app-version',
+      '$kApiBaseUrl/api/app-version',
     ).replace(queryParameters: {
       'platform': AppMetadata.mobileType,
       'app_version': AppMetadata.appVersion,

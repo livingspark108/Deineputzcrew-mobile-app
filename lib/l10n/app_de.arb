@@ -1085,5 +1085,18 @@
   "statusChipAfterRespondingDeclined": "🚫 Abgelehnt",
   "debugTestNotificationChannelDescription": "Testbenachrichtigung mit Ton",
   "debugTestNotificationTitle": "🔔 Tontest #{number}",
-  "debugTestNotificationBody": "Test des Standard-Benachrichtigungstons des Systems"
+  "debugTestNotificationBody": "Test des Standard-Benachrichtigungstons des Systems",
+  "locationErrorDialogTitle": "Standortfehler",
+  "locationErrorServicesDisabled": "Die Standortdienste (GPS) sind ausgeschaltet. Bitte schalten Sie sie ein, um einzustempeln.",
+  "locationErrorPermissionDenied": "Die Standortberechtigung wurde verweigert. Bitte erlauben Sie den Standortzugriff, um einzustempeln.",
+  "locationErrorPermissionDeniedForever": "Die Standortberechtigung wurde dauerhaft verweigert. Bitte aktivieren Sie sie in den App-Einstellungen, um einzustempeln.",
+  "locationErrorTimeout": "Ihr aktueller Standort konnte nicht ermittelt werden. Bitte prüfen Sie GPS-Signal und Internetverbindung und versuchen Sie es erneut.",
+  "locationErrorUnknown": "Ihr aktueller Standort konnte nicht ermittelt werden: {error}",
+  "networkErrorDialogTitle": "Keine Internetverbindung",
+  "networkErrorDialogBody": "Das Einstempeln konnte nicht gesendet werden. Bitte prüfen Sie Ihre Internetverbindung und versuchen Sie es erneut.",
+  "dialogOpenSettingsButton": "Einstellungen öffnen",
+  "dialogOkButton": "OK",
+  "punchInAcceptShiftFirstSnackbar": "Bitte nehmen Sie diese Schicht an, bevor Sie einstempeln.",
+  "sessionExpiredSnackbar": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+  "punchInFromHomeOnlySnackbar": "Bitte stempeln Sie auf dem Startbildschirm ein."
 }
