@@ -1098,5 +1098,15 @@
   "dialogOkButton": "OK",
   "punchInAcceptShiftFirstSnackbar": "Bitte nehmen Sie diese Schicht an, bevor Sie einstempeln.",
   "sessionExpiredSnackbar": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
-  "punchInFromHomeOnlySnackbar": "Bitte stempeln Sie auf dem Startbildschirm ein."
+  "punchInFromHomeOnlySnackbar": "Bitte stempeln Sie auf dem Startbildschirm ein.",
+  "permissionGateTitle": "Berechtigungen erforderlich",
+  "permissionGateMessage": "Um diese App zu nutzen, erlauben Sie bitte alles unten Aufgeführte. Die App bleibt gesperrt, bis alles aktiviert ist.",
+  "permissionGateNotificationsTitle": "Benachrichtigungen",
+  "permissionGateNotificationsSubtitle": "Für Schichterinnerungen, Aufgaben-Updates und Check-in-Hinweise",
+  "permissionGateLocationPermissionTitle": "Standortzugriff",
+  "permissionGateLocationPermissionSubtitle": "Zum Ein- und Ausstempeln an Ihrem Arbeitsort",
+  "permissionGateLocationServiceTitle": "Standort eingeschaltet",
+  "permissionGateLocationServiceSubtitle": "Der Standort (GPS) Ihres Telefons muss eingeschaltet sein",
+  "permissionGateAllowButton": "Erlauben",
+  "permissionGateSettingsHint": "Falls keine Abfrage erscheint, aktivieren Sie es in den Einstellungen Ihres Telefons und kehren Sie dann zur App zurück."
 }

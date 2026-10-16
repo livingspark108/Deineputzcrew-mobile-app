@@ -1056,4 +1056,39 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get punchInFromHomeOnlySnackbar =>
       'Bitte stempeln Sie auf dem Startbildschirm ein.';
+
+  @override
+  String get permissionGateTitle => 'Berechtigungen erforderlich';
+
+  @override
+  String get permissionGateMessage =>
+      'Um diese App zu nutzen, erlauben Sie bitte alles unten Aufgeführte. Die App bleibt gesperrt, bis alles aktiviert ist.';
+
+  @override
+  String get permissionGateNotificationsTitle => 'Benachrichtigungen';
+
+  @override
+  String get permissionGateNotificationsSubtitle =>
+      'Für Schichterinnerungen, Aufgaben-Updates und Check-in-Hinweise';
+
+  @override
+  String get permissionGateLocationPermissionTitle => 'Standortzugriff';
+
+  @override
+  String get permissionGateLocationPermissionSubtitle =>
+      'Zum Ein- und Ausstempeln an Ihrem Arbeitsort';
+
+  @override
+  String get permissionGateLocationServiceTitle => 'Standort eingeschaltet';
+
+  @override
+  String get permissionGateLocationServiceSubtitle =>
+      'Der Standort (GPS) Ihres Telefons muss eingeschaltet sein';
+
+  @override
+  String get permissionGateAllowButton => 'Erlauben';
+
+  @override
+  String get permissionGateSettingsHint =>
+      'Falls keine Abfrage erscheint, aktivieren Sie es in den Einstellungen Ihres Telefons und kehren Sie dann zur App zurück.';
 }

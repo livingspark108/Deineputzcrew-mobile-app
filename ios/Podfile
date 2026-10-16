@@ -43,6 +43,12 @@ post_install do |installer|
     target.build_configurations.each do |config|
       config.build_settings.delete 'IPHONEOS_DEPLOYMENT_TARGET'
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
+
+      # permission_handler: enable the notification permission on iOS.
+      # Without this, Permission.notification always reports "denied" and
+      # NotificationPermissionGate would lock every iOS user out.
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] ||= ['$(inherited)']
+      config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] << 'PERMISSION_NOTIFICATIONS=1'
     end
   end
 end

@@ -14,6 +14,7 @@ import 'consent_screen.dart';
 import 'punch_timezone.dart';
 import 'login.dart';
 import 'notification_service.dart';
+import 'app_permission_gate.dart';
 import 'background_task_manager.dart';
 import 'live_location_tracker.dart';
 import 'locale_controller.dart';
@@ -202,6 +203,10 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
+          // 🔒 Notifications + location are mandatory — blocks every screen
+          // until all are enabled (see app_permission_gate.dart)
+          builder: (context, child) =>
+              AppPermissionGate(child: child ?? const SizedBox.shrink()),
           home: const SplashScreen(),
         );
       },

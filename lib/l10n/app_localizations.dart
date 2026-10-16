@@ -1880,6 +1880,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Please punch in from the Home screen.'**
   String get punchInFromHomeOnlySnackbar;
+
+  /// App lock screen shown until all required permissions are enabled - title
+  ///
+  /// In en, this message translates to:
+  /// **'Permissions required'**
+  String get permissionGateTitle;
+
+  /// Permission lock screen - explanation
+  ///
+  /// In en, this message translates to:
+  /// **'To use this app, please allow everything below. The app stays locked until all of it is turned on.'**
+  String get permissionGateMessage;
+
+  /// Permission lock screen - notifications row title
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications'**
+  String get permissionGateNotificationsTitle;
+
+  /// Permission lock screen - notifications row explanation
+  ///
+  /// In en, this message translates to:
+  /// **'For shift reminders, task updates and check-in alerts'**
+  String get permissionGateNotificationsSubtitle;
+
+  /// Permission lock screen - location permission row title
+  ///
+  /// In en, this message translates to:
+  /// **'Location access'**
+  String get permissionGateLocationPermissionTitle;
+
+  /// Permission lock screen - location permission row explanation
+  ///
+  /// In en, this message translates to:
+  /// **'To check you in and out at your work location'**
+  String get permissionGateLocationPermissionSubtitle;
+
+  /// Permission lock screen - device location (GPS) switched on row title
+  ///
+  /// In en, this message translates to:
+  /// **'Location turned on'**
+  String get permissionGateLocationServiceTitle;
+
+  /// Permission lock screen - device location (GPS) row explanation
+  ///
+  /// In en, this message translates to:
+  /// **'Your phone\'s location (GPS) must be switched on'**
+  String get permissionGateLocationServiceSubtitle;
+
+  /// Permission lock screen - button that asks for the missing permissions or opens Settings
+  ///
+  /// In en, this message translates to:
+  /// **'Allow'**
+  String get permissionGateAllowButton;
+
+  /// Permission lock screen - hint below the button
+  ///
+  /// In en, this message translates to:
+  /// **'If no prompt appears, turn it on in your phone\'s Settings, then come back to the app.'**
+  String get permissionGateSettingsHint;
 }
 
 class _AppLocalizationsDelegate

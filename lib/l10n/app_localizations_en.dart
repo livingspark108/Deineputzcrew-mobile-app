@@ -1035,4 +1035,39 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get punchInFromHomeOnlySnackbar =>
       'Please punch in from the Home screen.';
+
+  @override
+  String get permissionGateTitle => 'Permissions required';
+
+  @override
+  String get permissionGateMessage =>
+      'To use this app, please allow everything below. The app stays locked until all of it is turned on.';
+
+  @override
+  String get permissionGateNotificationsTitle => 'Notifications';
+
+  @override
+  String get permissionGateNotificationsSubtitle =>
+      'For shift reminders, task updates and check-in alerts';
+
+  @override
+  String get permissionGateLocationPermissionTitle => 'Location access';
+
+  @override
+  String get permissionGateLocationPermissionSubtitle =>
+      'To check you in and out at your work location';
+
+  @override
+  String get permissionGateLocationServiceTitle => 'Location turned on';
+
+  @override
+  String get permissionGateLocationServiceSubtitle =>
+      'Your phone\'s location (GPS) must be switched on';
+
+  @override
+  String get permissionGateAllowButton => 'Allow';
+
+  @override
+  String get permissionGateSettingsHint =>
+      'If no prompt appears, turn it on in your phone\'s Settings, then come back to the app.';
 }

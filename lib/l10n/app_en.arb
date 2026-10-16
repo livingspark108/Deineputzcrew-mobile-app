@@ -1289,5 +1289,45 @@
   "punchInFromHomeOnlySnackbar": "Please punch in from the Home screen.",
   "@punchInFromHomeOnlySnackbar": {
     "description": "Tasks tab - tapping a task explains that punch-in is only possible on the Home screen"
+  },
+  "permissionGateTitle": "Permissions required",
+  "@permissionGateTitle": {
+    "description": "App lock screen shown until all required permissions are enabled - title"
+  },
+  "permissionGateMessage": "To use this app, please allow everything below. The app stays locked until all of it is turned on.",
+  "@permissionGateMessage": {
+    "description": "Permission lock screen - explanation"
+  },
+  "permissionGateNotificationsTitle": "Notifications",
+  "@permissionGateNotificationsTitle": {
+    "description": "Permission lock screen - notifications row title"
+  },
+  "permissionGateNotificationsSubtitle": "For shift reminders, task updates and check-in alerts",
+  "@permissionGateNotificationsSubtitle": {
+    "description": "Permission lock screen - notifications row explanation"
+  },
+  "permissionGateLocationPermissionTitle": "Location access",
+  "@permissionGateLocationPermissionTitle": {
+    "description": "Permission lock screen - location permission row title"
+  },
+  "permissionGateLocationPermissionSubtitle": "To check you in and out at your work location",
+  "@permissionGateLocationPermissionSubtitle": {
+    "description": "Permission lock screen - location permission row explanation"
+  },
+  "permissionGateLocationServiceTitle": "Location turned on",
+  "@permissionGateLocationServiceTitle": {
+    "description": "Permission lock screen - device location (GPS) switched on row title"
+  },
+  "permissionGateLocationServiceSubtitle": "Your phone's location (GPS) must be switched on",
+  "@permissionGateLocationServiceSubtitle": {
+    "description": "Permission lock screen - device location (GPS) row explanation"
+  },
+  "permissionGateAllowButton": "Allow",
+  "@permissionGateAllowButton": {
+    "description": "Permission lock screen - button that asks for the missing permissions or opens Settings"
+  },
+  "permissionGateSettingsHint": "If no prompt appears, turn it on in your phone's Settings, then come back to the app.",
+  "@permissionGateSettingsHint": {
+    "description": "Permission lock screen - hint below the button"
   }
 }
