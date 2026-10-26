@@ -1329,5 +1329,12 @@
   "permissionGateSettingsHint": "If no prompt appears, turn it on in your phone's Settings, then come back to the app.",
   "@permissionGateSettingsHint": {
     "description": "Permission lock screen - hint below the button"
+  },
+  "offlineSyncDroppedSnackbar": "⚠️ {count} offline action(s) could not be synced and were removed. Your admin has been informed.",
+  "@offlineSyncDroppedSnackbar": {
+    "description": "Dashboard - offline actions rejected by the server were removed from the queue",
+    "placeholders": {
+      "count": {}
+    }
   }
 }

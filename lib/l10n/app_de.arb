@@ -1108,5 +1108,6 @@
   "permissionGateLocationServiceTitle": "Standort eingeschaltet",
   "permissionGateLocationServiceSubtitle": "Der Standort (GPS) Ihres Telefons muss eingeschaltet sein",
   "permissionGateAllowButton": "Erlauben",
-  "permissionGateSettingsHint": "Falls keine Abfrage erscheint, aktivieren Sie es in den Einstellungen Ihres Telefons und kehren Sie dann zur App zurück."
+  "permissionGateSettingsHint": "Falls keine Abfrage erscheint, aktivieren Sie es in den Einstellungen Ihres Telefons und kehren Sie dann zur App zurück.",
+  "offlineSyncDroppedSnackbar": "⚠️ {count} Offline-Aktion(en) konnten nicht synchronisiert werden und wurden entfernt. Ihr Admin wurde informiert."
 }

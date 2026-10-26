@@ -2260,6 +2260,9 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
         return;
       }
 
+      // Deliver any dropped-action reports still waiting from earlier passes
+      await _flushSyncFailureReports();
+
       final duplicateCount = await DBHelper().pruneDuplicatePunchActions();
       if (duplicateCount > 0) {
         debugPrint("🧹 Removed duplicate offline actions: $duplicateCount");
@@ -2306,6 +2309,7 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
 
       final int pendingTotal = pending.length;
       int syncedCount = 0;
+      int droppedCount = 0;
 
       for (var action in pending) {
         try {
@@ -2410,6 +2414,11 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
             debugPrint(
                 "🔁 CURL [$type]:\ncurl -X POST '${uri.toString()}' $curlAuth $curlFields $curlFiles");
           }
+          // Same request for the failure report, with the auth token redacted
+          final String curlForReport =
+              "curl -X POST '${uri.toString()}' -H 'Authorization: token <redacted>' "
+              "${request.fields.entries.map((e) => "-F '${e.key}=${e.value}'").join(' ')}"
+              "${request.files.map((f) => " -F 'images=@${f.filename}'").join('')}";
 
           // Send to API — hard timeout so a mid-request connectivity drop
           // (exactly the flapping on/off/on scenario) always fails fast
@@ -2428,47 +2437,48 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
             syncedCount++;
             debugPrint("✅ Synced action ${action['id']}");
             await _reconcileStateAfterSync(type, action['task_id']);
-          } else if (response.statusCode == 400) {
-            try {
-              final errorBody = jsonDecode(resBody.body);
-              final errorMsg = errorBody.toString().toLowerCase();
-
-              // ✅ Check for validation errors (lat/long digits, etc.)
-              final isValidationError = errorMsg
-                      .contains('ensure that there are no more') ||
-                  errorMsg.contains('invalid') &&
-                      (errorMsg.contains('lat') || errorMsg.contains('long'));
-
-              // ✅ Expanded list of permanent errors that should delete the action
-              if (errorMsg.contains('already completed') ||
-                  errorMsg.contains('duplicate') ||
-                  errorMsg.contains('invalid task') ||
-                  errorMsg.contains('task not found') ||
-                  errorMsg.contains('after the task end time') ||
-                  errorMsg.contains('before the task start time') ||
-                  errorMsg.contains('task has ended') ||
-                  errorMsg.contains('already punched in') ||
-                  errorMsg.contains('already punched out') ||
-                  errorMsg.contains('not punched in') ||
-                  errorMsg.contains('already on break') ||
-                  errorMsg.contains('not on break') ||
-                  isValidationError) {
-                // ✅ NEW: Delete validation errors
-                await DBHelper().deletePunchAction(action["id"]);
-                debugPrint(
-                    "🗑 Deleted invalid action: ${errorBody.toString()}");
-                await _reconcileStateAfterSync(type, action['task_id']);
-              } else {
-                debugPrint("⏳ Temporary error, will retry: $errorMsg");
-              }
-            } catch (e) {
-              debugPrint("⏳ Cannot parse error, will retry later");
-            }
+          } else if (_isNonRetryableSyncStatus(response.statusCode)) {
+            // Rejected for good (e.g. 400 "You must punch in before punching
+            // out."): retrying would fail the same way forever and keep the
+            // employee stuck. Save it for the admin (with the request as
+            // curl) and remove it from the queue so the next actions can go.
+            await _queueSyncFailureReport({
+              'client_id': action['id']?.toString(),
+              'task_id': action['task_id'],
+              'type': type,
+              'timestamp': action['timestamp'],
+              'lat': action['lat'],
+              'long': action['long'],
+              'remark': action['remark'],
+              'status_code': response.statusCode,
+              'response': resBody.body,
+              'curl': curlForReport,
+            });
+            await DBHelper().deletePunchAction(action["id"]);
+            droppedCount++;
+            debugPrint(
+                "🗑 Dropped action ${action['id']} after HTTP ${response.statusCode}: ${resBody.body}");
+            await _reconcileStateAfterSync(type, action['task_id']);
           } else {
-            debugPrint("⏳ Will retry later");
+            // Network/server/auth problem — the action itself may be fine
+            debugPrint("⏳ Will retry later (HTTP ${response.statusCode})");
           }
         } catch (e) {
           debugPrint("❌ Sync error: $e");
+        }
+      }
+
+      if (droppedCount > 0) {
+        await _flushSyncFailureReports();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(AppLocalizations.of(context)
+                  .offlineSyncDroppedSnackbar(droppedCount.toString())),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 4),
+            ),
+          );
         }
       }
 
@@ -2485,7 +2495,7 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
       }
 
       debugPrint(
-        "📊 Sync summary: pending=$pendingTotal, synced=$syncedCount, remaining=${pendingTotal - syncedCount}",
+        "📊 Sync summary: pending=$pendingTotal, synced=$syncedCount, dropped=$droppedCount, remaining=${pendingTotal - syncedCount - droppedCount}",
       );
 
       // Update UI with new pending count
@@ -2494,6 +2504,67 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
       // 🔓 ALWAYS UNLOCK
       _isSyncing = false;
       debugPrint("🔓 Sync lock released");
+    }
+  }
+
+  static const String _syncFailureReportsKey = 'offline_sync_failure_reports';
+
+  /// Errors where the request itself is wrong for the server's current
+  /// state, so sending it again can never succeed. Network errors, timeouts,
+  /// 401/403 (session) and 5xx are NOT here — those are retried.
+  bool _isNonRetryableSyncStatus(int code) =>
+      code == 400 || code == 404 || code == 409 || code == 422;
+
+  /// Stores a dropped action's report locally first (so it survives a
+  /// failed upload or app restart), separate from the punch queue — a
+  /// report that can't be delivered never blocks punching.
+  Future<void> _queueSyncFailureReport(Map<String, dynamic> report) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final reports = prefs.getStringList(_syncFailureReportsKey) ?? [];
+      reports.add(jsonEncode(report));
+      await prefs.setStringList(_syncFailureReportsKey, reports);
+    } catch (e) {
+      debugPrint("⚠️ Could not store sync failure report: $e");
+    }
+  }
+
+  /// Uploads stored dropped-action reports to the admin Offline Sync Logs.
+  /// Keeps a report only if the upload failed for a network/server reason.
+  Future<void> _flushSyncFailureReports() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final reports = prefs.getStringList(_syncFailureReportsKey) ?? [];
+      if (reports.isEmpty) return;
+      final token = prefs.getString("token");
+      if (token == null || token.isEmpty) return;
+
+      final List<String> remaining = [];
+      for (final report in reports) {
+        try {
+          final res = await http
+              .post(
+                Uri.parse("$kApiBaseUrl/api/offline-sync-failure/"),
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': 'token $token',
+                },
+                body: report,
+              )
+              .timeout(const Duration(seconds: 15));
+          // 2xx = saved; other 4xx = the report itself is unusable, drop it
+          if (res.statusCode >= 500 || res.statusCode == 401 || res.statusCode == 403) {
+            remaining.add(report);
+          }
+        } catch (_) {
+          remaining.add(report); // offline again — try next sync
+        }
+      }
+      await prefs.setStringList(_syncFailureReportsKey, remaining);
+      debugPrint(
+          "📮 Sync failure reports: sent ${reports.length - remaining.length}, waiting ${remaining.length}");
+    } catch (e) {
+      debugPrint("⚠️ Could not send sync failure reports: $e");
     }
   }
 

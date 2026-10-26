@@ -1940,6 +1940,12 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'If no prompt appears, turn it on in your phone\'s Settings, then come back to the app.'**
   String get permissionGateSettingsHint;
+
+  /// Dashboard - offline actions rejected by the server were removed from the queue
+  ///
+  /// In en, this message translates to:
+  /// **'⚠️ {count} offline action(s) could not be synced and were removed. Your admin has been informed.'**
+  String offlineSyncDroppedSnackbar(Object count);
 }
 
 class _AppLocalizationsDelegate

@@ -1091,4 +1091,9 @@ class AppLocalizationsDe extends AppLocalizations {
   @override
   String get permissionGateSettingsHint =>
       'Falls keine Abfrage erscheint, aktivieren Sie es in den Einstellungen Ihres Telefons und kehren Sie dann zur App zurück.';
+
+  @override
+  String offlineSyncDroppedSnackbar(Object count) {
+    return '⚠️ $count Offline-Aktion(en) konnten nicht synchronisiert werden und wurden entfernt. Ihr Admin wurde informiert.';
+  }
 }

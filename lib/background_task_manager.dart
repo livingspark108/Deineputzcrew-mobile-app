@@ -599,22 +599,33 @@ class BackgroundTaskManager {
         await prefs.setString('punchInTime', DateTime.now().toIso8601String());
         
         return {'success': true, 'shouldRetry': false, 'message': 'Success'};
-      } else if (response.statusCode == 400) {
-        // Check if already punched in
+      } else if (const [400, 404, 409, 422].contains(response.statusCode)) {
+        // Rejected for good (e.g. already punched in, not on location) —
+        // retrying would fail the same way forever. Queue a report for the
+        // admin Offline Sync Logs (sent by the dashboard's sync, see
+        // home.dart _flushSyncFailureReports) and drop it from the queue.
         try {
-          final responseData = json.decode(responseBody);
-          final errorMessage = responseData['error']?.toString() ?? '';
-          
-          if (errorMessage.contains('Already punched in today')) {
-            print('✅ Already punched in - removing from sync queue');
-            return {'success': false, 'shouldRetry': false, 'message': 'Already punched in today'};
-          }
+          final prefs = await SharedPreferences.getInstance();
+          final reports = prefs.getStringList('offline_sync_failure_reports') ?? [];
+          reports.add(json.encode({
+            'task_id': taskId,
+            'type': 'punch_in',
+            'timestamp': request.fields['timestamp'],
+            'lat': lat,
+            'long': lng,
+            'remark': 'Auto check-in (background)',
+            'status_code': response.statusCode,
+            'response': responseBody,
+            'curl': "curl -X POST '$url' -H 'Authorization: token <redacted>' "
+                "${request.fields.entries.map((e) => "-F '${e.key}=${e.value}'").join(' ')}"
+                " -F 'images=@auto_check_in.jpeg'",
+          }));
+          await prefs.setStringList('offline_sync_failure_reports', reports);
         } catch (e) {
-          // If we can't parse the response, treat as retriable error
+          print('⚠️ Could not store sync failure report: $e');
         }
-        
-        print('❌ API request failed with status: ${response.statusCode}');
-        return {'success': false, 'shouldRetry': true, 'message': responseBody};
+        print('🗑 Check-in rejected (HTTP ${response.statusCode}) — removing from sync queue');
+        return {'success': false, 'shouldRetry': false, 'message': responseBody};
       } else {
         print('❌ API request failed with status: ${response.statusCode}');
         return {'success': false, 'shouldRetry': true, 'message': responseBody};

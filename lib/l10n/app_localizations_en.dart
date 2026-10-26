@@ -1070,4 +1070,9 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get permissionGateSettingsHint =>
       'If no prompt appears, turn it on in your phone\'s Settings, then come back to the app.';
+
+  @override
+  String offlineSyncDroppedSnackbar(Object count) {
+    return '⚠️ $count offline action(s) could not be synced and were removed. Your admin has been informed.';
+  }
 }
