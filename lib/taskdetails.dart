@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -684,65 +685,27 @@ Future<void> _handlePunchOut(
     final connectivity = await Connectivity().checkConnectivity();
 
     // ==================== OFFLINE MODE ====================
-    if (connectivity.contains(ConnectivityResult.none)) {
-      debugPrint("📴 Offline - Saving punch-out to DB");
-
-      final db = DBHelper();
-
-      // ✅ Save each image as a separate action (or just first image)
-      // If you want to sync multiple images, you'll need to handle that
-      await db.insertPunchAction({
-        'task_id': taskId,
-        'type': 'punch-out', // ✅ Fixed: was 'punch_out', should be 'punch-out'
-        'lat': position.latitude.toStringAsFixed(4),
-        'long': position.longitude.toStringAsFixed(4),
-        'remark': controller.text.trim(),
-        'image_path': images.first.path, // First image
-        'timestamp': punchTimeNow().toIso8601String(),
-        'synced': 0,
-      });
-
-      // ✅ DEBUG: Check what was saved
-      final allActions = await DBHelper().getPunchActions();
-      debugPrint(
-          "📊 Total offline actions after punch-out: ${allActions.length}");
-      for (var action in allActions) {
-        debugPrint("   - ${action['type']} at ${action['timestamp']}");
-      }
-
-      // Clear prefs
-      await prefs.remove('punchedInTaskId');
-      await prefs.remove('punchInStartTime');
-      await prefs.remove('onBreak');
-      await prefs.remove('pausedDuration');
-      await prefs.remove('breakDuration');
-      await prefs.remove('breakStartTime');
-
-      // ✅ Stop live location tracking now that the user is punched out
-      await LiveLocationTracker.stop();
-
-      // Dismiss loader
-      FullScreenLoader.hide(context);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(l10n.punchOutOfflineSnackbar),
-          duration: const Duration(seconds: 3),
-        ),
-      );
-
-      Navigator.pushAndRemoveUntil(
+    // Also queue it when this task still has punches waiting for the
+    // offline sync (e.g. a punch-in that timed out), so the server gets
+    // them in order — a direct punch-out would arrive before its punch-in.
+    if (connectivity.contains(ConnectivityResult.none) ||
+        await DBHelper().hasPendingPunchActions(taskId)) {
+      debugPrint("📴 Offline / earlier punches still queued - Saving punch-out to DB");
+      await _savePunchOutOffline(
         context,
-        MaterialPageRoute(builder: (_) => MainApp()),
-        (route) => false,
+        taskId: taskId,
+        position: position,
+        images: images,
+        remark: controller.text.trim(),
+        timestamp: punchTimeNow().toIso8601String(),
       );
-
       return; // ⛔ STOP HERE
     }
 
     // ==================== ONLINE MODE ====================
     final uri = Uri.parse('$kApiBaseUrl/api/punch-out/');
     var request = http.MultipartRequest('POST', uri);
+    final String punchOutTimestamp = punchTimeNow().toIso8601String(); // 🌍 account's API-configured timezone, not device timezone
 
     request.headers['Authorization'] = 'token $token';
     request.fields.addAll({
@@ -750,7 +713,7 @@ Future<void> _handlePunchOut(
       'lat': position.latitude.toStringAsFixed(4),
       'long': position.longitude.toStringAsFixed(4),
       'remark': controller.text.trim(),
-      'timestamp': punchTimeNow().toIso8601String(), // 🌍 account's API-configured timezone, not device timezone
+      'timestamp': punchOutTimestamp,
     });
 
     // Attach all images
@@ -762,9 +725,30 @@ Future<void> _handlePunchOut(
       ));
     }
 
-    final streamedResponse = await request.send()
-        .timeout(const Duration(seconds: 30));
-    final response = await http.Response.fromStream(streamedResponse);
+    // ⏱ Wait at most 1 minute for the server (photo upload + answer). If it
+    // takes longer, treat the punch-out as offline: queue it with the same
+    // timestamp for the offline sync. If the server did save it after all,
+    // the resend is answered "Already punched out" (200) and just cleared.
+    final http.Response response;
+    try {
+      response = await () async {
+        final streamed = await request.send();
+        return http.Response.fromStream(streamed);
+      }()
+          .timeout(kPunchRequestTimeout);
+    } on TimeoutException {
+      debugPrint(
+          "⏱ Punch-out took longer than ${kPunchRequestTimeout.inSeconds}s — saving offline");
+      await _savePunchOutOffline(
+        context,
+        taskId: taskId,
+        position: position,
+        images: images,
+        remark: controller.text.trim(),
+        timestamp: punchOutTimestamp,
+      );
+      return;
+    }
 
     debugPrint(
         "📡 Punch-out online response: ${response.statusCode} ${response.body}");
@@ -804,6 +788,68 @@ Future<void> _handlePunchOut(
       SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
     );
   }
+}
+
+/// Queues a punch-out for the offline sync, ends the shift on the device and
+/// returns to the dashboard. Used when there's no connection, when earlier
+/// punches for the task are still queued, and when the server doesn't
+/// answer within [kPunchRequestTimeout].
+Future<void> _savePunchOutOffline(
+  BuildContext context, {
+  required String taskId,
+  required Position position,
+  required List<File> images,
+  required String remark,
+  required String timestamp,
+}) async {
+  final l10n = AppLocalizations.of(context);
+  final prefs = await SharedPreferences.getInstance();
+
+  // Only the first image is queued (the sync sends one image per action)
+  await DBHelper().insertPunchAction({
+    'task_id': taskId,
+    'type': 'punch-out',
+    'lat': position.latitude.toStringAsFixed(4),
+    'long': position.longitude.toStringAsFixed(4),
+    'remark': remark,
+    'image_path': images.first.path,
+    'timestamp': timestamp,
+    'synced': 0,
+  });
+
+  // ✅ DEBUG: Check what was saved
+  final allActions = await DBHelper().getPunchActions();
+  debugPrint("📊 Total offline actions after punch-out: ${allActions.length}");
+  for (var action in allActions) {
+    debugPrint("   - ${action['type']} at ${action['timestamp']}");
+  }
+
+  // Clear prefs
+  await prefs.remove('punchedInTaskId');
+  await prefs.remove('punchInStartTime');
+  await prefs.remove('onBreak');
+  await prefs.remove('pausedDuration');
+  await prefs.remove('breakDuration');
+  await prefs.remove('breakStartTime');
+
+  // ✅ Stop live location tracking now that the user is punched out
+  await LiveLocationTracker.stop();
+
+  // Dismiss loader
+  FullScreenLoader.hide(context);
+
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(l10n.punchOutOfflineSnackbar),
+      duration: const Duration(seconds: 3),
+    ),
+  );
+
+  Navigator.pushAndRemoveUntil(
+    context,
+    MaterialPageRoute(builder: (_) => MainApp()),
+    (route) => false,
+  );
 }
 
 /// Bottom sheet popup

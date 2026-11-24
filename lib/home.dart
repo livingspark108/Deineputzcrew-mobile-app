@@ -1269,7 +1269,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
             if (!hasPunchOut) {
               punchedInTask = task;
               try {
-                punchInTime = DateTime.parse(latestPunchIn['timestamp']);
+                // Server time is account-timezone wall clock — convert it
+                // to device time before the timer subtracts it from
+                // DateTime.now(), or the timer is off by the zone gap.
+                punchInTime = parseServerPunchTime(latestPunchIn['timestamp']);
               } catch (e) {
                 debugPrint('⚠️ Error parsing punch_in timestamp: $e');
                 punchInTime = DateTime.now();
@@ -2230,16 +2233,17 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
 
   Future<void> syncOfflineActions() async {
     if (_isSyncing) {
-      // 🛡️ Watchdog: a sync should never legitimately run longer than this.
-      // If it has, an earlier call got stuck (e.g. a hung network request)
-      // and left the lock held forever — force-release it so the app can
-      // always recover on its own instead of needing a restart.
+      // 🛡️ Watchdog: requests have no timeout, so a sync can legitimately
+      // take a while (slow uploads). _syncStartedAt is refreshed every time
+      // a request gets its answer, so this only fires when NOTHING has
+      // finished for 10 minutes - i.e. a request that will never answer -
+      // and the app recovers on its own instead of needing a restart.
       final stuckFor = _syncStartedAt == null
           ? Duration.zero
           : DateTime.now().difference(_syncStartedAt!);
-      if (stuckFor > const Duration(seconds: 90)) {
+      if (stuckFor > const Duration(minutes: 10)) {
         debugPrint(
-            "⚠️ Sync watchdog: previous sync stuck for ${stuckFor.inSeconds}s — force-releasing lock");
+            "⚠️ Sync watchdog: no progress for ${stuckFor.inMinutes} min — force-releasing lock");
         _isSyncing = false;
       } else {
         debugPrint("⏸ Sync already in progress, skipping...");
@@ -2262,6 +2266,11 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
 
       // Deliver any dropped-action reports still waiting from earlier passes
       await _flushSyncFailureReports();
+
+      // Background auto check-ins made offline sit in their own list; move
+      // them into this queue (keeping the time they happened) so every
+      // offline action is sent in one time-ordered sequence.
+      await _moveBackgroundCheckInsToQueue();
 
       final duplicateCount = await DBHelper().pruneDuplicatePunchActions();
       if (duplicateCount > 0) {
@@ -2287,12 +2296,10 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
       // ✅ FIXED: Create a mutable copy before sorting
       final pending = List<Map<String, dynamic>>.from(pendingData);
 
-      // ✅ Sort by timestamp to maintain order
-      pending.sort((a, b) {
-        final timeA = DateTime.tryParse(a['timestamp'] ?? '') ?? DateTime(1970);
-        final timeB = DateTime.tryParse(b['timestamp'] ?? '') ?? DateTime(1970);
-        return timeA.compareTo(timeB);
-      });
+      // Oldest first - the server needs punch-in before break / punch-out.
+      // Same timestamp: punch-in, break-in, break-out, punch-out. Then the
+      // order they were queued in.
+      pending.sort(_compareOfflineActions);
 
       debugPrint("📤 Syncing ${pending.length} offline actions...");
 
@@ -2310,8 +2317,16 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
       final int pendingTotal = pending.length;
       int syncedCount = 0;
       int droppedCount = 0;
+      // Tasks whose earlier action is waiting for a retry: their later
+      // actions wait too, so e.g. a punch-out is never sent before its punch-in.
+      final Set<String> waitingTasks = {};
 
       for (var action in pending) {
+        final String actionTaskId = (action['task_id'] ?? '').toString();
+        if (waitingTasks.contains(actionTaskId)) {
+          debugPrint("⏸ Holding action ${action['id']} (${action['type']}) - an earlier action for this task is waiting");
+          continue;
+        }
         try {
           final type =
               action['type']; // punch-in / punch-out / break_in / break_out
@@ -2420,15 +2435,13 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
               "${request.fields.entries.map((e) => "-F '${e.key}=${e.value}'").join(' ')}"
               "${request.files.map((f) => " -F 'images=@${f.filename}'").join('')}";
 
-          // Send to API — hard timeout so a mid-request connectivity drop
-          // (exactly the flapping on/off/on scenario) always fails fast
-          // and lets this action retry on the next sync pass, instead of
-          // hanging forever and leaving the sync lock stuck.
-          final response = await request
-              .send()
-              .timeout(const Duration(seconds: 20));
-          final resBody = await http.Response.fromStream(response)
-              .timeout(const Duration(seconds: 20));
+          // Send to API — no timeout: wait for the server's answer however
+          // long it takes (slow mobile data + photo upload), so an action
+          // is never retried while the server may still be saving it.
+          // One request at a time; the next one starts after this answer.
+          final response = await request.send();
+          final resBody = await http.Response.fromStream(response);
+          _syncStartedAt = DateTime.now(); // progress - see the lock watchdog
           debugPrint(
               "📡 Sync response ($type): ${resBody.statusCode} ${resBody.body}");
 
@@ -2462,9 +2475,11 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
           } else {
             // Network/server/auth problem — the action itself may be fine
             debugPrint("⏳ Will retry later (HTTP ${response.statusCode})");
+            waitingTasks.add(actionTaskId);
           }
         } catch (e) {
           debugPrint("❌ Sync error: $e");
+          waitingTasks.add(actionTaskId);
         }
       }
 
@@ -2504,6 +2519,54 @@ curl -X POST $kApiBaseUrl/api/get_user_detail/ \\
       // 🔓 ALWAYS UNLOCK
       _isSyncing = false;
       debugPrint("🔓 Sync lock released");
+    }
+  }
+
+  static const Map<String, int> _actionTypeOrder = {
+    'punch-in': 0, 'punch_in': 0,
+    'break-in': 1, 'break_in': 1,
+    'break-out': 2, 'break_out': 2,
+    'punch-out': 3, 'punch_out': 3,
+  };
+
+  /// Sort key for offline actions: time they happened (oldest first), then
+  /// punch-in < break-in < break-out < punch-out for equal times, then the
+  /// order they were queued in.
+  static int _compareOfflineActions(Map<String, dynamic> a, Map<String, dynamic> b) {
+    final timeA = DateTime.tryParse(a['timestamp']?.toString() ?? '') ?? DateTime(1970);
+    final timeB = DateTime.tryParse(b['timestamp']?.toString() ?? '') ?? DateTime(1970);
+    final byTime = timeA.compareTo(timeB);
+    if (byTime != 0) return byTime;
+    final byType = (_actionTypeOrder[a['type']] ?? 9).compareTo(_actionTypeOrder[b['type']] ?? 9);
+    if (byType != 0) return byType;
+    return ((a['id'] as int?) ?? 0).compareTo((b['id'] as int?) ?? 0);
+  }
+
+  /// Moves auto check-ins that BackgroundTaskManager stored offline
+  /// ('offline_checkins') into the main punch-action queue, with the time
+  /// they actually happened, so they're synced in order with everything else.
+  Future<void> _moveBackgroundCheckInsToQueue() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getStringList('offline_checkins') ?? [];
+      if (stored.isEmpty) return;
+      for (final entry in stored) {
+        final data = jsonDecode(entry) as Map<String, dynamic>;
+        await DBHelper().insertPunchAction({
+          'task_id': data['task_id'] ?? '',
+          'type': 'punch-in',
+          'lat': data['lat'] ?? '',
+          'long': data['long'] ?? '',
+          'image_path': 'auto_check_in',
+          'timestamp': data['timestamp'] ?? '',
+          'remark': '[OFFLINE] Auto Punch-in',
+          'synced': 0,
+        });
+      }
+      await prefs.setStringList('offline_checkins', []);
+      debugPrint("📥 Moved ${stored.length} background check-in(s) into the sync queue");
+    } catch (e) {
+      debugPrint("⚠️ Could not move background check-ins: $e");
     }
   }
 
@@ -4033,33 +4096,13 @@ class _TaskCardState extends State<TaskCard> {
       // 🔴 OFFLINE MODE
       // ==========================
       if (connectivity.contains(ConnectivityResult.none)) {
-        await DBHelper().insertPunchAction({
-          'task_id': widget.taskId,
-          'type': 'punch-in',
-          'lat': position.latitude.toStringAsFixed(4),
-          'long': position.longitude.toStringAsFixed(4),
-          'image_path': image.path,
-          'timestamp': punchTimeNow().toIso8601String(),
-          'remark': '[OFFLINE] Punch In',
-          'synced': 0,
-        });
-
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('punchedInTaskId', widget.taskId);
-        LiveLocationTracker.start(widget.taskId);
-
-        FullScreenLoader.hide(context); // close loader
-
-        // UI updates
-        widget.onPunchIn();
-        widget.onTaskSelected(widget.taskId);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(l10n.punchInOfflineSnackbar),
-          ),
+        await _savePunchInOffline(
+          context,
+          position: position,
+          imagePath: image.path,
+          timestamp: punchTimeNow().toIso8601String(),
+          remark: '[OFFLINE] Punch In',
         );
-
         return; // ⛔ STOP HERE (NO API CALL)
       }
 
@@ -4100,8 +4143,30 @@ class _TaskCardState extends State<TaskCard> {
         image.path,
       ));
 
-      final response = await request.send();
-      final body = await http.Response.fromStream(response);
+      // ⏱ Wait at most 1 minute for the server (upload + answer). If it takes
+      // longer, treat the punch as offline: queue it with the same timestamp
+      // and let the offline sync deliver it. If the server did save this
+      // request after all, the sync's resend is answered as a duplicate.
+      final http.Response body;
+      try {
+        body = await () async {
+          final streamed = await request.send();
+          return http.Response.fromStream(streamed);
+        }()
+            .timeout(kPunchRequestTimeout);
+      } on TimeoutException {
+        debugPrint(
+            '⏱ Punch-in took longer than ${kPunchRequestTimeout.inSeconds}s — saving offline');
+        await _savePunchInOffline(
+          context,
+          position: position,
+          imagePath: image.path,
+          timestamp: punchInTimestamp,
+          remark: '[OFFLINE] Punch In (server timeout)',
+        );
+        return;
+      }
+      final response = body;
 
       // 📊 DEBUG: Print API response
       print('📨 PUNCH-IN API RESPONSE:');
@@ -4140,6 +4205,45 @@ class _TaskCardState extends State<TaskCard> {
         SnackBar(content: Text(l10n.exceptionSnackbar(e.toString()))),
       );
     }
+  }
+
+  /// Queues a punch-in for the offline sync and updates the UI as punched
+  /// in. Used when there's no connection, and when the server doesn't
+  /// answer within [kPunchRequestTimeout].
+  Future<void> _savePunchInOffline(
+    BuildContext context, {
+    required Position position,
+    required String imagePath,
+    required String timestamp,
+    required String remark,
+  }) async {
+    final l10n = AppLocalizations.of(context);
+    await DBHelper().insertPunchAction({
+      'task_id': widget.taskId,
+      'type': 'punch-in',
+      'lat': position.latitude.toStringAsFixed(4),
+      'long': position.longitude.toStringAsFixed(4),
+      'image_path': imagePath,
+      'timestamp': timestamp,
+      'remark': remark, // must start with [OFFLINE] - the server relies on it
+      'synced': 0,
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('punchedInTaskId', widget.taskId);
+    LiveLocationTracker.start(widget.taskId);
+
+    FullScreenLoader.hide(context); // close loader
+
+    // UI updates
+    widget.onPunchIn();
+    widget.onTaskSelected(widget.taskId);
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(l10n.punchInOfflineSnackbar),
+      ),
+    );
   }
 
   Future<void> _openMap(double latitude, double longitude) async {

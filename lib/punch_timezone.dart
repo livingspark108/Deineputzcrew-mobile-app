@@ -1,100 +1,66 @@
 import 'package:flutter/foundation.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest.dart' as tz_data;
 
-const String _prefsKey = 'punch_timezone';
-
-// Only used until the server has ever told us a real timezone (e.g. the
-// very first launch before any successful login). Not used once a real
-// value has been received — see setPunchTimezone().
-const String _fallbackTimezone = 'Europe/Berlin';
+/// RULE: every punch-in, punch-out, break-in and break-out timestamp —
+/// online and offline, manual and auto — is Germany time (Europe/Berlin),
+/// whatever timezone the phone is set to. See docs/PUNCH_TIMEZONE.md.
+///
+/// Fixed on purpose: it is NOT taken from the API or the device, so a
+/// missing/wrong server value or a phone abroad can never change it.
+const String kPunchTimezone = 'Europe/Berlin';
 
 bool _tzDataInitialized = false;
-String? _cachedTimezone;
 
-/// Must be called once before [punchTimeNow] is used (see main.dart).
-/// Loads the IANA timezone database and restores whatever timezone name
-/// was last received from the backend (persisted across app restarts).
+void _ensureTzData() {
+  if (!_tzDataInitialized) {
+    tz_data.initializeTimeZones();
+    _tzDataInitialized = true;
+  }
+}
+
+tz.Location get _punchLocation {
+  _ensureTzData();
+  return tz.getLocation(kPunchTimezone);
+}
+
+/// Call once at startup (see main.dart) — loads the timezone database.
 Future<void> initPunchTimeZone() async {
-  if (!_tzDataInitialized) {
-    tz_data.initializeTimeZones();
-    _tzDataInitialized = true;
-  }
-
-  if (_cachedTimezone == null) {
-    final prefs = await SharedPreferences.getInstance();
-    _cachedTimezone = prefs.getString(_prefsKey);
-  }
+  _ensureTzData();
 }
 
-/// Call this whenever an API response includes a `timezone` field (IANA
-/// name, e.g. "Europe/Berlin") — login verify, get_user_detail, etc.
-/// Persists it so it survives app restarts and offline punches.
+/// Kept for existing call sites. The API's `timezone` field is ignored:
+/// punch times are always [kPunchTimezone].
 Future<void> setPunchTimezone(String? ianaName) async {
-  final String? name = (ianaName ?? '').trim().isEmpty ? null : ianaName!.trim();
-  if (name == null) return;
-
-  // Validate it's a real IANA name before trusting it — a bad value here
-  // would silently break every punch timestamp.
-  if (!_tzDataInitialized) {
-    tz_data.initializeTimeZones();
-    _tzDataInitialized = true;
+  final name = (ianaName ?? '').trim();
+  if (name.isNotEmpty && name != kPunchTimezone) {
+    debugPrint(
+        '⚠️ API sent timezone "$name" — ignored, punches always use $kPunchTimezone');
   }
-  try {
-    tz.getLocation(name);
-  } catch (e) {
-    debugPrint('⚠️ Ignoring unknown timezone from API: "$name" ($e)');
-    return;
-  }
-
-  if (_cachedTimezone == name) return;
-
-  _cachedTimezone = name;
-  final prefs = await SharedPreferences.getInstance();
-  await prefs.setString(_prefsKey, name);
-  debugPrint('🌍 Punch timezone set from API: $name');
 }
 
-/// Pulls a `timezone` field out of a decoded API response, checking a few
-/// plausible shapes (top-level, or nested under "data"/"user"), and applies
-/// it via [setPunchTimezone] if present. Safe to call on any response.
+/// Kept for existing call sites (login verify, user detail). See
+/// [setPunchTimezone] — the value is only logged if it differs.
 Future<void> applyTimezoneFromApiResponse(Map<String, dynamic> json) async {
   final dynamic value = json['timezone'] ??
       (json['data'] is Map ? (json['data'] as Map)['timezone'] : null) ??
       (json['user'] is Map ? (json['user'] as Map)['timezone'] : null);
-
-  if (value != null) {
-    await setPunchTimezone(value.toString());
-  }
+  if (value != null) await setPunchTimezone(value.toString());
 }
 
-/// The current wall-clock time in whatever timezone the backend has told
-/// us to use for this account (falls back to Europe/Berlin only if the
-/// server has never sent one yet, e.g. before first login).
+/// The current Germany (Europe/Berlin) wall-clock time, DST included.
 ///
-/// Only use this for the `timestamp` recorded/sent for punch in/out and
-/// break in/out actions (both the live API call and the offline queue
-/// written to DBHelper.insertPunchAction). Do NOT use it for on-device
-/// elapsed-time/stopwatch math (e.g. `DateTime.now().difference(...)`) —
-/// that math must keep using the device's own `DateTime.now()` on both
-/// sides of the subtraction, since duration between two device clock
-/// reads is timezone-independent; mixing this value into a difference
-/// against device-local `DateTime.now()` would introduce an error equal
-/// to the offset between the device's timezone and the punch timezone.
+/// Use this for the `timestamp` of every punch/break action — the live API
+/// call AND the offline queue (DBHelper.insertPunchAction / offline_checkins).
+/// The result is a plain DateTime carrying Berlin's numbers, so
+/// `.toIso8601String()` gives the naive format the backend expects
+/// (no 'Z'/offset), e.g. "2026-11-18T05:48:37.059268".
+///
+/// Do NOT use it for on-device elapsed-time math against `DateTime.now()`
+/// (timers) — on a phone outside Germany that's off by the zone gap. To
+/// turn a Berlin timestamp back into device time use [parseServerPunchTime].
 DateTime punchTimeNow() {
-  if (!_tzDataInitialized) {
-    // Safety net if initPunchTimeZone() was somehow skipped.
-    tz_data.initializeTimeZones();
-    _tzDataInitialized = true;
-  }
-
-  final location = tz.getLocation(_cachedTimezone ?? _fallbackTimezone);
-  final tzNow = tz.TZDateTime.now(location);
-
-  // Return a plain DateTime carrying that zone's wall-clock numbers, so
-  // .toIso8601String() keeps the same naive-local format the backend
-  // already expects (no 'Z'/offset suffix) — only the value changes.
+  final tzNow = tz.TZDateTime.now(_punchLocation);
   return DateTime(
     tzNow.year,
     tzNow.month,
@@ -105,4 +71,33 @@ DateTime punchTimeNow() {
     tzNow.millisecond,
     tzNow.microsecond,
   );
+}
+
+/// Converts a punch timestamp from the API (e.g. an attendance's
+/// "timestamp") into a device-local [DateTime] that can safely be compared
+/// with `DateTime.now()` — e.g. to restore the running work timer.
+///
+/// The backend stores and returns punch times as naive Berlin wall-clock
+/// values (what [punchTimeNow] sends, no offset). Plain `DateTime.parse`
+/// would read them as the *device's* local time, so on a phone in another
+/// timezone the timer would be off by the difference (India vs Berlin =
+/// 4h30). A value that carries an offset/'Z' is already unambiguous and is
+/// just converted to local time.
+DateTime parseServerPunchTime(String value) {
+  final parsed = DateTime.parse(value);
+  final hasOffset = RegExp(r'(Z|[+-]\d{2}:?\d{2})$').hasMatch(value.trim());
+  if (hasOffset) return parsed.toLocal();
+
+  final inBerlin = tz.TZDateTime(
+    _punchLocation,
+    parsed.year,
+    parsed.month,
+    parsed.day,
+    parsed.hour,
+    parsed.minute,
+    parsed.second,
+    parsed.millisecond,
+    parsed.microsecond,
+  );
+  return DateTime.fromMillisecondsSinceEpoch(inBerlin.millisecondsSinceEpoch);
 }

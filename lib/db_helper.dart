@@ -206,6 +206,9 @@ class DBHelper {
     for (final row in rows) {
       final String taskId = (row['task_id'] ?? '').toString();
       final String type = _normalizeActionType(row['type']?.toString());
+      // Only one punch-in / punch-out per task makes sense; a task can have
+      // several breaks, so break actions are never treated as duplicates.
+      if (type != 'punch-in' && type != 'punch-out') continue;
       final String key = '$taskId|$type';
 
       if (latestByKey.containsKey(key)) {
@@ -241,6 +244,21 @@ class DBHelper {
       whereArgs: [0],
       orderBy: 'timestamp ASC',
     );
+  }
+
+  /// Whether this task still has punches waiting for the offline sync.
+  /// Later punches for it must then be queued too, so the server receives
+  /// them in order (e.g. never a punch-out before its punch-in).
+  Future<bool> hasPendingPunchActions(String taskId) async {
+    final dbClient = await db;
+    final rows = await dbClient.query(
+      'punch_actions',
+      columns: ['id'],
+      where: 'synced = ? AND task_id = ?',
+      whereArgs: [0, taskId],
+      limit: 1,
+    );
+    return rows.isNotEmpty;
   }
 
   Future<int> markPunchActionSynced(int id) async {
