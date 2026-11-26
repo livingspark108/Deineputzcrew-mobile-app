@@ -31,6 +31,7 @@ import 'punch_timezone.dart';
 import 'session_manager.dart';
 import 'main.dart';
 import 'task_model.dart';
+import 'location_guard.dart';
 import 'location_service.dart';
 import 'background_task_manager.dart';
 import 'notification_service.dart';
@@ -859,6 +860,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
     // If completed, skip
     if (task.status.toLowerCase() == "completed") return;
 
+    // MAX WORKING HOURS AUTO CHECKOUT — applies to EVERY task that has a
+    // "Max Working Hours" set, even when auto check-out is off, matching the
+    // server's hourly rule. Works online and offline (see _autoPunchOut).
+    if (_isMaxHoursExceeded(task)) {
+      debugPrint(
+          "⏱️ Shift exceeded max working hours (${task.maxWorkingHours}h) - auto punch-out");
+      await _autoPunchOut(task, reason: 'Auto Punch-out (max working hours)');
+      return;
+    }
+
     // ✅ CHECK IF AUTO_CHECKOUT IS ENABLED
     if (!task.autoCheckout) {
       debugPrint("⛔ Auto checkout disabled for task: ${task.id}");
@@ -915,6 +926,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   //   }
   //   return false;
   // }
+  /// True once the shift has run longer than the task's Max Working Hours,
+  /// measured from punch-in (wall-clock, same as the server). No limit when
+  /// the task has no Max Working Hours.
+  bool _isMaxHoursExceeded(Task task) {
+    final maxHours = task.maxWorkingHours;
+    if (maxHours == null || maxHours <= 0) return false;
+    if (_punchInTime == null) return false;
+    final elapsedMinutes = DateTime.now().difference(_punchInTime!).inMinutes;
+    return elapsedMinutes >= (maxHours * 60).round();
+  }
+
   bool _isTimeExceeded(Task task) {
     if (_punchInTime == null) return false;
 
@@ -962,7 +984,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return now.isAfter(endTime);
   }
 
-  Future<void> _autoPunchOut(Task task) async {
+  Future<void> _autoPunchOut(Task task, {String reason = 'Auto Punch-out'}) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');
 
@@ -998,7 +1020,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         'long': position.longitude.toStringAsFixed(4),
         'image_path': blankImage.path,
         'timestamp': now.toIso8601String(),
-        'remark': '[OFFLINE] Auto Punch-out',
+        'remark': '[OFFLINE] $reason',
         'synced': 0,
       });
 
@@ -1034,7 +1056,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     request.fields["task_id"] = task.id;
     request.fields["lat"] = position.latitude.toStringAsFixed(4);
     request.fields["long"] = position.longitude.toStringAsFixed(4);
-    request.fields["remark"] = "Auto Punch-out";
+    request.fields["remark"] = reason;
 
     request.files.add(await http.MultipartFile.fromPath(
       'images',
@@ -2772,6 +2794,8 @@ print(response.body);
   }*/
   Future<bool> callBreakInApi(String taskId, BuildContext context) async {
     final l10n = AppLocalizations.of(context);
+    // Block break-in unless location is on (shows a popup if not).
+    if (!await ensureLocationReady(context)) return false;
     try {
       final position = await _getCurrentLocation();
       final prefs = await SharedPreferences.getInstance();
@@ -2835,6 +2859,8 @@ print(response.body);
 
   Future<bool> callBreakOutApi(String taskId, BuildContext context) async {
     final l10n = AppLocalizations.of(context);
+    // Block break-out unless location is on (shows a popup if not).
+    if (!await ensureLocationReady(context)) return false;
     try {
       final position = await _getCurrentLocation();
       final prefs = await SharedPreferences.getInstance();
@@ -3940,6 +3966,8 @@ class _TaskCardState extends State<TaskCard> {
 
   Future<void> _handlePunchIn(BuildContext context) async {
     final l10n = AppLocalizations.of(context);
+    // Block punch-in unless location is on (shows a popup if not).
+    if (!await ensureLocationReady(context)) return;
     try {
       // ✅ CHECK IF ALREADY PUNCHED OUT OFFLINE
       final hasPunchOut = await _hasOfflinePunchOut(widget.taskId);

@@ -1,16 +1,8 @@
-buildscript {
-    ext.kotlin_version = '2.1.0'
-    repositories {
-        google()
-        mavenCentral()
-    }
-
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.6.0'
-        classpath 'com.google.gms:google-services:4.4.2'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
+// AGP, Kotlin and google-services are declared via the plugins DSL in
+// settings.gradle — no legacy buildscript classpath here (mixing the two
+// pinned conflicting AGP versions and broke the Flutter 3.50 Gradle plugin).
+// kotlin_version is still referenced by app/build.gradle's stdlib dependency.
+ext.kotlin_version = '2.4.20'
 
 allprojects {
     repositories {
@@ -19,14 +11,36 @@ allprojects {
     }
 }
 
-rootProject.buildDir = '../build'
+// Gradle 9 removed Project.buildDir; use the layout.buildDirectory API.
+// Keeps the shared build output at <project root>/build, as before.
+def newBuildDir = rootProject.layout.buildDirectory.dir("../../build").get()
+rootProject.layout.buildDirectory.value(newBuildDir)
 subprojects {
-    project.buildDir = "${rootProject.buildDir}/${project.name}"
+    project.layout.buildDirectory.value(newBuildDir.dir(project.name))
 }
+// Some Flutter plugins (e.g. firebase_messaging 14.x) hardcode an old
+// compileSdk (33). AGP 9 turns the resulting AndroidX "compile against 34+"
+// warning into a hard error, so force every Android plugin module up to the
+// app's compileSdk. Compiling against a newer SDK is backward-compatible.
+// Registered before evaluationDependsOn below so the afterEvaluate hook is
+// attached before ':app' gets eagerly evaluated.
+ext.appCompileSdk = 36
+subprojects {
+    afterEvaluate { project ->
+        if (project.hasProperty('android')) {
+            project.android {
+                if (compileSdk == null || compileSdk < rootProject.ext.appCompileSdk) {
+                    compileSdk rootProject.ext.appCompileSdk
+                }
+            }
+        }
+    }
+}
+
 subprojects {
     project.evaluationDependsOn(':app')
 }
 
 tasks.register("clean", Delete) {
-    delete rootProject.buildDir
+    delete rootProject.layout.buildDirectory
 }

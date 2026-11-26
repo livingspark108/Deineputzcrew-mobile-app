@@ -186,8 +186,9 @@ class MyApp extends StatelessWidget {
             GlobalWidgetsLocalizations.delegate,
             GlobalCupertinoLocalizations.delegate,
           ],
-          // 🔒 Notifications + location are mandatory — blocks every screen
-          // until all are enabled (see app_permission_gate.dart)
+          // Notifications + location are optional (App Review 4.5.4 / 5.1.5):
+          // this only asks for consent once and never blocks (see
+          // app_permission_gate.dart).
           builder: (context, child) =>
               AppPermissionGate(child: child ?? const SizedBox.shrink()),
           home: const SplashScreen(),

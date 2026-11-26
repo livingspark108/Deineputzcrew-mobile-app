@@ -18,6 +18,10 @@ class Task {
   final String date;
   final bool autoCheckin;
   final bool autoCheckout;
+  /// Max hours a shift may run before it is auto punched out (from the task's
+  /// "Max Working Hours"). Null means no limit. Enforced in the app (online
+  /// and offline) and by the server's hourly cron.
+  final double? maxWorkingHours;
   final String totalWorkTime;
   final int radius;
   final List<Map<String, dynamic>> attendances;
@@ -42,6 +46,7 @@ class Task {
     required this.date,
     required this.autoCheckin,
     required this.autoCheckout,
+    this.maxWorkingHours,
     required this.totalWorkTime,
     required this.radius,
     this.attendances = const [],
@@ -77,6 +82,7 @@ class Task {
       date: date ?? "",
       autoCheckin: json['auto_checkin'],   // ✅ important
       autoCheckout: json['auto_checkout'] ?? true, // Default to true if not specified
+      maxWorkingHours: parseMaxWorkingHours(json['max_working_hours']),
       totalWorkTime: json['total_work_time'] ?? "0h 0m",
       radius: parseRadius(json['radius']), // Location radius from API
       attendances: attendancesList,
@@ -105,6 +111,7 @@ class Task {
       date: map['date'] ?? "",
       autoCheckin: map['auto_checkin'] == 1,        // ✅ NEW
       autoCheckout: map['auto_checkout'] == 1,       // ✅ NEW
+      maxWorkingHours: parseMaxWorkingHours(map['max_working_hours']),
       totalWorkTime: map['total_work_time'] ?? "0h 0m",
       radius: parseRadius(map['radius']),
       requiresAcceptance: map['requires_acceptance'] == 1,
@@ -133,6 +140,7 @@ class Task {
       'date': date,
       'auto_checkin': autoCheckin ? 1 : 0,          // ✅ NEW
       'auto_checkout': autoCheckout ? 1 : 0,         // ✅ NEW
+      'max_working_hours': maxWorkingHours,
       'total_work_time': totalWorkTime,
       'radius': radius,
       'requires_acceptance': requiresAcceptance ? 1 : 0,
@@ -198,6 +206,15 @@ class Task {
     if (value is num && value > 0) return value.round();
     final parsed = num.tryParse(value?.toString() ?? '');
     return (parsed != null && parsed > 0) ? parsed.round() : defaultRadius;
+  }
+
+  /// Max working hours from the API/DB; accepts num or numeric string.
+  /// Returns null (no limit) for null, blank, zero or unparseable values.
+  static double? parseMaxWorkingHours(dynamic value) {
+    if (value == null) return null;
+    final parsed =
+        value is num ? value.toDouble() : double.tryParse(value.toString().trim());
+    return (parsed != null && parsed > 0) ? parsed : null;
   }
 
   /// Shifts that require acceptance can only be punched into once accepted.

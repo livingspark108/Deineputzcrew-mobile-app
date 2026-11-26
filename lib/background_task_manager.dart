@@ -669,6 +669,7 @@ class BackgroundTaskManager {
           date: _activeTasks[taskIndex].date,
           autoCheckin: _activeTasks[taskIndex].autoCheckin,
           autoCheckout: _activeTasks[taskIndex].autoCheckout,
+          maxWorkingHours: _activeTasks[taskIndex].maxWorkingHours,
           totalWorkTime: _activeTasks[taskIndex].totalWorkTime,
           radius: _activeTasks[taskIndex].radius, // Preserve existing radius
         );

@@ -18,6 +18,7 @@ import 'db_helper.dart';
 import 'l10n/app_localizations.dart';
 import 'live_location_tracker.dart';
 import 'punch_timezone.dart';
+import 'location_guard.dart';
 import 'widgets/full_screen_loader.dart';
 import 'home.dart';
 import 'api_config.dart';
@@ -431,6 +432,8 @@ class _TaskDetailsScreenState extends State<TaskDetailsScreen> {
       TextEditingController controller,
       ) async {
     try {
+      // Block punch-out unless location is on (shows a popup if not).
+      if (!await ensureLocationReady(context)) return;
       if (images.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Please select at least one image')),
